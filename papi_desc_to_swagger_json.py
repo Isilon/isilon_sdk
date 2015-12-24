@@ -92,6 +92,13 @@ def FindOrAddObjDef(objDefs, newObjDef, newObjName):
             return "#/definitions/" + objName
 
     if newObjName in objDefs:
+        # TODO at this point the subclass mechanism depends on the data models
+        # being generated in the correct order, where base classes are
+        # generated before sub classes. This is done by processing the
+        # endpoints in order: POST base endpoint, all item endpoints, GET base
+        # endpoint. This seems to work for nfs exports, obviously won't work if
+        # the same pattern that nfs exports uses is not repeated by the other
+        # endpoints.
         # crude/limited subclass generation
         existingObj = objDefs[newObjName]
         if "allOf" in existingObj:
