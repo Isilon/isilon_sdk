@@ -27,6 +27,20 @@ def IsiPropsToSwaggerParams(isiProps, paramType):
     return swaggerParameters
 
 
+def PluralObjNameToSingular(objName, preFix="", postFix=""):
+    if objName[-1] == 's':
+        # if container object ends with 's' then trim off the 's'
+        # to (hopefully) create the singular version
+        if objName[-3:] == 'ies':
+            oneObjName = objName[:-3].title().replace('_', '') + "y"
+        else:
+            oneObjName = objName[:-1].title().replace('_', '')
+    else:
+        oneObjName = preFix + objName.title().replace('_', '') + postFix
+
+    return oneObjName
+
+
 def IsiSchemaToSwaggerObjectDefs(
         isiObjNameSpace, isiObjName, isiSchema, objDefs):
     # converts isiSchema to a single schema with "#ref" for sub-objects
@@ -88,13 +102,12 @@ def IsiSchemaToSwaggerObjectDefs(
                     {"description" : propDescription, "$ref" : objRef}
         elif prop["type"] == "array" and \
                 "type" in prop["items"] and prop["items"]["type"] == "object":
-            if propName[-1] == 's':
-                # if container object ends with 's' then trim off the 's'
-                # to (hopefully) create the singular version
-                itemsObjName = propName[:-1].title().replace('_', '')
-            else:
-                itemsObjName = propName.title().replace('_', '') + "Item"
-            if itemsObjName == isiObjName or itemsObjName == isiObjName[:-1]:
+            itemsObjName = PluralObjNameToSingular(propName, postFix="Item")
+            if itemsObjName == isiObjName \
+                    or itemsObjName == PluralObjNameToSingular(isiObjName):
+                # HACK don't duplicate the object name if the singular version of
+                # this property is the same as the singular version of the
+                # object name.
                 itemsObjNameSpace = isiObjNameSpace
             else:
                 itemsObjNameSpace = isiObjNameSpace + isiObjName
@@ -262,12 +275,7 @@ def IsiPostBaseEndPointDescToSwaggerPath(
         isiApiName, isiObjNameSpace, isiObjName, isiDescJson, objDefs):
     swaggerPath = {}
     isiPostArgs = isiDescJson["POST_args"]
-    if isiObjName[-1] == 's':
-        # create the singular version
-        oneObjName = isiObjName[:-1]
-    else:
-        # prepend an "A" to make it singular (i guess)
-        oneObjName = "A"+isiObjName
+    oneObjName = PluralObjNameToSingular(isiObjName, preFix="A")
 
     postInputSchema = isiDescJson["POST_input_schema"]
     postRespSchema = isiDescJson["POST_output_schema"]
@@ -302,12 +310,7 @@ def IsiItemEndPointDescToSwaggerPath(
     swaggerPath = {}
     # first deal with POST and PUT in order to create the objects that are used
     # in the GET
-    if isiObjName[-1] == 's':
-        # create the singular version
-        oneObjName = isiObjName[:-1]
-    else:
-        # prepend an "A" to make it singular (i guess)
-        oneObjName = "A"+isiObjName
+    oneObjName = PluralObjNameToSingular(isiObjName, preFix="A")
     itemId = isiObjNameSpace + oneObjName + "Id"
     itemIdUrl = "/{" + itemId + "}"
     itemIdParam = {}
@@ -416,6 +419,7 @@ swaggerJson = {
 auth = HTTPBasicAuth("root", "a")
 baseUrl = "/platform"
 endPointPaths = [
+    "/3/antivirus/policies",
     "/1/protocols/nfs/exports",
     "/1/protocols/smb/shares"]
 

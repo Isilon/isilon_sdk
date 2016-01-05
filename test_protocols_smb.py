@@ -12,7 +12,7 @@ protocolsApi = swagger_client.ProtocolsApi(apiClient)
 
 # get all shares
 smbShares = protocolsApi.list_smb_shares()
-print "NFS Shares:\n" + str(smbShares)
+print "SMB Shares:\n" + str(smbShares)
 
 # get a specific share by id
 getShareResp = protocolsApi.get_smb_share(smbShares.shares[-1].id)
