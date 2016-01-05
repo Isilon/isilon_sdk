@@ -1,4 +1,5 @@
 import json
+import os
 import requests
 from requests.auth import HTTPBasicAuth
 import sys
@@ -275,7 +276,7 @@ def IsiPostBaseEndPointDescToSwaggerPath(
         isiApiName, isiObjNameSpace, isiObjName, isiDescJson, objDefs):
     swaggerPath = {}
     isiPostArgs = isiDescJson["POST_args"]
-    oneObjName = PluralObjNameToSingular(isiObjName, preFix="A")
+    oneObjName = PluralObjNameToSingular(isiObjName, postFix="Item")
 
     postInputSchema = isiDescJson["POST_input_schema"]
     postRespSchema = isiDescJson["POST_output_schema"]
@@ -310,7 +311,7 @@ def IsiItemEndPointDescToSwaggerPath(
     swaggerPath = {}
     # first deal with POST and PUT in order to create the objects that are used
     # in the GET
-    oneObjName = PluralObjNameToSingular(isiObjName, preFix="A")
+    oneObjName = PluralObjNameToSingular(isiObjName, postFix="Item")
     itemId = isiObjNameSpace + oneObjName + "Id"
     itemIdUrl = "/{" + itemId + "}"
     itemIdParam = {}
@@ -418,49 +419,71 @@ swaggerJson = {
 
 auth = HTTPBasicAuth("root", "a")
 baseUrl = "/platform"
+desc_parms = {"describe": "", "json": ""}
+
 endPointPaths = [
-    "/3/antivirus/policies",
-    "/1/protocols/nfs/exports",
-    "/1/protocols/smb/shares"]
+    (None, "/3/antivirus/quarantine/<ID>"),
+    ("/3/antivirus/policies", "/3/antivirus/policies/<ID>"),
+    ("/1/protocols/nfs/exports", "/1/protocols/nfs/exports/<ID>"),
+    ("/1/protocols/smb/shares", "/1/protocols/smb/shares/<ID>")]
 
-for endPointPath in endPointPaths:
-    url = "https://137.69.154.252:8080" + baseUrl + endPointPath
-    params = {"describe": "", "json": ""}
-    resp = requests.get(url=url, params=params, auth=auth, verify=False)
+for endPointTuple in endPointPaths:
+    itemInputSchema = None
+    baseRespJson = None
+    apiName = None
+    objNameSpace = None
+    objName = None
+    swaggerPath = None
+    objectDefs = {}
 
-    if resp.status_code == 200:
-        respJson = json.loads(resp.text)
-        apiName, objNameSpace, objName = EndPointPathToApiObjName(endPointPath)
-        objectDefs = {}
-        swaggerPath = baseUrl + endPointPath
+    baseEndPointPath = endPointTuple[0]
+    if baseEndPointPath is not None:
+        url = "https://137.69.154.252:8080" + baseUrl + baseEndPointPath
+        resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
+        baseRespJson = json.loads(resp.text)
+        apiName, objNameSpace, objName = EndPointPathToApiObjName(baseEndPointPath)
+        swaggerPath = baseUrl + baseEndPointPath
         basePath = {}
         # start with base path POST because it defines the base creation object
         # model
-        if "POST_args" in respJson:
+        if "POST_args" in baseRespJson:
             basePath = IsiPostBaseEndPointDescToSwaggerPath(
-                            apiName, objNameSpace, objName, respJson, objectDefs)
+                            apiName, objNameSpace, objName, baseRespJson, objectDefs)
+        if "POST_input_schema" in baseRespJson:
+            itemInputSchema = baseRespJson["POST_input_schema"]
+
+    itemEndPointPath = endPointTuple[1]
+    if itemEndPointPath is not None:
+        if baseEndPointPath is None:
+            tmpBaseEndPointPath = os.path.dirname(itemEndPointPath)
+            swaggerPath = baseUrl + tmpBaseEndPointPath
+            apiName, objNameSpace, objName = \
+                    EndPointPathToApiObjName(tmpBaseEndPointPath)
         # next do the item PUT (i.e. update), DELETE, and GET because the GET seems
         # to be a limited version of the base path GET so the subclassing works
         # correct when done in this order
-        if "POST_input_schema" in respJson:
-            itemInputSchema = respJson["POST_input_schema"]
-            endPointPath += "/<ID>"
-            url = "https://137.69.154.252:8080" + baseUrl + endPointPath
-            resp = requests.get(url=url, params=params, auth=auth, verify=False)
-            itemRespJson = json.loads(resp.text)
-            itemPathUrl, itemPath = \
-                    IsiItemEndPointDescToSwaggerPath(
-                            apiName, objNameSpace, objName, itemRespJson,
-                            itemInputSchema, objectDefs)
-            swaggerJson["paths"][swaggerPath + itemPathUrl] = itemPath
-        # lastly do the base path GET, which if there is an item path GET then most
-        # likely the base path GET will define a subclass of the item path GET
-        if "GET_args" in respJson:
+        url = "https://137.69.154.252:8080" + baseUrl + itemEndPointPath
+        resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
+        itemRespJson = json.loads(resp.text)
+        if itemInputSchema is None and "PUT_input_schema" in itemRespJson:
+            itemInputSchema = itemRespJson["PUT_input_schema"]
+        itemPathUrl, itemPath = \
+                IsiItemEndPointDescToSwaggerPath(
+                        apiName, objNameSpace, objName, itemRespJson,
+                        itemInputSchema, objectDefs)
+        swaggerJson["paths"][swaggerPath + itemPathUrl] = itemPath
+    # lastly do the base path GET, which if there is an item path GET then most
+    # likely the base path GET will define a subclass of the item path GET
+    if baseEndPointPath is not None:
+        if "GET_args" in baseRespJson:
             getBasePath = IsiGetBaseEndPointDescToSwaggerPath(
-                            apiName, objNameSpace, objName, respJson, objectDefs)
+                            apiName, objNameSpace, objName, baseRespJson, objectDefs)
             basePath.update(getBasePath)
+
         if len(basePath) > 0:
             swaggerJson["paths"][swaggerPath] = basePath
+
+    if len(objectDefs) > 0:
         swaggerJson["definitions"].update(objectDefs)
 
 print json.dumps(swaggerJson,

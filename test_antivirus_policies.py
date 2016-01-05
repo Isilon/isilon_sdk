@@ -1,5 +1,7 @@
 import swagger_client
+import urllib3
 
+urllib3.disable_warnings()
 # configure username and password
 swagger_client.configuration.username = "root"
 swagger_client.configuration.password = "a"
