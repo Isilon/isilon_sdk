@@ -63,4 +63,11 @@ protocolsApi.delete_nfs_export(nfs_export_id=createResp.id)
 # Note: my Error data model is not correct yet,
 # so get on a non-existent nfs export id throws exception. Ideally it would
 # just return an error response
-protocolsApi.get_nfs_export(nfs_export_id=createResp.id)
+try:
+    print "Verifying delete."
+    resp = protocolsApi.get_nfs_export(nfs_export_id=createResp.id)
+    print "Response should be 404, not: " + str(resp)
+except swagger_client.rest.ApiException:
+    pass
+
+print "Done."
