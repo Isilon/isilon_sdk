@@ -289,6 +289,21 @@ def IsiPostBaseEndPointDescToSwaggerPath(
     return swaggerPath
 
 
+def IsiPutBaseEndPointDescToSwaggerPath(
+        isiApiName, isiObjNameSpace, isiObjName, isiDescJson, objDefs):
+    swaggerPath = {}
+    inputArgs = isiDescJson["PUT_args"]
+
+    inputSchema = isiDescJson["PUT_input_schema"]
+    operation = "update"
+    swaggerPath["put"] = \
+            CreateSwaggerOperation(
+                    isiApiName, isiObjNameSpace, isiObjName, operation,
+                    inputArgs, inputSchema, None, objDefs)
+
+    return swaggerPath
+
+
 def IsiGetBaseEndPointDescToSwaggerPath(
         isiApiName, isiObjNameSpace, isiObjName, isiDescJson, objDefs):
     swaggerPath = {}
@@ -296,7 +311,11 @@ def IsiGetBaseEndPointDescToSwaggerPath(
     if "GET_args" in isiDescJson:
         isiGetArgs = isiDescJson["GET_args"]
         getRespSchema = isiDescJson["GET_output_schema"]
-        operation = "list"
+        if "POST_args" in isiDescJson:
+            operation = "list"
+        else:
+            # if no POST then this is a singleton so use "get" for operation
+            operation = "get"
         swaggerPath["get"] = \
                 CreateSwaggerOperation(
                         isiApiName, isiObjNameSpace, isiObjName, operation,
@@ -422,6 +441,7 @@ baseUrl = "/platform"
 desc_parms = {"describe": "", "json": ""}
 
 endPointPaths = [
+    ("/3/antivirus/settings", None),
     ("/3/antivirus/scan", None),
     (None, "/3/antivirus/quarantine/<ID>"),
     ("/3/antivirus/policies", "/3/antivirus/policies/<ID>"),
@@ -480,6 +500,12 @@ for endPointTuple in endPointPaths:
             getBasePath = IsiGetBaseEndPointDescToSwaggerPath(
                             apiName, objNameSpace, objName, baseRespJson, objectDefs)
             basePath.update(getBasePath)
+
+        if "PUT_args" in baseRespJson:
+            putBasePath = IsiPutBaseEndPointDescToSwaggerPath(
+                            apiName, objNameSpace, objName, baseRespJson, objectDefs)
+            basePath.update(putBasePath)
+
 
         if len(basePath) > 0:
             swaggerJson["paths"][swaggerPath] = basePath
