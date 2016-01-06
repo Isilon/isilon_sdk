@@ -422,6 +422,7 @@ baseUrl = "/platform"
 desc_parms = {"describe": "", "json": ""}
 
 endPointPaths = [
+    ("/3/antivirus/scan", None),
     (None, "/3/antivirus/quarantine/<ID>"),
     ("/3/antivirus/policies", "/3/antivirus/policies/<ID>"),
     ("/1/protocols/nfs/exports", "/1/protocols/nfs/exports/<ID>"),
