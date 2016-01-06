@@ -1,8 +1,12 @@
+#!/usr/bin/python
 import json
 import os
+import re
 import requests
 from requests.auth import HTTPBasicAuth
 import sys
+
+requests.packages.urllib3.disable_warnings()
 
 k_swaggerParamIsiPropCommonFields = [
     "description", "required", "type", "default", "maximum", "minimum", "enum"]
@@ -28,8 +32,13 @@ def IsiPropsToSwaggerParams(isiProps, paramType):
     return swaggerParameters
 
 
-def PluralObjNameToSingular(objName, preFix="", postFix=""):
-    if objName[-1] == 's':
+class PostFixUsed:
+    flag = False
+
+
+def PluralObjNameToSingular(objName, postFix="", postFixUsed=None):
+    # if it's two 'ss' on the end then don't remove the last one
+    if objName[-1] == 's' and objName[-2] != 's':
         # if container object ends with 's' then trim off the 's'
         # to (hopefully) create the singular version
         if objName[-3:] == 'ies':
@@ -37,7 +46,9 @@ def PluralObjNameToSingular(objName, preFix="", postFix=""):
         else:
             oneObjName = objName[:-1].title().replace('_', '')
     else:
-        oneObjName = preFix + objName.title().replace('_', '') + postFix
+        oneObjName = objName.title().replace('_', '') + postFix
+        if postFixUsed is not None:
+            postFixUsed.flag = True
 
     return oneObjName
 
@@ -101,30 +112,37 @@ def IsiSchemaToSwaggerObjectDefs(
                         subObjNameSpace, subObjName, prop, objDefs)
             isiSchema["properties"][propName] = \
                     {"description" : propDescription, "$ref" : objRef}
-        elif prop["type"] == "array" and \
-                "type" in prop["items"] and prop["items"]["type"] == "object":
-            itemsObjName = PluralObjNameToSingular(propName, postFix="Item")
-            if itemsObjName == isiObjName \
-                    or itemsObjName == PluralObjNameToSingular(isiObjName):
-                # HACK don't duplicate the object name if the singular version of
-                # this property is the same as the singular version of the
-                # object name.
-                itemsObjNameSpace = isiObjNameSpace
-            else:
-                itemsObjNameSpace = isiObjNameSpace + isiObjName
-            # store the description in the ref for property object refs
-            if "description" in prop["items"]:
-                propDescription = prop["items"]["description"]
-                del prop["items"]["description"]
-            else:
-                propDescription = ""
+        elif prop["type"] == "array":
+            # code below is work around for bug in /auth/access/<USER> end point
+            if "items" not in prop and "item" in prop:
+                prop["items"] = prop["item"]
+                del prop["item"]
+
+            if "type" in prop["items"] and prop["items"]["type"] == "object":
+                itemsObjName = PluralObjNameToSingular(propName, postFix="Item")
+                if itemsObjName == isiObjName \
+                        or itemsObjName == PluralObjNameToSingular(isiObjName):
+                    # HACK don't duplicate the object name if the singular version of
+                    # this property is the same as the singular version of the
+                    # object name.
+                    itemsObjNameSpace = isiObjNameSpace
+                else:
+                    itemsObjNameSpace = isiObjNameSpace + isiObjName
+                # store the description in the ref for property object refs
+                if "description" in prop["items"]:
+                    propDescription = prop["items"]["description"]
+                    del prop["items"]["description"]
+                else:
+                    propDescription = ""
 
 
-            objRef = IsiSchemaToSwaggerObjectDefs(
-                        itemsObjNameSpace, itemsObjName,
-                        prop["items"], objDefs)
-            isiSchema["properties"][propName]["items"] = \
-                    {"description" : propDescription, "$ref" : objRef}
+                objRef = IsiSchemaToSwaggerObjectDefs(
+                            itemsObjNameSpace, itemsObjName,
+                            prop["items"], objDefs)
+                isiSchema["properties"][propName]["items"] = \
+                        {"description" : propDescription, "$ref" : objRef}
+            elif "type" not in prop["items"] and "$ref" not in prop["items"]:
+                raise RuntimeError("Array with no type or $ref: " + str(prop))
 
         if "required" in prop and prop["required"] == True:
             if "required" in isiSchema["properties"][propName]:
@@ -209,7 +227,8 @@ def EndPointPathToApiObjName(endPoint):
 
 def CreateSwaggerOperation(
         isiApiName, isiObjNameSpace, isiObjName, operation,
-        isiInputArgs, isiInputSchema, isiRespSchema, objDefs):
+        isiInputArgs, isiInputSchema, isiRespSchema, objDefs,
+        inputSchemaParamObjName=None):
     # create a swagger operation object
     swaggerOperation = {}
     swaggerOperation["tags"] = [isiApiName]
@@ -225,11 +244,16 @@ def CreateSwaggerOperation(
     swaggerOperation["operationId"] = operation + isiObjNameSpace + isiObjName
 
     if isiInputSchema is not None:
+        # sometimes the url parameter gets same name, so the
+        # inputSchemaParamObjName variable is used to prevent that
+        if inputSchemaParamObjName is None:
+            inputSchemaParamObjName = isiObjName
         objRef = IsiSchemaToSwaggerObjectDefs(
-                    isiObjNameSpace, isiObjName, isiInputSchema, objDefs)
+                    isiObjNameSpace, inputSchemaParamObjName,
+                    isiInputSchema, objDefs)
         inputSchemaParam = {}
         inputSchemaParam["in"] = "body"
-        inputSchemaParam["name"] = isiObjNameSpace + isiObjName
+        inputSchemaParam["name"] = isiObjNameSpace + inputSchemaParamObjName
         inputSchemaParam["required"] = True
         inputSchemaParam["schema"] = { "$ref": objRef }
         swaggerParams.append(inputSchemaParam)
@@ -326,18 +350,30 @@ def IsiGetBaseEndPointDescToSwaggerPath(
 
 def IsiItemEndPointDescToSwaggerPath(
         isiApiName, isiObjNameSpace, isiObjName,
-        isiDescJson, itemInputSchema, objDefs):
+        isiDescJson, itemInputSchema, objDefs,
+        singleObjPostFix, itemInputType):
     swaggerPath = {}
     # first deal with POST and PUT in order to create the objects that are used
     # in the GET
-    oneObjName = PluralObjNameToSingular(isiObjName, postFix="Item")
-    itemId = isiObjNameSpace + oneObjName + "Id"
+    postFixUsed = PostFixUsed()
+    oneObjName = PluralObjNameToSingular(isiObjName,
+                                         postFix=singleObjPostFix,
+                                         postFixUsed=postFixUsed)
+    # if the singleObjPostFix was not used to make it singular then add "Id"
+    # to itemId param name
+    if postFixUsed.flag is False:
+        itemId = isiObjNameSpace + oneObjName + "Id"
+        # use default name of isiObjNameSpace + oneObjName
+        inputSchemaParamObjName = None
+    else:
+        itemId = isiObjNameSpace + oneObjName
+        inputSchemaParamObjName = oneObjName + "Params"
     itemIdUrl = "/{" + itemId + "}"
     itemIdParam = {}
     itemIdParam["name"] = itemId
     itemIdParam["in"] = "path"
     itemIdParam["required"] = True
-    itemIdParam["type"] = "integer"
+    itemIdParam["type"] = itemInputType
 
     if "PUT_args" in isiDescJson:
         isiPutArgs = isiDescJson["PUT_args"]
@@ -345,7 +381,8 @@ def IsiItemEndPointDescToSwaggerPath(
         swaggerPath["put"] = \
                 CreateSwaggerOperation(
                         isiApiName, isiObjNameSpace, oneObjName, operation,
-                        isiPutArgs, itemInputSchema, None, objDefs)
+                        isiPutArgs, itemInputSchema, None, objDefs,
+                        inputSchemaParamObjName)
         # add the item-id as a url path parameter
         putIdParam = itemIdParam.copy()
         putIdParam["description"] = isiPutArgs["description"]
@@ -440,13 +477,15 @@ auth = HTTPBasicAuth("root", "a")
 baseUrl = "/platform"
 desc_parms = {"describe": "", "json": ""}
 
+numericItemTypes = ["Lnn", "Zone", "Port", "Lin"]
 endPointPaths = [
+    (None, "/1/auth/access/<USER>"),
     ("/3/antivirus/settings", None),
     ("/3/antivirus/scan", None),
-    (None, "/3/antivirus/quarantine/<ID>"),
-    ("/3/antivirus/policies", "/3/antivirus/policies/<ID>"),
-    ("/1/protocols/nfs/exports", "/1/protocols/nfs/exports/<ID>"),
-    ("/1/protocols/smb/shares", "/1/protocols/smb/shares/<ID>")]
+    (None, "/3/antivirus/quarantine/<PATH+>"),
+    ("/3/antivirus/policies", "/3/antivirus/policies/<NAME>"),
+    ("/1/protocols/nfs/exports", "/1/protocols/nfs/exports/<EID>"),
+    ("/1/protocols/smb/shares", "/1/protocols/smb/shares/<SHARE>")]
 
 for endPointTuple in endPointPaths:
     itemInputSchema = None
@@ -488,10 +527,18 @@ for endPointTuple in endPointPaths:
         itemRespJson = json.loads(resp.text)
         if itemInputSchema is None and "PUT_input_schema" in itemRespJson:
             itemInputSchema = itemRespJson["PUT_input_schema"]
+
+        singularObjPostfix = re.sub('[^0-9a-zA-Z]+', '',
+                                   os.path.basename(itemEndPointPath)).title()
+        if singularObjPostfix in numericItemTypes:
+            itemInputType = "integer"
+        else:
+            itemInputType = "string"
         itemPathUrl, itemPath = \
                 IsiItemEndPointDescToSwaggerPath(
                         apiName, objNameSpace, objName, itemRespJson,
-                        itemInputSchema, objectDefs)
+                        itemInputSchema, objectDefs, singularObjPostfix,
+                        itemInputType)
         swaggerJson["paths"][swaggerPath + itemPathUrl] = itemPath
     # lastly do the base path GET, which if there is an item path GET then most
     # likely the base path GET will define a subclass of the item path GET

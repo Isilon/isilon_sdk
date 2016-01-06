@@ -12,34 +12,34 @@ host = "https://137.69.154.252:8080"
 apiClient = swagger_client.ApiClient(host)
 antivirusApi = swagger_client.AntivirusApi(apiClient)
 
-# update quarantine item
-updateQuarantineItem = swagger_client.AntivirusQuarantineItem()
-updateQuarantineItem.quarantined = True
+# update quarantine path
+updateQuarantinePathParams = swagger_client.AntivirusQuarantinePathParams()
+updateQuarantinePathParams.quarantined = True
 
-quarantineItemId = "/ifs/README.txt"
-antivirusApi.update_antivirus_quarantine_item(
-        antivirus_quarantine_item_id=quarantineItemId,
-        antivirus_quarantine_item=updateQuarantineItem)
+quarantinePath = "/ifs/README.txt"
+antivirusApi.update_antivirus_quarantine_path(
+        antivirus_quarantine_path=quarantinePath,
+        antivirus_quarantine_path_params=updateQuarantinePathParams)
 
 
 # get it back and check that it worked
-getQuarantineItemResp = \
-        antivirusApi.get_antivirus_quarantine_item(quarantineItemId)
+getQuarantinePathResp = \
+        antivirusApi.get_antivirus_quarantine_path(quarantinePath)
 print "It worked == " \
-        + str(getQuarantineItemResp.quarantined
-                == updateQuarantineItem.quarantined)
+        + str(getQuarantinePathResp.quarantined
+                == updateQuarantinePathParams.quarantined)
 
 # now unquarantine it
-updateQuarantineItem.quarantined = False
-antivirusApi.update_antivirus_quarantine_item(
-        antivirus_quarantine_item_id=quarantineItemId,
-        antivirus_quarantine_item=updateQuarantineItem)
+updateQuarantinePathParams.quarantined = False
+antivirusApi.update_antivirus_quarantine_path(
+        antivirus_quarantine_path=quarantinePath,
+        antivirus_quarantine_path_params=updateQuarantinePathParams)
 
 # verify it is no longer quarantined
-getQuarantineItemResp = \
-        antivirusApi.get_antivirus_quarantine_item(quarantineItemId)
+getQuarantinePathResp = \
+        antivirusApi.get_antivirus_quarantine_path(quarantinePath)
 print "It worked == " \
-        + str(getQuarantineItemResp.quarantined
-                == updateQuarantineItem.quarantined)
+        + str(getQuarantinePathResp.quarantined
+                == updateQuarantinePathParams.quarantined)
 
 print "Done."
