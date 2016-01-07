@@ -50,9 +50,8 @@ getShareResp = protocolsApi.get_smb_share(aShare.id)
 print "It worked == " \
         + str(getShareResp.shares[0].browsable == updateShare.browsable)
 
-
 # create a new share
-newShare = swagger_client.SmbShare()
+newShare = swagger_client.SmbShareCreateParams()
 newShare.path = "/ifs/data"
 newShare.name = "ifs_data"
 

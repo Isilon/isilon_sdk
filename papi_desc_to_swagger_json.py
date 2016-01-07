@@ -42,11 +42,11 @@ def PluralObjNameToSingular(objName, postFix="", postFixUsed=None):
         # if container object ends with 's' then trim off the 's'
         # to (hopefully) create the singular version
         if objName[-3:] == 'ies':
-            oneObjName = objName[:-3].title().replace('_', '') + "y"
+            oneObjName = objName[:-3].replace('_', '') + "y"
         else:
-            oneObjName = objName[:-1].title().replace('_', '')
+            oneObjName = objName[:-1].replace('_', '')
     else:
-        oneObjName = objName.title().replace('_', '') + postFix
+        oneObjName = objName.replace('_', '') + postFix
         if postFixUsed is not None:
             postFixUsed.flag = True
 
@@ -54,7 +54,8 @@ def PluralObjNameToSingular(objName, postFix="", postFixUsed=None):
 
 
 def IsiSchemaToSwaggerObjectDefs(
-        isiObjNameSpace, isiObjName, isiSchema, objDefs):
+        isiObjNameSpace, isiObjName, isiSchema, objDefs,
+        classExtPostFix="Extended"):
     # converts isiSchema to a single schema with "#ref" for sub-objects
     # which is what Swagger expects. Adds the sub-objects to the objDefs
     # list.
@@ -84,16 +85,25 @@ def IsiSchemaToSwaggerObjectDefs(
             # delete it so that we throw an exception if none of types
             # are non-"null"
             del prop["type"]
+            bestDictProp = None
             for oneType in multipleTypes:
                 # sometimes the types are base types and sometimes they
                 # are sub objects
                 if type(oneType) == dict:
-                    outerPropDesc = prop["description"]
-                    prop = isiSchema["properties"][propName] = oneType
-                    prop["description"] = outerPropDesc \
-                            + " " + prop["description"] \
-                            if "description" in prop else outerPropDesc
-                    break
+                    if oneType["type"] == "null":
+                        continue
+                    if bestDictProp is None \
+                            or bestDictProp["type"] == "string":
+                        # favor more specific types over "string"
+                        if type(oneType["type"]) == list:
+                            # another list???
+                            # TODO make this loop a recursive call
+                            oneType = oneType["type"][0]
+                        bestDictProp = oneType
+                    prop = isiSchema["properties"][propName] = bestDictProp
+                    if prop["type"] != "string":
+                        break
+
                 elif oneType != "null":
                     prop["type"] = oneType
                     break
@@ -109,7 +119,8 @@ def IsiSchemaToSwaggerObjectDefs(
                 propDescription = ""
 
             objRef = IsiSchemaToSwaggerObjectDefs(
-                        subObjNameSpace, subObjName, prop, objDefs)
+                        subObjNameSpace, subObjName, prop, objDefs,
+                        classExtPostFix)
             isiSchema["properties"][propName] = \
                     {"description" : propDescription, "$ref" : objRef}
         elif prop["type"] == "array":
@@ -119,7 +130,8 @@ def IsiSchemaToSwaggerObjectDefs(
                 del prop["item"]
 
             if "type" in prop["items"] and prop["items"]["type"] == "object":
-                itemsObjName = PluralObjNameToSingular(propName, postFix="Item")
+                itemsObjName = PluralObjNameToSingular(propName.title(),
+                                                       postFix="Item")
                 if itemsObjName == isiObjName \
                         or itemsObjName == PluralObjNameToSingular(isiObjName):
                     # HACK don't duplicate the object name if the singular version of
@@ -138,11 +150,23 @@ def IsiSchemaToSwaggerObjectDefs(
 
                 objRef = IsiSchemaToSwaggerObjectDefs(
                             itemsObjNameSpace, itemsObjName,
-                            prop["items"], objDefs)
+                            prop["items"], objDefs,
+                            classExtPostFix)
                 isiSchema["properties"][propName]["items"] = \
                         {"description" : propDescription, "$ref" : objRef}
             elif "type" not in prop["items"] and "$ref" not in prop["items"]:
                 raise RuntimeError("Array with no type or $ref: " + str(prop))
+        elif prop["type"] == "string" and "enum" in prop:
+            newEnum = []
+            for item in prop["enum"]:
+                # swagger doesn't know how to interpret '@DEFAULT' values
+                if item[0] != '@':
+                    newEnum.append(item)
+            if len(newEnum) > 0:
+                isiSchema["properties"][propName]["enum"] = newEnum
+            else:
+                del isiSchema["properties"][propName]["enum"]
+
 
         if "required" in prop and prop["required"] == True:
             if "required" in isiSchema["properties"][propName]:
@@ -153,10 +177,11 @@ def IsiSchemaToSwaggerObjectDefs(
     if len(requiredProps) > 0:
         isiSchema["required"] = requiredProps
 
-    return FindOrAddObjDef(objDefs, isiSchema, isiObjNameSpace + isiObjName)
+    return FindOrAddObjDef(objDefs,
+            isiSchema, isiObjNameSpace + isiObjName, classExtPostFix)
 
 
-def FindOrAddObjDef(objDefs, newObjDef, newObjName):
+def FindOrAddObjDef(objDefs, newObjDef, newObjName, classExtPostFix):
     """
     Reuse existing object def if there's a match or add a new one
     Return the "definitions" path
@@ -191,8 +216,7 @@ def FindOrAddObjDef(objDefs, newObjDef, newObjName):
                 uniqueProps[propName] = newObjDef["properties"][propName]
         newObjDef["properties"] = uniqueProps
         extendedObjDef["allOf"].append(newObjDef)
-        # TODO need a better way to name subclasses
-        newObjName += "Extended"
+        newObjName += classExtPostFix
         objDefs[newObjName] = extendedObjDef
     else:
         objDefs[newObjName] = newObjDef
@@ -209,11 +233,11 @@ def EndPointPathToApiObjName(endPoint):
     # discard the version
     del names[0]
     # use the first part of the path after the version
-    isiApiName = names[0].title()
+    isiApiName = re.sub('[^0-9a-zA-Z]+', '', names[0].title())
     if len(names) == 2:
         isiObjNameSpace = isiApiName
     else:
-        isiObjNameSpace = names[1].title()
+        isiObjNameSpace = re.sub('[^0-9a-zA-Z]+', '', names[1].title())
         del names[0]
     del names[0]
     if len(names) == 0:
@@ -221,14 +245,25 @@ def EndPointPathToApiObjName(endPoint):
     else:
         isiObjName = ""
         for name in names:
-            isiObjName += name.title()
+            isiObjName += re.sub('[^0-9a-zA-Z]+', '', name.title())
     return isiApiName, isiObjNameSpace, isiObjName
+
+
+def ToSwaggerEndPoint(endPointPath):
+    newEndPointPath = "/"
+    for partialPath in endPointPath.split("/"):
+        inputParam = partialPath.replace('<', '{').replace('>', '}')
+        if inputParam != partialPath:
+            partialPath = inputParam.title()
+        newEndPointPath = os.path.join(newEndPointPath, partialPath)
+    return newEndPointPath
 
 
 def CreateSwaggerOperation(
         isiApiName, isiObjNameSpace, isiObjName, operation,
         isiInputArgs, isiInputSchema, isiRespSchema, objDefs,
-        inputSchemaParamObjName=None):
+        inputSchemaParamObjName=None,
+        classExtPostFix="Extended"):
     # create a swagger operation object
     swaggerOperation = {}
     swaggerOperation["tags"] = [isiApiName]
@@ -250,7 +285,8 @@ def CreateSwaggerOperation(
             inputSchemaParamObjName = isiObjName
         objRef = IsiSchemaToSwaggerObjectDefs(
                     isiObjNameSpace, inputSchemaParamObjName,
-                    isiInputSchema, objDefs)
+                    isiInputSchema, objDefs,
+                    classExtPostFix)
         inputSchemaParam = {}
         inputSchemaParam["in"] = "body"
         inputSchemaParam["name"] = isiObjNameSpace + inputSchemaParamObjName
@@ -272,7 +308,8 @@ def CreateSwaggerOperation(
     swaggerResponses = {}
     if isiRespSchema is not None:
         objRef = IsiSchemaToSwaggerObjectDefs(
-                    isiRespObjNameSpace, isiRespObjName, isiRespSchema, objDefs)
+                    isiRespObjNameSpace, isiRespObjName, isiRespSchema,
+                    objDefs, classExtPostFix)
         # create 200 response
         swagger200Resp = {}
         swagger200Resp["description"] = isiInputArgs["description"]
@@ -296,8 +333,19 @@ def CreateSwaggerOperation(
     return swaggerOperation
 
 
+def AddPathParams(swaggerParams, extraPathParams):
+    for paramName, paramType in extraPathParams:
+        pathParam = {}
+        pathParam["name"] = paramName
+        pathParam["in"] = "path"
+        pathParam["required"] = True
+        pathParam["type"] = paramType
+        swaggerParams.append(pathParam)
+
+
 def IsiPostBaseEndPointDescToSwaggerPath(
-        isiApiName, isiObjNameSpace, isiObjName, isiDescJson, objDefs):
+        isiApiName, isiObjNameSpace, isiObjName, isiDescJson, isiPathParams,
+        objDefs):
     swaggerPath = {}
     isiPostArgs = isiDescJson["POST_args"]
     oneObjName = PluralObjNameToSingular(isiObjName, postFix="Item")
@@ -308,13 +356,16 @@ def IsiPostBaseEndPointDescToSwaggerPath(
     swaggerPath["post"] = \
             CreateSwaggerOperation(
                     isiApiName, isiObjNameSpace, oneObjName, operation,
-                    isiPostArgs, postInputSchema, postRespSchema, objDefs)
+                    isiPostArgs, postInputSchema, postRespSchema, objDefs,
+                    None, "CreateParams")
+    AddPathParams(swaggerPath["post"]["parameters"], isiPathParams)
 
     return swaggerPath
 
 
 def IsiPutBaseEndPointDescToSwaggerPath(
-        isiApiName, isiObjNameSpace, isiObjName, isiDescJson, objDefs):
+        isiApiName, isiObjNameSpace, isiObjName, isiDescJson, isiPathParams,
+        objDefs):
     swaggerPath = {}
     inputArgs = isiDescJson["PUT_args"]
 
@@ -324,34 +375,35 @@ def IsiPutBaseEndPointDescToSwaggerPath(
             CreateSwaggerOperation(
                     isiApiName, isiObjNameSpace, isiObjName, operation,
                     inputArgs, inputSchema, None, objDefs)
+    AddPathParams(swaggerPath["put"]["parameters"], isiPathParams)
 
     return swaggerPath
 
 
 def IsiGetBaseEndPointDescToSwaggerPath(
-        isiApiName, isiObjNameSpace, isiObjName, isiDescJson, objDefs):
+        isiApiName, isiObjNameSpace, isiObjName, isiDescJson, isiPathParams,
+        objDefs):
     swaggerPath = {}
-
-    if "GET_args" in isiDescJson:
-        isiGetArgs = isiDescJson["GET_args"]
-        getRespSchema = isiDescJson["GET_output_schema"]
-        if "POST_args" in isiDescJson:
-            operation = "list"
-        else:
-            # if no POST then this is a singleton so use "get" for operation
-            operation = "get"
-        swaggerPath["get"] = \
-                CreateSwaggerOperation(
-                        isiApiName, isiObjNameSpace, isiObjName, operation,
-                        isiGetArgs, None, getRespSchema, objDefs)
+    isiGetArgs = isiDescJson["GET_args"]
+    getRespSchema = isiDescJson["GET_output_schema"]
+    if "POST_args" in isiDescJson:
+        operation = "list"
+    else:
+        # if no POST then this is a singleton so use "get" for operation
+        operation = "get"
+    swaggerPath["get"] = \
+            CreateSwaggerOperation(
+                    isiApiName, isiObjNameSpace, isiObjName, operation,
+                    isiGetArgs, None, getRespSchema, objDefs)
+    AddPathParams(swaggerPath["get"]["parameters"], isiPathParams)
 
     return swaggerPath
 
 
 def IsiItemEndPointDescToSwaggerPath(
-        isiApiName, isiObjNameSpace, isiObjName,
-        isiDescJson, itemInputSchema, objDefs,
-        singleObjPostFix, itemInputType):
+        isiApiName, isiObjNameSpace, isiObjName, isiDescJson,
+        singleObjPostFix, itemInputType, extraPathParams,
+        objDefs):
     swaggerPath = {}
     # first deal with POST and PUT in order to create the objects that are used
     # in the GET
@@ -377,6 +429,10 @@ def IsiItemEndPointDescToSwaggerPath(
 
     if "PUT_args" in isiDescJson:
         isiPutArgs = isiDescJson["PUT_args"]
+        if "PUT_input_schema" in isiDescJson:
+            itemInputSchema = isiDescJson["PUT_input_schema"]
+        else:
+            itemInputSchema = None
         operation = "update"
         swaggerPath["put"] = \
                 CreateSwaggerOperation(
@@ -387,6 +443,7 @@ def IsiItemEndPointDescToSwaggerPath(
         putIdParam = itemIdParam.copy()
         putIdParam["description"] = isiPutArgs["description"]
         swaggerPath["put"]["parameters"].append(putIdParam)
+        AddPathParams(swaggerPath["put"]["parameters"], extraPathParams)
 
     if "DELETE_args" in isiDescJson:
         isiDeleteArgs = isiDescJson["DELETE_args"]
@@ -399,6 +456,7 @@ def IsiItemEndPointDescToSwaggerPath(
         delIdParam = itemIdParam.copy()
         delIdParam["description"] = isiDeleteArgs["description"]
         swaggerPath["delete"]["parameters"].append(delIdParam)
+        AddPathParams(swaggerPath["delete"]["parameters"], extraPathParams)
 
     if "GET_args" in isiDescJson:
         isiGetArgs = isiDescJson["GET_args"]
@@ -416,8 +474,27 @@ def IsiItemEndPointDescToSwaggerPath(
         getIdParam = itemIdParam.copy()
         getIdParam["description"] = isiGetArgs["description"]
         swaggerPath["get"]["parameters"].append(getIdParam)
+        AddPathParams(swaggerPath["get"]["parameters"], extraPathParams)
 
     return itemIdUrl, swaggerPath
+
+
+def ParsePathParams(endPointPath):
+    numericItemTypes = ["Lnn", "Zone", "Port", "Lin"]
+    params = []
+    for partialPath in endPointPath.split("/"):
+        if len(partialPath) == 0 \
+                or partialPath[0] != '<' or partialPath[-1] != '>':
+            continue
+        # remove all non alphanumeric characters
+        paramName = re.sub('[^0-9a-zA-Z]+', '', partialPath.title())
+        if paramName in numericItemTypes:
+            paramType = "integer"
+        else:
+            paramType = "string"
+        params.append((paramName, paramType))
+
+    return params
 
 
 swaggerJson = {
@@ -477,8 +554,11 @@ auth = HTTPBasicAuth("root", "a")
 baseUrl = "/platform"
 desc_parms = {"describe": "", "json": ""}
 
-numericItemTypes = ["Lnn", "Zone", "Port", "Lin"]
 endPointPaths = [
+    ("/1/auth/groups/<GROUP>/members",
+     "/1/auth/groups/<GROUP>/members/<MEMBER>"),
+    ("/1/auth/groups",
+     "/1/auth/groups/<GROUP>"),
     (None, "/1/auth/access/<USER>"),
     ("/3/antivirus/settings", None),
     ("/3/antivirus/scan", None),
@@ -487,78 +567,73 @@ endPointPaths = [
     ("/1/protocols/nfs/exports", "/1/protocols/nfs/exports/<EID>"),
     ("/1/protocols/smb/shares", "/1/protocols/smb/shares/<SHARE>")]
 
+objectDefs = {}
 for endPointTuple in endPointPaths:
-    itemInputSchema = None
-    baseRespJson = None
-    apiName = None
-    objNameSpace = None
-    objName = None
-    swaggerPath = None
-    objectDefs = {}
-
     baseEndPointPath = endPointTuple[0]
-    if baseEndPointPath is not None:
-        url = "https://137.69.154.252:8080" + baseUrl + baseEndPointPath
-        resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
-        baseRespJson = json.loads(resp.text)
-        apiName, objNameSpace, objName = EndPointPathToApiObjName(baseEndPointPath)
-        swaggerPath = baseUrl + baseEndPointPath
-        basePath = {}
-        # start with base path POST because it defines the base creation object
-        # model
-        if "POST_args" in baseRespJson:
-            basePath = IsiPostBaseEndPointDescToSwaggerPath(
-                            apiName, objNameSpace, objName, baseRespJson, objectDefs)
-        if "POST_input_schema" in baseRespJson:
-            itemInputSchema = baseRespJson["POST_input_schema"]
-
     itemEndPointPath = endPointTuple[1]
+
+    if baseEndPointPath is None:
+        tmpBaseEndPointPath = \
+                ToSwaggerEndPoint(os.path.dirname(itemEndPointPath))
+        swaggerPath = baseUrl + tmpBaseEndPointPath
+        apiName, objNameSpace, objName = \
+                EndPointPathToApiObjName(tmpBaseEndPointPath)
+    else:
+        apiName, objNameSpace, objName = \
+                EndPointPathToApiObjName(baseEndPointPath)
+        swaggerPath = baseUrl + ToSwaggerEndPoint(baseEndPointPath)
+
     if itemEndPointPath is not None:
-        if baseEndPointPath is None:
-            tmpBaseEndPointPath = os.path.dirname(itemEndPointPath)
-            swaggerPath = baseUrl + tmpBaseEndPointPath
-            apiName, objNameSpace, objName = \
-                    EndPointPathToApiObjName(tmpBaseEndPointPath)
         # next do the item PUT (i.e. update), DELETE, and GET because the GET seems
         # to be a limited version of the base path GET so the subclassing works
         # correct when done in this order
         url = "https://137.69.154.252:8080" + baseUrl + itemEndPointPath
         resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
         itemRespJson = json.loads(resp.text)
-        if itemInputSchema is None and "PUT_input_schema" in itemRespJson:
-            itemInputSchema = itemRespJson["PUT_input_schema"]
 
-        singularObjPostfix = re.sub('[^0-9a-zA-Z]+', '',
-                                   os.path.basename(itemEndPointPath)).title()
-        if singularObjPostfix in numericItemTypes:
-            itemInputType = "integer"
-        else:
-            itemInputType = "string"
+        singularObjPostfix, itemInputType = \
+                ParsePathParams(os.path.basename(itemEndPointPath))[0]
+        extraPathParams = \
+                ParsePathParams(os.path.dirname(itemEndPointPath))
         itemPathUrl, itemPath = \
                 IsiItemEndPointDescToSwaggerPath(
                         apiName, objNameSpace, objName, itemRespJson,
-                        itemInputSchema, objectDefs, singularObjPostfix,
-                        itemInputType)
+                        singularObjPostfix, itemInputType,
+                        extraPathParams, objectDefs)
         swaggerJson["paths"][swaggerPath + itemPathUrl] = itemPath
-    # lastly do the base path GET, which if there is an item path GET then most
-    # likely the base path GET will define a subclass of the item path GET
+
     if baseEndPointPath is not None:
+        url = "https://137.69.154.252:8080" + baseUrl + baseEndPointPath
+        resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
+        baseRespJson = json.loads(resp.text)
+        basePathParams = \
+                ParsePathParams(baseEndPointPath)
+        basePath = {}
+        # start with base path POST because it defines the base creation object
+        # model
+        if "POST_args" in baseRespJson:
+            basePath = IsiPostBaseEndPointDescToSwaggerPath(
+                            apiName, objNameSpace, objName, baseRespJson,
+                            basePathParams, objectDefs)
+
         if "GET_args" in baseRespJson:
             getBasePath = IsiGetBaseEndPointDescToSwaggerPath(
-                            apiName, objNameSpace, objName, baseRespJson, objectDefs)
+                            apiName, objNameSpace, objName, baseRespJson,
+                            basePathParams, objectDefs)
             basePath.update(getBasePath)
 
         if "PUT_args" in baseRespJson:
             putBasePath = IsiPutBaseEndPointDescToSwaggerPath(
-                            apiName, objNameSpace, objName, baseRespJson, objectDefs)
+                            apiName, objNameSpace, objName, baseRespJson,
+                            basePathParams, objectDefs)
             basePath.update(putBasePath)
 
 
         if len(basePath) > 0:
             swaggerJson["paths"][swaggerPath] = basePath
 
-    if len(objectDefs) > 0:
-        swaggerJson["definitions"].update(objectDefs)
+if len(objectDefs) > 0:
+    swaggerJson["definitions"].update(objectDefs)
 
 print json.dumps(swaggerJson,
         sort_keys=True, indent=4, separators=(',', ': '))
