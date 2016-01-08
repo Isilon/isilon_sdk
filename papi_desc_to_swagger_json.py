@@ -9,7 +9,8 @@ import sys
 requests.packages.urllib3.disable_warnings()
 
 k_swaggerParamIsiPropCommonFields = [
-    "description", "required", "type", "default", "maximum", "minimum", "enum"]
+    "description", "required", "type", "default", "maximum", "minimum", "enum",
+    "items"]
 
 def IsiPropsToSwaggerParams(isiProps, paramType):
     if len(isiProps) == 0:
@@ -24,7 +25,8 @@ def IsiPropsToSwaggerParams(isiProps, paramType):
         # attach common fields
         for fieldName in isiProp:
             if fieldName not in k_swaggerParamIsiPropCommonFields:
-                print >> sys.stderr, "WARNING:" + fieldName + " not defined for Swagger."
+                print >> sys.stderr, "WARNING: " + fieldName + " not " \
+                        "defined for Swagger in prop: " + str(isiProp)
                 continue
             swaggerParam[fieldName] = isiProp[fieldName]
         # add the new param to the list of params
@@ -53,6 +55,101 @@ def PluralObjNameToSingular(objName, postFix="", postFixUsed=None):
     return oneObjName
 
 
+def FindBestTypeForProp(prop):
+    multipleTypes = prop["type"]
+    # delete it so that we throw an exception if none of types
+    # are non-"null"
+    del prop["type"]
+    bestDictProp = None
+    for oneType in multipleTypes:
+        # sometimes the types are base types and sometimes they
+        # are sub objects
+        if type(oneType) == dict:
+            if oneType["type"] == "null":
+                continue
+            if bestDictProp is None \
+                    or bestDictProp["type"] == "string":
+                # favor more specific types over "string"
+                if type(oneType["type"]) == list:
+                    # another list???
+                    # TODO make this loop a recursive call
+                    oneType = FindBestTypeForProp(oneType)
+                bestDictProp = oneType
+            prop = bestDictProp
+            if prop["type"] != "string":
+                break
+
+        elif oneType != "null":
+            prop["type"] = oneType
+            break
+    return prop
+
+
+def IsiArrayPropToSwaggerArrayProp(
+        prop, propName,
+        isiObjName, isiObjNameSpace, isiSchemaProps, objDefs, classExtPostFix):
+
+    if "items" not in prop and "item" in prop:
+        prop["items"] = prop["item"]
+        del prop["item"]
+
+    if "type" in prop["items"] and prop["items"]["type"] == "object":
+        itemsObjName = PluralObjNameToSingular(propName.title(),
+                                               postFix="Item")
+        if itemsObjName == isiObjName \
+                or itemsObjName == PluralObjNameToSingular(isiObjName):
+            # HACK don't duplicate the object name if the singular version of
+            # this property is the same as the singular version of the
+            # object name.
+            itemsObjNameSpace = isiObjNameSpace
+        else:
+            itemsObjNameSpace = isiObjNameSpace + isiObjName
+        # store the description in the ref for property object refs
+        if "description" in prop["items"]:
+            propDescription = prop["items"]["description"]
+            del prop["items"]["description"]
+        else:
+            propDescription = ""
+
+        objRef = IsiSchemaToSwaggerObjectDefs(
+                    itemsObjNameSpace, itemsObjName,
+                    prop["items"], objDefs,
+                    classExtPostFix)
+        isiSchemaProps[propName]["items"] = \
+                {"description" : propDescription, "$ref" : objRef}
+    elif "type" in prop["items"] \
+            and type(prop["items"]["type"]) == dict \
+            and "type" in prop["items"]["type"] \
+            and prop["items"]["type"]["type"] == "object":
+        # WTF?
+        itemsObjName = PluralObjNameToSingular(propName.title(),
+                                               postFix="Item")
+        if itemsObjName == isiObjName \
+                or itemsObjName == PluralObjNameToSingular(isiObjName):
+            # HACK don't duplicate the object name if the singular version of
+            # this property is the same as the singular version of the
+            # object name.
+            itemsObjNameSpace = isiObjNameSpace
+        else:
+            itemsObjNameSpace = isiObjNameSpace + isiObjName
+        # store the description in the ref for property object refs
+        objRef = IsiSchemaToSwaggerObjectDefs(
+                    itemsObjNameSpace, itemsObjName,
+                    prop["items"]["type"], objDefs,
+                    classExtPostFix)
+        isiSchemaProps[propName]["items"] = {"$ref" : objRef}
+    elif "type" in prop["items"] \
+            and type(prop["items"]["type"]) == list:
+        prop["items"] = isiSchemaProps[propName]["items"] = \
+                FindBestTypeForProp(prop["items"])
+    elif "type" in prop["items"] \
+            and prop["items"]["type"] == "array":
+        IsiArrayPropToSwaggerArrayProp(prop["items"], "items",
+                isiObjName, isiObjNameSpace, isiSchemaProps[propName],
+                objDefs, classExtPostFix)
+    elif "type" not in prop["items"] and "$ref" not in prop["items"]:
+        raise RuntimeError("Array with no type or $ref: " + str(prop))
+
 def IsiSchemaToSwaggerObjectDefs(
         isiObjNameSpace, isiObjName, isiSchema, objDefs,
         classExtPostFix="Extended"):
@@ -61,6 +158,9 @@ def IsiSchemaToSwaggerObjectDefs(
     # list.
     if type(isiSchema["type"]) == list:
         for schemaListItem in isiSchema["type"]:
+            if "type" not in schemaListItem:
+                # hack - just return empty object
+                return "#/definitions/Empty"
             # use the first single object schema (usually the "list" type) is
             # used to allow for multiple items to be created with a single
             # call.
@@ -81,32 +181,8 @@ def IsiSchemaToSwaggerObjectDefs(
         if type(prop["type"]) == list:
             # swagger doesn't like lists for types
             # so use the first type that is not "null"
-            multipleTypes = prop["type"]
-            # delete it so that we throw an exception if none of types
-            # are non-"null"
-            del prop["type"]
-            bestDictProp = None
-            for oneType in multipleTypes:
-                # sometimes the types are base types and sometimes they
-                # are sub objects
-                if type(oneType) == dict:
-                    if oneType["type"] == "null":
-                        continue
-                    if bestDictProp is None \
-                            or bestDictProp["type"] == "string":
-                        # favor more specific types over "string"
-                        if type(oneType["type"]) == list:
-                            # another list???
-                            # TODO make this loop a recursive call
-                            oneType = oneType["type"][0]
-                        bestDictProp = oneType
-                    prop = isiSchema["properties"][propName] = bestDictProp
-                    if prop["type"] != "string":
-                        break
-
-                elif oneType != "null":
-                    prop["type"] = oneType
-                    break
+            prop = isiSchema["properties"][propName] = \
+                    FindBestTypeForProp(prop)
 
         if prop["type"] == "object":
             subObjNameSpace = isiObjNameSpace + isiObjName
@@ -123,39 +199,27 @@ def IsiSchemaToSwaggerObjectDefs(
                         classExtPostFix)
             isiSchema["properties"][propName] = \
                     {"description" : propDescription, "$ref" : objRef}
+        elif type(prop["type"]) == dict \
+                and prop["type"]["type"] == "object":
+            subObjNameSpace = isiObjNameSpace + isiObjName
+            subObjName = propName.title().replace('_', '')
+            # store the description in the ref for property object refs
+            if "description" in prop:
+                propDescription = prop["description"]
+                del prop["description"]
+            else:
+                propDescription = ""
+
+            objRef = IsiSchemaToSwaggerObjectDefs(
+                        subObjNameSpace, subObjName, prop["type"], objDefs,
+                        classExtPostFix)
+            isiSchema["properties"][propName] = \
+                    {"description" : propDescription, "$ref" : objRef}
         elif prop["type"] == "array":
+            IsiArrayPropToSwaggerArrayProp(prop, propName,
+                    isiObjName, isiObjNameSpace, isiSchema["properties"],
+                    objDefs, classExtPostFix)
             # code below is work around for bug in /auth/access/<USER> end point
-            if "items" not in prop and "item" in prop:
-                prop["items"] = prop["item"]
-                del prop["item"]
-
-            if "type" in prop["items"] and prop["items"]["type"] == "object":
-                itemsObjName = PluralObjNameToSingular(propName.title(),
-                                                       postFix="Item")
-                if itemsObjName == isiObjName \
-                        or itemsObjName == PluralObjNameToSingular(isiObjName):
-                    # HACK don't duplicate the object name if the singular version of
-                    # this property is the same as the singular version of the
-                    # object name.
-                    itemsObjNameSpace = isiObjNameSpace
-                else:
-                    itemsObjNameSpace = isiObjNameSpace + isiObjName
-                # store the description in the ref for property object refs
-                if "description" in prop["items"]:
-                    propDescription = prop["items"]["description"]
-                    del prop["items"]["description"]
-                else:
-                    propDescription = ""
-
-
-                objRef = IsiSchemaToSwaggerObjectDefs(
-                            itemsObjNameSpace, itemsObjName,
-                            prop["items"], objDefs,
-                            classExtPostFix)
-                isiSchema["properties"][propName]["items"] = \
-                        {"description" : propDescription, "$ref" : objRef}
-            elif "type" not in prop["items"] and "$ref" not in prop["items"]:
-                raise RuntimeError("Array with no type or $ref: " + str(prop))
         elif prop["type"] == "string" and "enum" in prop:
             newEnum = []
             for item in prop["enum"]:
@@ -236,6 +300,10 @@ def EndPointPathToApiObjName(endPoint):
     isiApiName = re.sub('[^0-9a-zA-Z]+', '', names[0].title())
     if len(names) == 2:
         isiObjNameSpace = isiApiName
+    elif len(names) == 1:
+        isiObjNameSpace = ""
+        isiObjName = isiApiName
+        return isiApiName, isiObjNameSpace, isiObjName
     else:
         isiObjNameSpace = re.sub('[^0-9a-zA-Z]+', '', names[1].title())
         del names[0]
@@ -380,6 +448,21 @@ def IsiPutBaseEndPointDescToSwaggerPath(
     return swaggerPath
 
 
+def IsiDeleteBaseEndPointDescToSwaggerPath(
+        isiApiName, isiObjNameSpace, isiObjName, isiDescJson, isiPathParams,
+        objDefs):
+    swaggerPath = {}
+    inputArgs = isiDescJson["DELETE_args"]
+    operation = "delete"
+    swaggerPath["delete"] = \
+            CreateSwaggerOperation(
+                    isiApiName, isiObjNameSpace, isiObjName, operation,
+                    inputArgs, None, None, objDefs)
+    AddPathParams(swaggerPath["delete"]["parameters"], isiPathParams)
+
+    return swaggerPath
+
+
 def IsiGetBaseEndPointDescToSwaggerPath(
         isiApiName, isiObjNameSpace, isiObjName, isiDescJson, isiPathParams,
         objDefs):
@@ -476,6 +559,18 @@ def IsiItemEndPointDescToSwaggerPath(
         swaggerPath["get"]["parameters"].append(getIdParam)
         AddPathParams(swaggerPath["get"]["parameters"], extraPathParams)
 
+    if "POST_args" in isiDescJson:
+        isiPostArgs = isiDescJson["POST_args"]
+        postInputSchema = isiDescJson["POST_input_schema"]
+        postRespSchema = isiDescJson["POST_output_schema"]
+        operation = "create"
+        swaggerPath["post"] = \
+                CreateSwaggerOperation(
+                        isiApiName, isiObjNameSpace, oneObjName, operation,
+                        isiPostArgs, postInputSchema, postRespSchema, objDefs,
+                        None, "CreateParams")
+        AddPathParams(swaggerPath["post"]["parameters"], extraPathParams)
+
     return itemIdUrl, swaggerPath
 
 
@@ -537,7 +632,7 @@ swaggerJson = {
           "code",
           "message"
         ],
-          "properties": {
+        "properties": {
             "code": {
                 "type": "integer",
                 "format": "int32"
@@ -545,7 +640,11 @@ swaggerJson = {
             "message": {
                 "type": "string"
             }
-          }
+        }
+      },
+      "Empty": {
+        "type": "object",
+        "properties": {}
       }
     }
 }
@@ -554,24 +653,108 @@ auth = HTTPBasicAuth("root", "a")
 baseUrl = "/platform"
 desc_parms = {"describe": "", "json": ""}
 
-endPointPaths = [
-    ("/1/auth/groups/<GROUP>/members",
-     "/1/auth/groups/<GROUP>/members/<MEMBER>"),
-    ("/1/auth/groups",
-     "/1/auth/groups/<GROUP>"),
-    (None, "/1/auth/access/<USER>"),
-    ("/3/antivirus/settings", None),
-    ("/3/antivirus/scan", None),
-    (None, "/3/antivirus/quarantine/<PATH+>"),
-    ("/3/antivirus/policies", "/3/antivirus/policies/<NAME>"),
-    ("/1/protocols/nfs/exports", "/1/protocols/nfs/exports/<EID>"),
-    ("/1/protocols/smb/shares", "/1/protocols/smb/shares/<SHARE>")]
+if True:
+    desc_list_parms = {"describe": "", "json": "", "list": ""}
+    url = "https://137.69.154.252:8080" + baseUrl
+    resp = requests.get(url=url, params=desc_list_parms, auth=auth, verify=False)
+    endPointListJson = json.loads(resp.text)
 
+    baseEndPoints = {}
+    endPointPaths = []
+    epIndex = 0
+    numEndPoints = len(endPointListJson["directory"])
+    while epIndex < numEndPoints:
+        # this code assumes that the end points will be in order
+        # base end point first, followed by item end point
+        # this appears to be (usually) the case except when there
+        # are multiple versions of particular end point.
+        curEndPoint = endPointListJson["directory"][epIndex]
+        if curEndPoint[2] != '/':
+            epIndex += 1
+            continue
+        #print "curEndPoint[" + str(epIndex) + "] = " + curEndPoint
+        nextEpIndex = epIndex + 1
+        while nextEpIndex < numEndPoints:
+            nextEndPoint = endPointListJson["directory"][nextEpIndex]
+            # strip off the version and compare to see if they are
+            # the same.
+            if nextEndPoint[2:] != curEndPoint[2:]:
+                #if epIndex + 1 != nextEpIndex:
+                #    print "Using " + curEndPoint
+                break
+            #print "Skipping " + curEndPoint
+            curEndPoint = nextEndPoint
+            epIndex = nextEpIndex
+            nextEpIndex += 1
+
+        if curEndPoint[-1] != '>':
+            baseEndPoints[curEndPoint[2:]] = (curEndPoint, None)
+        else:
+            try:
+                itemEndPoint = curEndPoint
+                lastSlash = itemEndPoint.rfind('/')
+                baseEndPointTuple = baseEndPoints[itemEndPoint[2:lastSlash]]
+                baseEndPointTuple = (baseEndPointTuple[0], itemEndPoint)
+                endPointPaths.append(baseEndPointTuple)
+                del baseEndPoints[itemEndPoint[2:lastSlash]]
+            except KeyError:
+                # no base for this itemEndPoint
+                endPointPaths.append((None, itemEndPoint))
+
+        epIndex += 1
+
+    # remaining base end points have no item end point
+    for baseEndPointTuple in baseEndPoints.values():
+        endPointPaths.append(baseEndPointTuple)
+
+    def EndPointPathCompare(a, b):
+        #print "Compare " + str(a) + " and " + str(b)
+        lhs = a[0]
+        if lhs is None:
+            lhs = a[1]
+        rhs = b[0]
+        if rhs is None:
+            rhs = b[1]
+        if lhs.find(rhs) == 0 \
+                or rhs.find(lhs) == 0:
+            #print "Compare " + str(a) + " and " + str(b)
+            #print "Use length"
+            return len(rhs) - len(lhs)
+        #print "Use alpha"
+        return cmp(lhs, rhs)
+
+    endPointPaths = sorted(endPointPaths, cmp=EndPointPathCompare)
+else:
+    endPointPaths = [
+            ("/1/auth/groups/<GROUP>/members",
+             "/1/auth/groups/<GROUP>/members/<MEMBER>"),
+            ("/1/auth/groups",
+             "/1/auth/groups/<GROUP>"),
+            ("/1/auth/mapping/users/lookup", None),
+            ("/3/auth/mapping/dump", None),
+            (None, "/1/auth/access/<USER>"),
+            ("/3/antivirus/settings", None),
+            ("/3/antivirus/scan", None),
+            (None, "/3/antivirus/quarantine/<PATH+>"),
+            ("/3/antivirus/policies", "/3/antivirus/policies/<NAME>"),
+            ("/1/protocols/nfs/exports", "/1/protocols/nfs/exports/<EID>"),
+            ("/1/protocols/smb/shares", "/1/protocols/smb/shares/<SHARE>"),
+            ("/1/storagepool/unprovisioned", None),
+            (None, "/3/hardware/tape/<name*>"),
+            ("/1/auth/mapping/identities",
+             "/1/auth/mapping/identities/<SOURCE>"),
+            ("/3/statistics/summary/client", None),
+            ("/1/storagepool/tiers",
+             "/1/storagepool/tiers/<TID>"),
+            ("/1/zones-summary",
+             "/1/zones-summary/<ZONE>")]
+
+successCount = 0
+failCount = 0
 objectDefs = {}
 for endPointTuple in endPointPaths:
     baseEndPointPath = endPointTuple[0]
     itemEndPointPath = endPointTuple[1]
-
     if baseEndPointPath is None:
         tmpBaseEndPointPath = \
                 ToSwaggerEndPoint(os.path.dirname(itemEndPointPath))
@@ -589,51 +772,75 @@ for endPointTuple in endPointPaths:
         # correct when done in this order
         url = "https://137.69.154.252:8080" + baseUrl + itemEndPointPath
         resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
+
         itemRespJson = json.loads(resp.text)
 
         singularObjPostfix, itemInputType = \
                 ParsePathParams(os.path.basename(itemEndPointPath))[0]
         extraPathParams = \
                 ParsePathParams(os.path.dirname(itemEndPointPath))
-        itemPathUrl, itemPath = \
-                IsiItemEndPointDescToSwaggerPath(
-                        apiName, objNameSpace, objName, itemRespJson,
-                        singularObjPostfix, itemInputType,
-                        extraPathParams, objectDefs)
-        swaggerJson["paths"][swaggerPath + itemPathUrl] = itemPath
+        try:
+            itemPathUrl, itemPath = \
+                    IsiItemEndPointDescToSwaggerPath(
+                            apiName, objNameSpace, objName, itemRespJson,
+                            singularObjPostfix, itemInputType,
+                            extraPathParams, objectDefs)
+            swaggerJson["paths"][swaggerPath + itemPathUrl] = itemPath
+
+            if "HEAD_args" in itemRespJson:
+                print >> sys.stderr, "WARNING: HEAD_args in: " + itemEndPointPath
+
+            successCount += 1
+        except Exception as e:
+            #print >> sys.stderr, "Caught exception processing: " + itemEndPointPath
+            failCount += 1
 
     if baseEndPointPath is not None:
         url = "https://137.69.154.252:8080" + baseUrl + baseEndPointPath
         resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
         baseRespJson = json.loads(resp.text)
-        basePathParams = \
-                ParsePathParams(baseEndPointPath)
+        basePathParams = ParsePathParams(baseEndPointPath)
         basePath = {}
         # start with base path POST because it defines the base creation object
         # model
-        if "POST_args" in baseRespJson:
-            basePath = IsiPostBaseEndPointDescToSwaggerPath(
-                            apiName, objNameSpace, objName, baseRespJson,
-                            basePathParams, objectDefs)
+        try:
+            if "POST_args" in baseRespJson:
+                basePath = IsiPostBaseEndPointDescToSwaggerPath(
+                                apiName, objNameSpace, objName, baseRespJson,
+                                basePathParams, objectDefs)
 
-        if "GET_args" in baseRespJson:
-            getBasePath = IsiGetBaseEndPointDescToSwaggerPath(
-                            apiName, objNameSpace, objName, baseRespJson,
-                            basePathParams, objectDefs)
-            basePath.update(getBasePath)
+            if "GET_args" in baseRespJson:
+                getBasePath = IsiGetBaseEndPointDescToSwaggerPath(
+                                apiName, objNameSpace, objName, baseRespJson,
+                                basePathParams, objectDefs)
+                basePath.update(getBasePath)
 
-        if "PUT_args" in baseRespJson:
-            putBasePath = IsiPutBaseEndPointDescToSwaggerPath(
-                            apiName, objNameSpace, objName, baseRespJson,
-                            basePathParams, objectDefs)
-            basePath.update(putBasePath)
+            if "PUT_args" in baseRespJson:
+                putBasePath = IsiPutBaseEndPointDescToSwaggerPath(
+                                apiName, objNameSpace, objName, baseRespJson,
+                                basePathParams, objectDefs)
+                basePath.update(putBasePath)
 
+            if "DELETE_args" in baseRespJson:
+                delBasePath = IsiDeleteBaseEndPointDescToSwaggerPath(
+                                apiName, objNameSpace, objName, baseRespJson,
+                                basePathParams, objectDefs)
+                basePath.update(delBasePath)
 
-        if len(basePath) > 0:
-            swaggerJson["paths"][swaggerPath] = basePath
+            if len(basePath) > 0:
+                swaggerJson["paths"][swaggerPath] = basePath
+
+            if "HEAD_args" in baseRespJson:
+                print >> sys.stderr, "WARNING: HEAD_args in: " + baseEndPointPath
+            successCount += 1
+        except Exception as e:
+            #print >> sys.stderr, "Caught exception processing: " + baseEndPointPath
+            failCount += 1
 
 if len(objectDefs) > 0:
     swaggerJson["definitions"].update(objectDefs)
 
+print >> sys.stderr, "End points successfully processed: " + str(successCount) \
+        + ", failed to process: " + str(failCount) + "."
 print json.dumps(swaggerJson,
         sort_keys=True, indent=4, separators=(',', ': '))
