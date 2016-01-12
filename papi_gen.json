@@ -1293,6 +1293,22 @@
             },
             "type": "object"
         },
+        "CloudAccessExtended": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/CloudAccess"
+                },
+                {
+                    "properties": {
+                        "total": {
+                            "description": "Total number of items available.",
+                            "type": "integer"
+                        }
+                    },
+                    "type": "object"
+                }
+            ]
+        },
         "CloudAccessItem": {
             "description": "Accessible cloud storage information",
             "properties": {
@@ -1484,6 +1500,264 @@
             },
             "type": "object"
         },
+        "CloudJobCreateParams": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/CloudJob"
+                },
+                {
+                    "description": "A cloud job for archiving or recalling files or restoring COI",
+                    "properties": {
+                        "accounts": {
+                            "description": "The names of accounts for COI restore",
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        "directories": {
+                            "description": "Directories addressed by this job",
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        "expiration_date": {
+                            "description": "The new expiration date in seconds",
+                            "type": "integer"
+                        },
+                        "file_matching_pattern": {
+                            "$ref": "#/definitions/WormSettingsCdate",
+                            "description": "The file filtering logic to find files for this job. (Only applicable for 'recall' jobs)"
+                        },
+                        "files": {
+                            "description": "Filenames addressed by this job",
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        "policy": {
+                            "description": "The name of an existing cloudpool policy to apply to this job. (Only applicable for 'archive' jobs)",
+                            "type": "string"
+                        },
+                        "type": {
+                            "description": "The type of cloud action to be performed by this job.",
+                            "enum": [
+                                "archive",
+                                "recall",
+                                "local-garbage-collection",
+                                "cloud-garbage-collection",
+                                "cache-writeback",
+                                "cache-on-access",
+                                "cache-invalidation",
+                                "restore-coi"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "type"
+                    ],
+                    "type": "object"
+                }
+            ]
+        },
+        "CloudJobExtended": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/CloudJob"
+                },
+                {
+                    "properties": {
+                        "completion_time": {
+                            "description": "The time at which the job was completed (if applicable)",
+                            "type": "integer"
+                        },
+                        "create_time": {
+                            "description": "The time at which the job was created",
+                            "type": "integer"
+                        },
+                        "description": {
+                            "description": "A brief description of the job contents",
+                            "type": "string"
+                        },
+                        "effective_state": {
+                            "description": "The effective state of the job (e.g,. the combination of operation_state and job_state)",
+                            "enum": [
+                                "running",
+                                "paused",
+                                "canceled",
+                                "completed",
+                                "failed"
+                            ],
+                            "type": "string"
+                        },
+                        "files": {
+                            "$ref": "#/definitions/CloudJobFiles",
+                            "description": "The files and filters addressed by this job"
+                        },
+                        "id": {
+                            "description": "The job's ID",
+                            "type": "integer"
+                        },
+                        "job_engine_job": {
+                            "$ref": "#/definitions/CloudJobJobEngineJob",
+                            "description": "Information about the related job engine job if there is one"
+                        },
+                        "job_state": {
+                            "description": "The current state of the job",
+                            "enum": [
+                                "running",
+                                "paused",
+                                "canceled",
+                                "completed",
+                                "failed"
+                            ],
+                            "type": "string"
+                        },
+                        "operation_state": {
+                            "description": "The current state of the operation associated with the job",
+                            "enum": [
+                                "running",
+                                "paused"
+                            ],
+                            "type": "string"
+                        },
+                        "state_change_time": {
+                            "description": "The last time at which the job state changed",
+                            "type": "integer"
+                        },
+                        "type": {
+                            "description": "The type of cloud action to be performed by this job.",
+                            "enum": [
+                                "archive",
+                                "recall",
+                                "local-garbage-collection",
+                                "cloud-garbage-collection",
+                                "cache-writeback",
+                                "cache-on-access",
+                                "cache-invalidation",
+                                "restore-coi"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                }
+            ]
+        },
+        "CloudJobFiles": {
+            "properties": {
+                "file_matching_pattern": {
+                    "$ref": "#/definitions/WormSettingsCdate",
+                    "description": "The file filtering logic to find files for this job"
+                },
+                "names": {
+                    "description": "A list of files to be addressed by this job.  (Note* these are only reported when audit_level is 'high'",
+                    "items": {
+                        "$ref": "#/definitions/CloudJobFilesName",
+                        "description": ""
+                    },
+                    "type": "array"
+                },
+                "total": {
+                    "description": "The total number of files addressed by this job",
+                    "type": "integer"
+                },
+                "total_canceled": {
+                    "description": "The number of canceled files",
+                    "type": "integer"
+                },
+                "total_failed": {
+                    "description": "The number of files which failed",
+                    "type": "integer"
+                },
+                "total_pending": {
+                    "description": "The number of files pending action",
+                    "type": "integer"
+                },
+                "total_processing": {
+                    "description": "The number of files currently being processed",
+                    "type": "integer"
+                },
+                "total_succeeded": {
+                    "description": "The total number of files successfully completed",
+                    "type": "integer"
+                }
+            },
+            "type": "object"
+        },
+        "CloudJobFilesName": {
+            "properties": {
+                "name": {
+                    "description": "The full path name of a file to be acted on by this job",
+                    "type": "string"
+                },
+                "state": {
+                    "description": "The current state of this file",
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "CloudJobJobEngineJob": {
+            "properties": {
+                "id": {
+                    "description": "ID of the related job engine job",
+                    "type": "integer"
+                },
+                "state": {
+                    "description": "The state of the related job engine job",
+                    "enum": [
+                        "null",
+                        "running",
+                        "user-paused",
+                        "system-paused",
+                        "policy-paused",
+                        "waiting",
+                        "user-canceled",
+                        "system-canceled",
+                        "failed",
+                        "succeeded"
+                    ],
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "CloudJobs": {
+            "properties": {
+                "jobs": {
+                    "items": {
+                        "$ref": "#/definitions/CloudJobExtended",
+                        "description": "A cloud job for archiving or recalling files"
+                    },
+                    "type": "array"
+                },
+                "resume": {
+                    "description": "Continue returning results from previous call using this token (token should come from the previous call, resume cannot be used with other options).",
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "CloudJobsExtended": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/CloudJobs"
+                },
+                {
+                    "properties": {
+                        "total": {
+                            "description": "Total number of items available.",
+                            "type": "integer"
+                        }
+                    },
+                    "type": "object"
+                }
+            ]
+        },
         "CloudJobsFiles": {
             "properties": {
                 "files": {
@@ -1626,6 +1900,80 @@
                     "type": "object"
                 }
             ]
+        },
+        "CloudSettings": {
+            "properties": {
+                "settings": {
+                    "$ref": "#/definitions/CloudSettingsSettings",
+                    "description": ""
+                }
+            },
+            "type": "object"
+        },
+        "CloudSettingsSettings": {
+            "properties": {
+                "cloud_policy_defaults": {
+                    "$ref": "#/definitions/WormSettingsCdate",
+                    "description": "The default filepool policy values for cloud pools."
+                },
+                "retry_coefficient_archive": {
+                    "description": "Coefficients in the quadratic function for determining the rest period between successive archive attempts.",
+                    "type": "string"
+                },
+                "retry_coefficient_cache_invalidation": {
+                    "description": "Coefficients in the quadratic function for determining the rest period between successive cache invalidation attempts.",
+                    "type": "string"
+                },
+                "retry_coefficient_cloud_garbage_collection": {
+                    "description": "Coefficients in the quadratic function for determining the rest period between successive cloud garbage collection attempts.",
+                    "type": "string"
+                },
+                "retry_coefficient_local_garbage_collection": {
+                    "description": "Coefficients in the quadratic function for determining the rest period between successive local garbage collection attempts.",
+                    "type": "string"
+                },
+                "retry_coefficient_read_ahead": {
+                    "description": "Coefficients in the quadratic function for determining the rest period between successive read ahead attempts.",
+                    "type": "string"
+                },
+                "retry_coefficient_recall": {
+                    "description": "Coefficients in the quadratic function for determining the rest period between successive recall attempts.",
+                    "type": "string"
+                },
+                "retry_coefficient_writeback": {
+                    "description": "Coefficients in the quadratic function for determining the rest period between successive writeback attempts.",
+                    "type": "string"
+                },
+                "sleep_timeout_archive": {
+                    "$ref": "#/definitions/CloudSettingsSettingsSleepTimeoutCloudGarbageCollection",
+                    "description": "Amount of time to wait between successive file archive operations."
+                },
+                "sleep_timeout_cache_invalidation": {
+                    "$ref": "#/definitions/CloudSettingsSettingsSleepTimeoutCloudGarbageCollection",
+                    "description": "Amount of time to wait between successive file cache_invalidation operations."
+                },
+                "sleep_timeout_cloud_garbage_collection": {
+                    "$ref": "#/definitions/CloudSettingsSettingsSleepTimeoutCloudGarbageCollection",
+                    "description": "Amount of time to wait between successive file cloud garbage collection operations."
+                },
+                "sleep_timeout_local_garbage_collection": {
+                    "$ref": "#/definitions/CloudSettingsSettingsSleepTimeoutCloudGarbageCollection",
+                    "description": "Amount of time to wait between successive file local garbage collection operations."
+                },
+                "sleep_timeout_read_ahead": {
+                    "$ref": "#/definitions/CloudSettingsSettingsSleepTimeoutCloudGarbageCollection",
+                    "description": "Amount of time to wait between successive file read ahead operations."
+                },
+                "sleep_timeout_recall": {
+                    "$ref": "#/definitions/CloudSettingsSettingsSleepTimeoutCloudGarbageCollection",
+                    "description": "Amount of time to wait between successive file recall operations."
+                },
+                "sleep_timeout_writeback": {
+                    "$ref": "#/definitions/CloudSettingsSettingsSleepTimeoutCloudGarbageCollection",
+                    "description": "Amount of time to wait between successive file writeback operations."
+                }
+            },
+            "type": "object"
         },
         "CloudSettingsSettingsSleepTimeoutCloudGarbageCollection": {
             "properties": {
@@ -2215,7 +2563,7 @@
         "ClusterNodeState": {
             "properties": {
                 "readonly": {
-                    "$ref": "#/definitions/ClusterNodeStateReadonly",
+                    "$ref": "#/definitions/WormSettingsCdate",
                     "description": "Node readonly state."
                 },
                 "servicelight": {
@@ -2239,10 +2587,6 @@
                     "type": "object"
                 }
             ]
-        },
-        "ClusterNodeStateReadonly": {
-            "properties": {},
-            "type": "object"
         },
         "ClusterNodeStateServicelight": {
             "properties": {
@@ -2614,12 +2958,52 @@
             "properties": {
                 "time": {
                     "description": "The current time on the cluster as a UNIX epoch (seconds since 1/1/1970), as reported by this node.",
-                    "maximum": 9223372036854775807,
-                    "minimum": -9223372036854775808,
+                    "maximum": 4294967295,
+                    "minimum": 0,
                     "type": "integer"
                 }
             },
+            "required": [
+                "time"
+            ],
             "type": "object"
+        },
+        "ClusterTimeExtended": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/ClusterTime"
+                },
+                {
+                    "properties": {},
+                    "type": "object"
+                }
+            ]
+        },
+        "ClusterTimezone": {
+            "description": "The cluster timezone settings.",
+            "properties": {
+                "abbreviation": {
+                    "description": "Timezone abbreviation.",
+                    "type": "string"
+                },
+                "path": {
+                    "description": "Timezone hierarchical name.",
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "ClusterTimezoneExtended": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/ClusterTimezone"
+                },
+                {
+                    "description": "The cluster timezone settings.",
+                    "properties": {},
+                    "type": "object"
+                }
+            ]
         },
         "ClusterUpgrade": {
             "description": "Add nodes to a running upgrade.",
@@ -2930,6 +3314,15 @@
                 "id": {
                     "description": "The name of the new account",
                     "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "CreateCloudJobResponse": {
+            "properties": {
+                "id": {
+                    "description": "The id of the new job",
+                    "type": "integer"
                 }
             },
             "type": "object"
@@ -4162,6 +4555,226 @@
                 }
             },
             "type": "object"
+        },
+        "EventEventgroupOccurrences": {
+            "properties": {
+                "eventgroup-occurrences": {
+                    "items": {
+                        "$ref": "#/definitions/EventEventgroupOccurrencesEventgroup-Occurrence",
+                        "description": "Record of a eventgroup occurrence."
+                    },
+                    "type": "array"
+                }
+            },
+            "type": "object"
+        },
+        "EventEventgroupOccurrencesEventgroup-Occurrence": {
+            "properties": {
+                "causes": {
+                    "description": "List of eventgroup IDs that may be causes of this occurrence.",
+                    "items": {
+                        "type": {
+                            "description": "Event Group cause as name and description",
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "type": "array"
+                },
+                "channels": {
+                    "description": "List of channels to which alerts are configured for this eventgroup",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "event_count": {
+                    "description": "Number of events linked to this eventgroup.",
+                    "type": "integer"
+                },
+                "eventgroup_instance": {
+                    "description": "Unique identifier of eventgroup instance.",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Same as eventgroup_instance.",
+                    "type": "string"
+                },
+                "ignore": {
+                    "description": "True if eventgroup is marked as 'ignore'.",
+                    "type": "boolean"
+                },
+                "ignore_time": {
+                    "description": "Time eventgroup was marked as 'ignore'.",
+                    "type": "integer"
+                },
+                "last_event": {
+                    "description": "Time the most recent event was added to this eventgroup.",
+                    "type": "integer"
+                },
+                "resolve_time": {
+                    "description": "When the eventgroup became resolved.",
+                    "type": "integer"
+                },
+                "resolved": {
+                    "description": "True if eventgroup is resolved.",
+                    "type": "boolean"
+                },
+                "resolver": {
+                    "description": "'USER' if the eventgroup was marked resolved via PAPI <event_instance> if eventgroup was marked resolved as a result of an event.",
+                    "type": "string"
+                },
+                "sequence": {
+                    "description": "XXX description needed.",
+                    "type": "integer"
+                },
+                "severity": {
+                    "description": "Event Group severity.",
+                    "type": "string"
+                },
+                "specifier": {
+                    "$ref": "#/definitions/WormSettingsCdate",
+                    "description": "A collection of parameters defined per eventgroup_id."
+                },
+                "time_noticed": {
+                    "description": "Time of first event linked to this eventgroup.",
+                    "type": "integer"
+                }
+            },
+            "type": "object"
+        },
+        "EventEventgroupOccurrencesExtended": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/EventEventgroupOccurrences"
+                },
+                {
+                    "properties": {
+                        "resume": {
+                            "description": "Continue returning results from previous call using this token (token should come from the previous call, resume cannot be used with other options).",
+                            "type": "string"
+                        },
+                        "total": {
+                            "description": "Total number of items available.",
+                            "type": "integer"
+                        }
+                    },
+                    "type": "object"
+                }
+            ]
+        },
+        "EventEventlists": {
+            "properties": {
+                "eventlist": {
+                    "items": {
+                        "$ref": "#/definitions/EventEventlistsEventlistItem",
+                        "description": "Events linked to a eventgroup occurrence."
+                    },
+                    "type": "array"
+                }
+            },
+            "type": "object"
+        },
+        "EventEventlistsEventlistItem": {
+            "properties": {
+                "event_count": {
+                    "description": "Number of events linked to this eventgroup.",
+                    "type": "integer"
+                },
+                "eventgroup_instance": {
+                    "description": "Unique identifier of eventgroup instance.",
+                    "type": "string"
+                },
+                "events": {
+                    "description": "list of all events linked to this eventgroup in chronological order.",
+                    "items": {
+                        "$ref": "#/definitions/EventEventlistsEventlistItemEvent"
+                    },
+                    "type": "array"
+                },
+                "id": {
+                    "description": "Same as eventgroup_instance.",
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "EventEventlistsEventlistItemEvent": {
+            "description": "Record of an event occurring on the cluster",
+            "properties": {
+                "devid": {
+                    "description": "The lnn of the node if it is still part of the cluster otherwise None.",
+                    "type": "integer"
+                },
+                "ended": {
+                    "description": "Time event was ended (eventgroup resolved)",
+                    "type": "number"
+                },
+                "event_id": {
+                    "description": "Integer identifier of the event type",
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "Unique identifier of event occurrence.",
+                    "type": "string"
+                },
+                "message": {
+                    "description": "Human readable description",
+                    "type": "string"
+                },
+                "severity": {
+                    "description": "Severity of event occurrence.",
+                    "enum": [
+                        "information",
+                        "warning",
+                        "critical",
+                        "emergency"
+                    ],
+                    "type": "string"
+                },
+                "specifier": {
+                    "$ref": "#/definitions/WormSettingsCdate",
+                    "description": "A collection of parameters defined per event."
+                },
+                "time": {
+                    "description": "Time event was detected as UNIX timestamp.",
+                    "type": "integer"
+                },
+                "value": {
+                    "description": "Value of measurement associated with this event.",
+                    "type": "number"
+                }
+            },
+            "type": "object"
+        },
+        "EventEventlistsExtended": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/EventEventlists"
+                },
+                {
+                    "properties": {
+                        "eventlists": {
+                            "items": {
+                                "$ref": "#/definitions/EventEventlistsEventlistItem",
+                                "description": "Events linked to a eventgroup occurrence."
+                            },
+                            "type": "array"
+                        },
+                        "resume": {
+                            "description": "Continue returning results from previous call using this token (token should come from the previous call, resume cannot be used with other options).",
+                            "type": "string"
+                        },
+                        "total": {
+                            "description": "Total number of items available.",
+                            "type": "integer"
+                        }
+                    },
+                    "type": "object"
+                }
+            ]
         },
         "EventSettings": {
             "description": "Settings for CELOG system",
@@ -7728,6 +8341,25 @@
             ],
             "type": "object"
         },
+        "LicenseLicenseCreateParams": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/LicenseLicense"
+                },
+                {
+                    "properties": {
+                        "key": {
+                            "description": "New license key.",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "key"
+                    ],
+                    "type": "object"
+                }
+            ]
+        },
         "LicenseLicenses": {
             "properties": {
                 "licenses": {
@@ -9535,6 +10167,31 @@
                     ],
                     "type": "string"
                 }
+            },
+            "type": "object"
+        },
+        "NfsNetgroup": {
+            "properties": {
+                "description": "NFS netgroup cache settings.",
+                "properties": {
+                    "bgwrite": {
+                        "description": "To-disk backup interval for the netgroup cache.",
+                        "type": "integer"
+                    },
+                    "expiration": {
+                        "description": "Time between updates of netgroups in the cache.",
+                        "type": "integer"
+                    },
+                    "lifetime": {
+                        "description": "Length of time an un-accessed netgroup remains in the cache.",
+                        "type": "integer"
+                    },
+                    "retry": {
+                        "description": "Retry interval for netgroup updates if the remote provider is unresponsive.",
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
             },
             "type": "object"
         },
@@ -15451,63 +16108,6 @@
                     "type": "integer"
                 }
             },
-            "type": "object"
-        },
-        "ResultsIdDirectoriesTotalUsage": {
-            "properties": {
-                "ads_cnt": {
-                    "description": "Number of ads.",
-                    "type": "integer"
-                },
-                "dir_cnt": {
-                    "description": "Number of directories.",
-                    "type": "integer"
-                },
-                "file_cnt": {
-                    "description": "Number of files.",
-                    "type": "integer"
-                },
-                "lin": {
-                    "description": "Logical inode number.",
-                    "type": "integer"
-                },
-                "log_size_sum": {
-                    "description": "Logical size directory in bytes.",
-                    "type": "integer"
-                },
-                "log_size_sum_overflow": {
-                    "description": "Logical size sum of overflow in bytes.",
-                    "type": "integer"
-                },
-                "name": {
-                    "description": "Name of directory.",
-                    "type": "string"
-                },
-                "other_cnt": {
-                    "description": "Other count.",
-                    "type": "integer"
-                },
-                "parent": {
-                    "description": "Parent directory inode.",
-                    "type": "integer"
-                },
-                "phys_size_sum": {
-                    "description": "Physical size directory in bytes.",
-                    "type": "integer"
-                }
-            },
-            "required": [
-                "name",
-                "parent",
-                "phys_size_sum",
-                "lin",
-                "other_cnt",
-                "file_cnt",
-                "dir_cnt",
-                "log_size_sum",
-                "log_size_sum_overflow",
-                "ads_cnt"
-            ],
             "type": "object"
         },
         "ResultsIdHistogram": {
@@ -23478,6 +24078,27 @@
             },
             "type": "object"
         },
+        "WormSettingsCdate": {
+            "properties": {},
+            "type": "object"
+        },
+        "WormSettingsExtended": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/WormSettings"
+                },
+                {
+                    "description": "Global WORM settings.",
+                    "properties": {
+                        "cdate": {
+                            "$ref": "#/definitions/WormSettingsCdate",
+                            "description": "To set the compliance clock to the current system time, PUT to this resource with an empty JSON object {} for the cdate value.  This cluster must be in compliance mode to set the compliance clock."
+                        }
+                    },
+                    "type": "object"
+                }
+            ]
+        },
         "WormSettingsSettings": {
             "properties": {
                 "cdate": {
@@ -28124,6 +28745,58 @@
                 },
                 "tags": [
                     "Job"
+                ]
+            }
+        },
+        "/platform/1/license/licenses": {
+            "get": {
+                "description": "Retrieve license information for all licensable products.",
+                "operationId": "listLicenseLicenses",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Retrieve license information for all licensable products.",
+                        "schema": {
+                            "$ref": "#/definitions/LicenseLicenses"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "License"
+                ]
+            },
+            "post": {
+                "description": "Install a new license key.",
+                "operationId": "createLicenseLicense",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "LicenseLicense",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/LicenseLicenseCreateParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Success."
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "License"
                 ]
             }
         },
@@ -33320,6 +33993,58 @@
                 ]
             }
         },
+        "/platform/1/worm/settings": {
+            "get": {
+                "description": "Get the global WORM settings.",
+                "operationId": "getWormSettings",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Get the global WORM settings.",
+                        "schema": {
+                            "$ref": "#/definitions/WormSettings"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Worm"
+                ]
+            },
+            "put": {
+                "description": "Modify the global WORM settings.  All input fields are optional, but one or more must be supplied.",
+                "operationId": "updateWormSettings",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "WormSettings",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/WormSettingsExtended"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Success."
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Worm"
+                ]
+            }
+        },
         "/platform/1/zones-summary": {
             "get": {
                 "description": "Retrieve access zone summary information.",
@@ -36316,6 +37041,85 @@
                 ]
             }
         },
+        "/platform/3/cloud/access": {
+            "get": {
+                "description": "List all accessible cluster identifiers.",
+                "operationId": "listCloudAccess",
+                "parameters": [
+                    {
+                        "description": "The field that will be used for sorting.",
+                        "in": "query",
+                        "name": "sort",
+                        "type": "string"
+                    },
+                    {
+                        "description": "Return no more than this many results at once (see resume).",
+                        "in": "query",
+                        "minimum": 1,
+                        "name": "limit",
+                        "type": "integer"
+                    },
+                    {
+                        "description": "The direction of the sort.",
+                        "enum": [
+                            "ASC",
+                            "DESC"
+                        ],
+                        "in": "query",
+                        "name": "dir",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List all accessible cluster identifiers.",
+                        "schema": {
+                            "$ref": "#/definitions/CloudAccessExtended"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cloud"
+                ]
+            },
+            "post": {
+                "description": "Add a cluster identifier to access list.",
+                "operationId": "createCloudAccessItem",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "CloudAccessItem",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CloudAccessItem"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Add a cluster identifier to access list.",
+                        "schema": {
+                            "$ref": "#/definitions/Empty"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cloud"
+                ]
+            }
+        },
         "/platform/3/cloud/access/{CloudAccessGuid}": {
             "delete": {
                 "description": "Delete cloud access.",
@@ -36548,6 +37352,85 @@
                 ]
             }
         },
+        "/platform/3/cloud/jobs": {
+            "get": {
+                "description": "List all cloudpools jobs.",
+                "operationId": "listCloudJobs",
+                "parameters": [
+                    {
+                        "description": "The field that will be used for sorting.",
+                        "in": "query",
+                        "name": "sort",
+                        "type": "string"
+                    },
+                    {
+                        "description": "Return no more than this many results at once (see resume).",
+                        "in": "query",
+                        "minimum": 1,
+                        "name": "limit",
+                        "type": "integer"
+                    },
+                    {
+                        "description": "The direction of the sort.",
+                        "enum": [
+                            "ASC",
+                            "DESC"
+                        ],
+                        "in": "query",
+                        "name": "dir",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List all cloudpools jobs.",
+                        "schema": {
+                            "$ref": "#/definitions/CloudJobsExtended"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cloud"
+                ]
+            },
+            "post": {
+                "description": "Create a new job.",
+                "operationId": "createCloudJob",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "CloudJob",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CloudJobCreateParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Create a new job.",
+                        "schema": {
+                            "$ref": "#/definitions/CreateCloudJobResponse"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cloud"
+                ]
+            }
+        },
         "/platform/3/cloud/jobs-files/{CloudJobsFileId}": {
             "get": {
                 "description": "Retrieve files associated with a cloudpool job.",
@@ -36608,6 +37491,73 @@
                         "schema": {
                             "$ref": "#/definitions/CloudJobsFiles"
                         }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cloud"
+                ]
+            }
+        },
+        "/platform/3/cloud/jobs/{CloudJobId}": {
+            "get": {
+                "description": "Retrieve cloudpool job information.",
+                "operationId": "getCloudJob",
+                "parameters": [
+                    {
+                        "description": "Retrieve cloudpool job information.",
+                        "in": "path",
+                        "name": "CloudJobId",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieve cloudpool job information.",
+                        "schema": {
+                            "$ref": "#/definitions/CloudJobs"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cloud"
+                ]
+            },
+            "put": {
+                "description": "Modify a cloud job or operation.",
+                "operationId": "updateCloudJob",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "CloudJob",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CloudJob"
+                        }
+                    },
+                    {
+                        "description": "Modify a cloud job or operation.",
+                        "in": "path",
+                        "name": "CloudJobId",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Success."
                     },
                     "default": {
                         "description": "Unexpected error",
@@ -36794,6 +37744,82 @@
                 ]
             }
         },
+        "/platform/3/cloud/settings": {
+            "get": {
+                "description": "List all cloud settings.",
+                "operationId": "getCloudSettings",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "List all cloud settings.",
+                        "schema": {
+                            "$ref": "#/definitions/CloudSettings"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cloud"
+                ]
+            },
+            "put": {
+                "description": "Modify one or more settings.",
+                "operationId": "updateCloudSettings",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "CloudSettings",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CloudSettingsSettings"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Success."
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cloud"
+                ]
+            }
+        },
+        "/platform/3/cloud/settings/encryption-key": {
+            "post": {
+                "description": "Regenerate master encryption key.",
+                "operationId": "createSettingsEncryptionKeyItem",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Regenerate master encryption key.",
+                        "schema": {
+                            "$ref": "#/definitions/Empty"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cloud"
+                ]
+            }
+        },
         "/platform/3/cloud/settings/reporting-eula": {
             "delete": {
                 "description": "Revoke acceptance of telemetry collection EULA.",
@@ -36885,6 +37911,30 @@
                 "responses": {
                     "200": {
                         "description": "Serial number and arguments of node to add.",
+                        "schema": {
+                            "$ref": "#/definitions/Empty"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cluster"
+                ]
+            }
+        },
+        "/platform/3/cluster/config": {
+            "get": {
+                "description": "Retrieve the cluster information.",
+                "operationId": "getClusterConfig",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Retrieve the cluster information.",
                         "schema": {
                             "$ref": "#/definitions/Empty"
                         }
@@ -38014,6 +39064,110 @@
                 ]
             }
         },
+        "/platform/3/cluster/time": {
+            "get": {
+                "description": "Retrieve the current time as reported by each node.",
+                "operationId": "getClusterTime",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Retrieve the current time as reported by each node.",
+                        "schema": {
+                            "$ref": "#/definitions/Empty"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cluster"
+                ]
+            },
+            "put": {
+                "description": "Set cluster time.  Time will mostly be synchronized across nodes, but there may be slight drift.",
+                "operationId": "updateClusterTime",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "ClusterTime",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ClusterTime"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Success."
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cluster"
+                ]
+            }
+        },
+        "/platform/3/cluster/timezone": {
+            "get": {
+                "description": "Get the cluster timezone.",
+                "operationId": "getClusterTimezone",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Get the cluster timezone.",
+                        "schema": {
+                            "$ref": "#/definitions/ClusterTimezone"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cluster"
+                ]
+            },
+            "put": {
+                "description": "Set a new timezone for the cluster.",
+                "operationId": "updateClusterTimezone",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "ClusterTimezone",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ClusterTimezoneExtended"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Success."
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cluster"
+                ]
+            }
+        },
         "/platform/3/cluster/timezone/regions/{TimezoneRegionId}": {
             "get": {
                 "description": "List timezone regions.",
@@ -38126,6 +39280,30 @@
                 "responses": {
                     "204": {
                         "description": "Success."
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Cluster"
+                ]
+            }
+        },
+        "/platform/3/cluster/version": {
+            "get": {
+                "description": "Retrieve the OneFS version as reported by each node.",
+                "operationId": "getClusterVersion",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Retrieve the OneFS version as reported by each node.",
+                        "schema": {
+                            "$ref": "#/definitions/Empty"
+                        }
                     },
                     "default": {
                         "description": "Unexpected error",
@@ -38645,6 +39823,267 @@
                         "description": "Retrieve the eventgroup definition.",
                         "schema": {
                             "$ref": "#/definitions/EventEventgroupDefinitions"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Event"
+                ]
+            }
+        },
+        "/platform/3/event/eventgroup-occurrences": {
+            "get": {
+                "description": "List all eventgroup occurrences.",
+                "operationId": "getEventEventgroupOccurrences",
+                "parameters": [
+                    {
+                        "description": "Filter for resolved eventgroups",
+                        "in": "query",
+                        "name": "resolved",
+                        "type": "boolean"
+                    },
+                    {
+                        "description": "The field that will be used for sorting.",
+                        "in": "query",
+                        "name": "sort",
+                        "type": "string"
+                    },
+                    {
+                        "description": "events that are in progress after this time",
+                        "in": "query",
+                        "name": "begin",
+                        "type": "integer"
+                    },
+                    {
+                        "description": "events that were in progress before this time",
+                        "in": "query",
+                        "name": "end",
+                        "type": "integer"
+                    },
+                    {
+                        "description": "events for which event_count > this",
+                        "in": "query",
+                        "name": "event_count",
+                        "type": "integer"
+                    },
+                    {
+                        "description": "Continue returning results from previous call using this token (token should come from the previous call, resume cannot be used with other options).",
+                        "in": "query",
+                        "name": "resume",
+                        "type": "string"
+                    },
+                    {
+                        "description": "Filter for eventgroup fixer",
+                        "in": "query",
+                        "name": "fixer",
+                        "type": "string"
+                    },
+                    {
+                        "description": "Filter for ignored eventgroups",
+                        "in": "query",
+                        "name": "ignore",
+                        "type": "boolean"
+                    },
+                    {
+                        "description": "Return no more than this many results at once (see resume).",
+                        "in": "query",
+                        "minimum": 1,
+                        "name": "limit",
+                        "type": "integer"
+                    },
+                    {
+                        "description": "Filter for cause",
+                        "in": "query",
+                        "name": "cause",
+                        "type": "string"
+                    },
+                    {
+                        "description": "The direction of the sort.",
+                        "enum": [
+                            "ASC",
+                            "DESC"
+                        ],
+                        "in": "query",
+                        "name": "dir",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List all eventgroup occurrences.",
+                        "schema": {
+                            "$ref": "#/definitions/EventEventgroupOccurrencesExtended"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Event"
+                ]
+            },
+            "put": {
+                "description": "Modify all eventgroup occurrences, resolve or ignore all",
+                "operationId": "updateEventEventgroupOccurrences",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "EventEventgroupOccurrences",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EventEventgroupOccurrence"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Success."
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Event"
+                ]
+            }
+        },
+        "/platform/3/event/eventgroup-occurrences/{EventEventgroupOccurrenceId}": {
+            "get": {
+                "description": "Retrieve individual eventgroup occurrence.",
+                "operationId": "getEventEventgroupOccurrence",
+                "parameters": [
+                    {
+                        "description": "Retrieve individual eventgroup occurrence.",
+                        "in": "path",
+                        "name": "EventEventgroupOccurrenceId",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieve individual eventgroup occurrence.",
+                        "schema": {
+                            "$ref": "#/definitions/EventEventgroupOccurrences"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Event"
+                ]
+            },
+            "put": {
+                "description": "modify eventgroup occurrence.",
+                "operationId": "updateEventEventgroupOccurrence",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "EventEventgroupOccurrence",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EventEventgroupOccurrence"
+                        }
+                    },
+                    {
+                        "description": "modify eventgroup occurrence.",
+                        "in": "path",
+                        "name": "EventEventgroupOccurrenceId",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Success."
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Event"
+                ]
+            }
+        },
+        "/platform/3/event/eventlists": {
+            "get": {
+                "description": "List all event occurrences grouped by eventgroup occurrence.",
+                "operationId": "getEventEventlists",
+                "parameters": [
+                    {
+                        "description": "Return no more than this many results at once (see resume).",
+                        "in": "query",
+                        "minimum": 1,
+                        "name": "limit",
+                        "type": "integer"
+                    },
+                    {
+                        "description": "Continue returning results from previous call using this token (token should come from the previous call, resume cannot be used with other options).",
+                        "in": "query",
+                        "name": "resume",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List all event occurrences grouped by eventgroup occurrence.",
+                        "schema": {
+                            "$ref": "#/definitions/EventEventlistsExtended"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Event"
+                ]
+            }
+        },
+        "/platform/3/event/eventlists/{EventEventlistId}": {
+            "get": {
+                "description": "Retrieve the list of events for a eventgroup occureence.",
+                "operationId": "getEventEventlist",
+                "parameters": [
+                    {
+                        "description": "Retrieve the list of events for a eventgroup occureence.",
+                        "in": "path",
+                        "name": "EventEventlistId",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieve the list of events for a eventgroup occureence.",
+                        "schema": {
+                            "$ref": "#/definitions/EventEventlists"
                         }
                     },
                     "default": {
@@ -39400,7 +40839,7 @@
                         "name": "HardwareTapeName",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     }
                 ],
@@ -39408,7 +40847,7 @@
                     "200": {
                         "description": "Tape/Changer devices rescan",
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     },
                     "default": {
@@ -39883,7 +41322,7 @@
                     "200": {
                         "description": "Get the current time on the local node.",
                         "schema": {
-                            "$ref": "#/definitions/ClusterTime"
+                            "$ref": "#/definitions/ClusterTimeExtended"
                         }
                     },
                     "default": {
@@ -42085,6 +43524,71 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/NfsLogLevel"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Success."
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Protocols"
+                ]
+            }
+        },
+        "/platform/3/protocols/nfs/netgroup": {
+            "get": {
+                "description": "Get the current NFS netgroup cache settings.",
+                "operationId": "getNfsNetgroup",
+                "parameters": [
+                    {
+                        "description": "Host to retrieve netgroup cache settings from.",
+                        "in": "query",
+                        "name": "host",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Get the current NFS netgroup cache settings.",
+                        "schema": {
+                            "$ref": "#/definitions/NfsNetgroup"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Protocols"
+                ]
+            },
+            "put": {
+                "description": "Modify the current NFS netgroup settings.",
+                "operationId": "updateNfsNetgroup",
+                "parameters": [
+                    {
+                        "description": "Host to retrieve netgroup cache settings for.",
+                        "in": "query",
+                        "name": "host",
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "NfsNetgroup",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/NfsNetgroup"
                         }
                     }
                 ],
@@ -44857,7 +46361,7 @@
                         "name": "ClusterAddRemainingNode",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     }
                 ],
@@ -44865,7 +46369,7 @@
                     "200": {
                         "description": "Let system absorb any remaining or new nodes inside the existing upgrade.",
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     },
                     "default": {
@@ -44898,7 +46402,7 @@
                     "200": {
                         "description": "Start an archive of an upgrade.",
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     },
                     "default": {
@@ -44931,7 +46435,7 @@
                     "200": {
                         "description": "Start upgrade assessment on cluster.",
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     },
                     "default": {
@@ -44956,7 +46460,7 @@
                         "name": "ClusterCommitItem",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     }
                 ],
@@ -44964,7 +46468,7 @@
                     "200": {
                         "description": "Commit the upgrade of a cluster.",
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     },
                     "default": {
@@ -44989,7 +46493,7 @@
                         "name": "ClusterFirmwareAssessItem",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     }
                 ],
@@ -44997,7 +46501,7 @@
                     "200": {
                         "description": "Start firmware upgrade assessment on cluster.",
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     },
                     "default": {
@@ -45091,7 +46595,7 @@
                     "200": {
                         "description": "The settings necessary to start a firmware upgrade.",
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     },
                     "default": {
@@ -45205,6 +46709,39 @@
                 ]
             }
         },
+        "/platform/3/upgrade/cluster/patch/abort": {
+            "post": {
+                "description": "Abort the previous action performed by the patch system.",
+                "operationId": "createClusterPatchAbortItem",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "ClusterPatchAbortItem",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/WormSettingsCdate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Abort the previous action performed by the patch system.",
+                        "schema": {
+                            "$ref": "#/definitions/WormSettingsCdate"
+                        }
+                    },
+                    "default": {
+                        "description": "Unexpected error",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                },
+                "tags": [
+                    "Upgrade"
+                ]
+            }
+        },
         "/platform/3/upgrade/cluster/retry_last_action": {
             "post": {
                 "description": "Retry the last upgrade action, in-case the previous attempt failed.",
@@ -45223,7 +46760,7 @@
                     "200": {
                         "description": "Retry the last upgrade action, in-case the previous attempt failed.",
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     },
                     "default": {
@@ -45248,7 +46785,7 @@
                         "name": "ClusterRollbackItem",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     }
                 ],
@@ -45256,7 +46793,7 @@
                     "200": {
                         "description": "Rollback the upgrade of a cluster.",
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     },
                     "default": {
@@ -45289,7 +46826,7 @@
                     "200": {
                         "description": "The settings necessary to start an upgrade.",
                         "schema": {
-                            "$ref": "#/definitions/ClusterNodeStateReadonly"
+                            "$ref": "#/definitions/WormSettingsCdate"
                         }
                     },
                     "default": {

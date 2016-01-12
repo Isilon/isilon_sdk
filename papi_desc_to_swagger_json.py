@@ -156,6 +156,10 @@ def IsiSchemaToSwaggerObjectDefs(
     # converts isiSchema to a single schema with "#ref" for sub-objects
     # which is what Swagger expects. Adds the sub-objects to the objDefs
     # list.
+    if "type" not in isiSchema:
+        # have seen this for empty responses
+        return "#/definitions/Empty"
+
     if type(isiSchema["type"]) == list:
         for schemaListItem in isiSchema["type"]:
             if "type" not in schemaListItem:
@@ -172,6 +176,15 @@ def IsiSchemaToSwaggerObjectDefs(
     if isiSchema["type"] != "object":
         raise RuntimeError("Isi Schema is not type 'object': "\
                 + str(isiSchema))
+
+    # found a few empty objects that omit the properties field
+    if "properties" not in isiSchema:
+        if "settings" in isiSchema:
+            # saw this with /3/cluster/timezone
+            isiSchema["properties"] = isiSchema["settings"]
+            del isiSchema["settings"]
+        else:
+            isiSchema["properties"] = {}
 
     requiredProps = []
     for propName in isiSchema["properties"]:
@@ -418,8 +431,14 @@ def IsiPostBaseEndPointDescToSwaggerPath(
     isiPostArgs = isiDescJson["POST_args"]
     oneObjName = PluralObjNameToSingular(isiObjName, postFix="Item")
 
-    postInputSchema = isiDescJson["POST_input_schema"]
-    postRespSchema = isiDescJson["POST_output_schema"]
+    if "POST_input_schema" in isiDescJson:
+        postInputSchema = isiDescJson["POST_input_schema"]
+    else:
+        postInputSchema = None
+    if "POST_output_schema" in isiDescJson:
+        postRespSchema = isiDescJson["POST_output_schema"]
+    else:
+        postRespSchema = None
     operation = "create"
     swaggerPath["post"] = \
             CreateSwaggerOperation(
@@ -562,7 +581,10 @@ def IsiItemEndPointDescToSwaggerPath(
     if "POST_args" in isiDescJson:
         isiPostArgs = isiDescJson["POST_args"]
         postInputSchema = isiDescJson["POST_input_schema"]
-        postRespSchema = isiDescJson["POST_output_schema"]
+        if "POST_output_schema" in isiDescJson:
+            postRespSchema = isiDescJson["POST_output_schema"]
+        else:
+            postRespSchema = None
         operation = "create"
         swaggerPath["post"] = \
                 CreateSwaggerOperation(
@@ -653,6 +675,22 @@ auth = HTTPBasicAuth("root", "a")
 baseUrl = "/platform"
 desc_parms = {"describe": "", "json": ""}
 
+excludeEndPoints = [
+        "/1/debug/echo/<TOKEN>", # returns null json
+        "/1/filesystem/settings/character-encodings", # array with no items
+        "/1/fsa/path", # returns plain text, not JSON
+        "/1/license/eula", # returns plain text, not JSON
+        "/1/test/proxy/args/req/sleep", # return null json
+        "/1/test/proxy/args/req", # return null json
+        "/1/test/proxy/args",
+        "/1/test/proxy/uri/<LNN>",
+        "/1/test/proxy/uri",
+        "/2/versiontest/other",
+        "/3/cluster/email/default-template",
+        "/2/cluster/external-ips", # returns list not object
+        "/3/fsa/results/<ID>/directories/<LIN>", # array with no items
+        "/3/fsa/results/<ID>/directories" # array with no items
+        ]
 if True:
     desc_list_parms = {"describe": "", "json": "", "list": ""}
     url = "https://137.69.154.252:8080" + baseUrl
@@ -664,12 +702,9 @@ if True:
     epIndex = 0
     numEndPoints = len(endPointListJson["directory"])
     while epIndex < numEndPoints:
-        # this code assumes that the end points will be in order
-        # base end point first, followed by item end point
-        # this appears to be (usually) the case except when there
-        # are multiple versions of particular end point.
         curEndPoint = endPointListJson["directory"][epIndex]
         if curEndPoint[2] != '/':
+            # skip floating point version numbers
             epIndex += 1
             continue
         #print "curEndPoint[" + str(epIndex) + "] = " + curEndPoint
@@ -686,6 +721,10 @@ if True:
             curEndPoint = nextEndPoint
             epIndex = nextEpIndex
             nextEpIndex += 1
+
+        if curEndPoint in excludeEndPoints:
+            epIndex += 1
+            continue
 
         if curEndPoint[-1] != '>':
             baseEndPoints[curEndPoint[2:]] = (curEndPoint, None)
@@ -767,6 +806,7 @@ for endPointTuple in endPointPaths:
         swaggerPath = baseUrl + ToSwaggerEndPoint(baseEndPointPath)
 
     if itemEndPointPath is not None:
+        print >> sys.stderr, "Processing " + itemEndPointPath
         # next do the item PUT (i.e. update), DELETE, and GET because the GET seems
         # to be a limited version of the base path GET so the subclassing works
         # correct when done in this order
@@ -780,6 +820,7 @@ for endPointTuple in endPointPaths:
         extraPathParams = \
                 ParsePathParams(os.path.dirname(itemEndPointPath))
         try:
+        #if True:
             itemPathUrl, itemPath = \
                     IsiItemEndPointDescToSwaggerPath(
                             apiName, objNameSpace, objName, itemRespJson,
@@ -792,10 +833,11 @@ for endPointTuple in endPointPaths:
 
             successCount += 1
         except Exception as e:
-            #print >> sys.stderr, "Caught exception processing: " + itemEndPointPath
+        #    print >> sys.stderr, "Caught exception processing: " + itemEndPointPath
             failCount += 1
 
     if baseEndPointPath is not None:
+        print >> sys.stderr, "Processing " + baseEndPointPath
         url = "https://137.69.154.252:8080" + baseUrl + baseEndPointPath
         resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
         baseRespJson = json.loads(resp.text)
@@ -804,6 +846,7 @@ for endPointTuple in endPointPaths:
         # start with base path POST because it defines the base creation object
         # model
         try:
+        #if True:
             if "POST_args" in baseRespJson:
                 basePath = IsiPostBaseEndPointDescToSwaggerPath(
                                 apiName, objNameSpace, objName, baseRespJson,
@@ -834,13 +877,14 @@ for endPointTuple in endPointPaths:
                 print >> sys.stderr, "WARNING: HEAD_args in: " + baseEndPointPath
             successCount += 1
         except Exception as e:
-            #print >> sys.stderr, "Caught exception processing: " + baseEndPointPath
+        #    print >> sys.stderr, "Caught exception processing: " + baseEndPointPath
             failCount += 1
 
 if len(objectDefs) > 0:
     swaggerJson["definitions"].update(objectDefs)
 
 print >> sys.stderr, "End points successfully processed: " + str(successCount) \
-        + ", failed to process: " + str(failCount) + "."
+        + ", failed to process: " + str(failCount) \
+        + ", excluded: " + str(len(excludeEndPoints)) + "."
 print json.dumps(swaggerJson,
         sort_keys=True, indent=4, separators=(',', ': '))
