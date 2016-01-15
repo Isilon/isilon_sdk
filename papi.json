@@ -16113,63 +16113,6 @@
             },
             "type": "object"
         },
-        "ResultsIdDirectoriesTotalUsage": {
-            "properties": {
-                "ads_cnt": {
-                    "description": "Number of ads.",
-                    "type": "integer"
-                },
-                "dir_cnt": {
-                    "description": "Number of directories.",
-                    "type": "integer"
-                },
-                "file_cnt": {
-                    "description": "Number of files.",
-                    "type": "integer"
-                },
-                "lin": {
-                    "description": "Logical inode number.",
-                    "type": "integer"
-                },
-                "log_size_sum": {
-                    "description": "Logical size directory in bytes.",
-                    "type": "integer"
-                },
-                "log_size_sum_overflow": {
-                    "description": "Logical size sum of overflow in bytes.",
-                    "type": "integer"
-                },
-                "name": {
-                    "description": "Name of directory.",
-                    "type": "string"
-                },
-                "other_cnt": {
-                    "description": "Other count.",
-                    "type": "integer"
-                },
-                "parent": {
-                    "description": "Parent directory inode.",
-                    "type": "integer"
-                },
-                "phys_size_sum": {
-                    "description": "Physical size directory in bytes.",
-                    "type": "integer"
-                }
-            },
-            "required": [
-                "name",
-                "parent",
-                "phys_size_sum",
-                "lin",
-                "other_cnt",
-                "file_cnt",
-                "dir_cnt",
-                "log_size_sum",
-                "log_size_sum_overflow",
-                "ads_cnt"
-            ],
-            "type": "object"
-        },
         "ResultsIdHistogram": {
             "properties": {
                 "atime_enabled": {
