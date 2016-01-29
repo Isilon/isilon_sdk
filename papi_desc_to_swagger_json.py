@@ -8,6 +8,12 @@ import sys
 
 requests.packages.urllib3.disable_warnings()
 
+source_node_or_cluster = "10.7.160.60"
+papi_port = "8080"
+auth = HTTPBasicAuth("root", "a")
+baseUrl = "/platform"
+desc_parms = {"describe": "", "json": ""}
+
 k_swaggerParamIsiPropCommonFields = [
     "description", "required", "type", "default", "maximum", "minimum", "enum",
     "items"]
@@ -671,10 +677,6 @@ swaggerJson = {
     }
 }
 
-auth = HTTPBasicAuth("root", "a")
-baseUrl = "/platform"
-desc_parms = {"describe": "", "json": ""}
-
 excludeEndPoints = [
         "/1/debug/echo/<TOKEN>", # returns null json
         "/1/filesystem/settings/character-encodings", # array with no items
@@ -691,9 +693,10 @@ excludeEndPoints = [
         "/3/fsa/results/<ID>/directories/<LIN>", # array with no items
         "/3/fsa/results/<ID>/directories" # array with no items
         ]
+
 if True:
     desc_list_parms = {"describe": "", "json": "", "list": ""}
-    url = "https://137.69.154.252:8080" + baseUrl
+    url = "https://" + source_node_or_cluster + ":" + papi_port + baseUrl
     resp = requests.get(url=url, params=desc_list_parms, auth=auth, verify=False)
     endPointListJson = json.loads(resp.text)
 
@@ -810,7 +813,8 @@ for endPointTuple in endPointPaths:
         # next do the item PUT (i.e. update), DELETE, and GET because the GET seems
         # to be a limited version of the base path GET so the subclassing works
         # correct when done in this order
-        url = "https://137.69.154.252:8080" + baseUrl + itemEndPointPath
+        url = "https://" + source_node_or_cluster + ":" + papi_port +\
+            baseUrl + itemEndPointPath
         resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
 
         itemRespJson = json.loads(resp.text)
@@ -838,7 +842,8 @@ for endPointTuple in endPointPaths:
 
     if baseEndPointPath is not None:
         print >> sys.stderr, "Processing " + baseEndPointPath
-        url = "https://137.69.154.252:8080" + baseUrl + baseEndPointPath
+        url = "https://" + source_node_or_cluster + ":" + papi_port +\
+            baseUrl + baseEndPointPath
         resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
         baseRespJson = json.loads(resp.text)
         basePathParams = ParsePathParams(baseEndPointPath)

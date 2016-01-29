@@ -8,7 +8,7 @@ swagger_client.configuration.password = "a"
 swagger_client.configuration.verify_ssl = False
 
 # configure host
-host = "https://137.69.154.252:8080"
+host = "https://10.7.160.60:8080"
 apiClient = swagger_client.ApiClient(host)
 authApi = swagger_client.AuthApi(apiClient)
 
