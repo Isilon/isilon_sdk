@@ -1,4 +1,10 @@
 #!/usr/bin/python
+"""
+This script will print to stdout a swagger config based on the ?describe
+responses from the PAPI handlers on your cluster (specified by cluster name or
+ip address as the first argument to this script).  Swagger tools can now use
+this config to create language bindings and documentation.
+"""
 import json
 import os
 import re
@@ -8,9 +14,14 @@ import sys
 
 requests.packages.urllib3.disable_warnings()
 
-source_node_or_cluster = "10.7.160.60"
+if len(sys.argv) < 4:
+    print ("\nUsage: " + sys.argv[0] + " <cluster-name-or-ip-address> "
+        "<username> <password>\n")
+    sys.exit()
+
+source_node_or_cluster = sys.argv[1]
 papi_port = "8080"
-auth = HTTPBasicAuth("root", "a")
+auth = HTTPBasicAuth(sys.argv[2], sys.argv[3])
 baseUrl = "/platform"
 desc_parms = {"describe": "", "json": ""}
 
@@ -694,7 +705,14 @@ excludeEndPoints = [
         "/3/fsa/results/<ID>/directories" # array with no items
         ]
 
-if True:
+def GetEndpointPaths():
+    """
+    Gets the full list of PAPI URIs reported by source_node_or_cluster using
+    the ?describe&list&json query arguments at the root level.
+    Returns the URIs as a list of tuples where collection resources appear as
+    (<collection-uri>, <single-item-uri>) and non-collection/static resources
+    appear as (<uri>,None).
+    """
     desc_list_parms = {"describe": "", "json": "", "list": ""}
     url = "https://" + source_node_or_cluster + ":" + papi_port + baseUrl
     resp = requests.get(url=url, params=desc_list_parms, auth=auth, verify=False)
@@ -750,7 +768,6 @@ if True:
         endPointPaths.append(baseEndPointTuple)
 
     def EndPointPathCompare(a, b):
-        #print "Compare " + str(a) + " and " + str(b)
         lhs = a[0]
         if lhs is None:
             lhs = a[1]
@@ -759,40 +776,14 @@ if True:
             rhs = b[1]
         if lhs.find(rhs) == 0 \
                 or rhs.find(lhs) == 0:
-            #print "Compare " + str(a) + " and " + str(b)
-            #print "Use length"
             return len(rhs) - len(lhs)
-        #print "Use alpha"
         return cmp(lhs, rhs)
 
-    endPointPaths = sorted(endPointPaths, cmp=EndPointPathCompare)
-else:
-    endPointPaths = [
-            ("/1/auth/groups/<GROUP>/members",
-             "/1/auth/groups/<GROUP>/members/<MEMBER>"),
-            ("/1/auth/groups",
-             "/1/auth/groups/<GROUP>"),
-            ("/1/auth/mapping/users/lookup", None),
-            ("/3/auth/mapping/dump", None),
-            (None, "/1/auth/access/<USER>"),
-            ("/3/antivirus/settings", None),
-            ("/3/antivirus/scan", None),
-            (None, "/3/antivirus/quarantine/<PATH+>"),
-            ("/3/antivirus/policies", "/3/antivirus/policies/<NAME>"),
-            ("/1/protocols/nfs/exports", "/1/protocols/nfs/exports/<EID>"),
-            ("/1/protocols/smb/shares", "/1/protocols/smb/shares/<SHARE>"),
-            ("/1/storagepool/unprovisioned", None),
-            (None, "/3/hardware/tape/<name*>"),
-            ("/1/auth/mapping/identities",
-             "/1/auth/mapping/identities/<SOURCE>"),
-            ("/3/statistics/summary/client", None),
-            ("/1/storagepool/tiers",
-             "/1/storagepool/tiers/<TID>"),
-            ("/1/zones-summary",
-             "/1/zones-summary/<ZONE>")]
+    return sorted(endPointPaths, cmp=EndPointPathCompare)
 
 successCount = 0
 failCount = 0
+endPointPaths = GetEndpointPaths()
 objectDefs = {}
 for endPointTuple in endPointPaths:
     baseEndPointPath = endPointTuple[0]
@@ -882,7 +873,6 @@ for endPointTuple in endPointPaths:
                 print >> sys.stderr, "WARNING: HEAD_args in: " + baseEndPointPath
             successCount += 1
         except Exception as e:
-        #    print >> sys.stderr, "Caught exception processing: " + baseEndPointPath
             failCount += 1
 
 if len(objectDefs) > 0:
