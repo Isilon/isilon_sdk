@@ -635,13 +635,13 @@ swaggerJson = {
     "swagger": "2.0",
     "info": {
       "version": "1.0.0",
-      "title": "Isilon PAPI",
-      "description": "Isilon Platform API.",
-      "termsOfService": "http://emc.com",
+      "title": "Isilon SDK",
+      "description": "Isilon SDK - Swagger Open API Specification for OneFS API",
+      "termsOfService": "http://www.emc.com",
       "contact": {
-        "name": "Isilon PAPI Team",
-        "email": "papi@isilon.com",
-        "url": "http://emc.com"
+        "name": "Isilon SDK Team",
+        "email": "sdk@isilon.com",
+        "url": "http://www.emc.com"
       },
       "license": {
         "name": "MIT",
