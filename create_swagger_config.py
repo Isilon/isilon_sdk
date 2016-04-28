@@ -1,6 +1,13 @@
 #!/usr/bin/python
+"""
+This script will print to stdout a swagger config based on the ?describe
+responses from the PAPI handlers on your cluster (specified by cluster name or
+ip address as the first argument to this script).  Swagger tools can now use
+this config to create language bindings and documentation.
+"""
 import argparse
 import json
+import getpass
 import os
 import re
 import requests
@@ -150,6 +157,7 @@ def IsiArrayPropToSwaggerArrayProp(
                 objDefs, classExtPostFix)
     elif "type" not in prop["items"] and "$ref" not in prop["items"]:
         raise RuntimeError("Array with no type or $ref: " + str(prop))
+
 
 def IsiSchemaToSwaggerObjectDefs(
         isiObjNameSpace, isiObjName, isiSchema, objDefs,
@@ -639,6 +647,88 @@ def ParsePathParams(endPointPath):
     return params
 
 
+def GetEndpointPaths(source_node_or_cluster, papi_port, baseUrl, auth,
+        excludeEndPoints):
+    """
+    Gets the full list of PAPI URIs reported by source_node_or_cluster using
+    the ?describe&list&json query arguments at the root level.
+    Returns the URIs as a list of tuples where collection resources appear as
+    (<collection-uri>, <single-item-uri>) and non-collection/static resources
+    appear as (<uri>,None).
+    """
+    desc_list_parms = {"describe": "", "json": "", "list": ""}
+    url = "https://" + source_node_or_cluster + ":" + papi_port + baseUrl
+    resp = requests.get(url=url, params=desc_list_parms, auth=auth, verify=False)
+    endPointListJson = json.loads(resp.text)
+
+    baseEndPoints = {}
+    endPointPaths = []
+    epIndex = 0
+    numEndPoints = len(endPointListJson["directory"])
+    while epIndex < numEndPoints:
+        curEndPoint = endPointListJson["directory"][epIndex]
+        if curEndPoint[2] != '/':
+            # skip floating point version numbers
+            epIndex += 1
+            continue
+        #print "curEndPoint[" + str(epIndex) + "] = " + curEndPoint
+        nextEpIndex = epIndex + 1
+        while nextEpIndex < numEndPoints:
+            nextEndPoint = endPointListJson["directory"][nextEpIndex]
+            # strip off the version and compare to see if they are
+            # the same.
+            if nextEndPoint[2:] != curEndPoint[2:]:
+                #if epIndex + 1 != nextEpIndex:
+                #    print "Using " + curEndPoint
+                break
+            #print "Skipping " + curEndPoint
+            curEndPoint = nextEndPoint
+            epIndex = nextEpIndex
+            nextEpIndex += 1
+
+        if curEndPoint in excludeEndPoints:
+            epIndex += 1
+            continue
+
+        if curEndPoint[-1] != '>':
+            baseEndPoints[curEndPoint[2:]] = (curEndPoint, None)
+        else:
+            try:
+                itemEndPoint = curEndPoint
+                lastSlash = itemEndPoint.rfind('/')
+                baseEndPointTuple = baseEndPoints[itemEndPoint[2:lastSlash]]
+                baseEndPointTuple = (baseEndPointTuple[0], itemEndPoint)
+                endPointPaths.append(baseEndPointTuple)
+                del baseEndPoints[itemEndPoint[2:lastSlash]]
+            except KeyError:
+                # no base for this itemEndPoint
+                endPointPaths.append((None, itemEndPoint))
+
+        epIndex += 1
+
+    # remaining base end points have no item end point
+    for baseEndPointTuple in baseEndPoints.values():
+        endPointPaths.append(baseEndPointTuple)
+
+    def EndPointPathCompare(a, b):
+        #print "Compare " + str(a) + " and " + str(b)
+        lhs = a[0]
+        if lhs is None:
+            lhs = a[1]
+        rhs = b[0]
+        if rhs is None:
+            rhs = b[1]
+        if lhs.find(rhs) == 0 \
+                or rhs.find(lhs) == 0:
+            #print "Compare " + str(a) + " and " + str(b)
+            #print "Use length"
+            return len(rhs) - len(lhs)
+        #print "Use alpha"
+        return cmp(lhs, rhs)
+
+    return sorted(endPointPaths, cmp=EndPointPathCompare)
+
+
 def main():
     argparser = argparse.ArgumentParser(
             description="Builds the Swagger config from the "\
@@ -650,6 +740,12 @@ def main():
     argparser.add_argument('-o', '--output',
             dest="outputFile", help="Path to the output file.",
             action="store")
+    argparser.add_argument('-u', '--username', dest='username',
+            help="The username to use for the cluster.",
+            action='store', default=None)
+    argparser.add_argument('-p', '--password', dest='password',
+            help="The password to use for the cluster.",
+            action='store', default=None)
     argparser.add_argument('-d', '--defs', dest='defsFile',
             help="Path to a file that contains pre-built Swagger data model "\
             "definitions.", action='store', default=None)
@@ -658,17 +754,23 @@ def main():
 
     args = argparser.parse_args()
 
+    if args.username is None:
+        args.username = raw_input("Please provide the username used to access "
+                + args.host + " via PAPI: ")
+    if args.password is None:
+        args.password = getpass.getpass("Password: ")
+
     swaggerJson = {
         "swagger": "2.0",
         "info": {
           "version": "1.0.0",
-          "title": "Isilon PAPI",
-          "description": "Isilon Platform API.",
-          "termsOfService": "http://emc.com",
+          "title": "Isilon SDK",
+          "description": "Isilon SDK - Swagger Open API Specification for OneFS API",
+          "termsOfService": "http://www.emc.com",
           "contact": {
-            "name": "Isilon PAPI Team",
-            "email": "papi@isilon.com",
-            "url": "http://emc.com"
+            "name": "Isilon SDK Team",
+            "email": "sdk@isilon.com",
+            "url": "http://www.emc.com"
           },
           "license": {
             "name": "MIT",
@@ -735,98 +837,29 @@ def main():
 
     swaggerJson["definitions"] = swaggerDefs
 
-    auth = HTTPBasicAuth("root", "a")
+    auth = HTTPBasicAuth(args.username, args.password)
     baseUrl = "/platform"
+    papi_port = "8080"
     desc_parms = {"describe": "", "json": ""}
 
-    excludeEndPoints = [
-            "/1/debug/echo/<TOKEN>", # returns null json
-            "/1/filesystem/settings/character-encodings", # array with no items
-            "/1/fsa/path", # returns plain text, not JSON
-            "/1/license/eula", # returns plain text, not JSON
-            "/1/test/proxy/args/req/sleep", # return null json
-            "/1/test/proxy/args/req", # return null json
-            "/1/test/proxy/args",
-            "/1/test/proxy/uri/<LNN>",
-            "/1/test/proxy/uri",
-            "/2/versiontest/other",
-            "/3/cluster/email/default-template",
-            "/2/cluster/external-ips", # returns list not object
-            "/3/fsa/results/<ID>/directories/<LIN>", # array with no items
-            "/3/fsa/results/<ID>/directories" # array with no items
-            ]
     if args.test is False:
-        desc_list_parms = {"describe": "", "json": "", "list": ""}
-        url = "https://" + args.host + ":8080" + baseUrl
-        resp = requests.get(url=url, params=desc_list_parms, auth=auth, verify=False)
-        endPointListJson = json.loads(resp.text)
-
-        baseEndPoints = {}
-        endPointPaths = []
-        epIndex = 0
-        numEndPoints = len(endPointListJson["directory"])
-        while epIndex < numEndPoints:
-            curEndPoint = endPointListJson["directory"][epIndex]
-            if curEndPoint[2] != '/':
-                # skip floating point version numbers
-                epIndex += 1
-                continue
-            #print "curEndPoint[" + str(epIndex) + "] = " + curEndPoint
-            nextEpIndex = epIndex + 1
-            while nextEpIndex < numEndPoints:
-                nextEndPoint = endPointListJson["directory"][nextEpIndex]
-                # strip off the version and compare to see if they are
-                # the same.
-                if nextEndPoint[2:] != curEndPoint[2:]:
-                    #if epIndex + 1 != nextEpIndex:
-                    #    print "Using " + curEndPoint
-                    break
-                #print "Skipping " + curEndPoint
-                curEndPoint = nextEndPoint
-                epIndex = nextEpIndex
-                nextEpIndex += 1
-
-            if curEndPoint in excludeEndPoints:
-                epIndex += 1
-                continue
-
-            if curEndPoint[-1] != '>':
-                baseEndPoints[curEndPoint[2:]] = (curEndPoint, None)
-            else:
-                try:
-                    itemEndPoint = curEndPoint
-                    lastSlash = itemEndPoint.rfind('/')
-                    baseEndPointTuple = baseEndPoints[itemEndPoint[2:lastSlash]]
-                    baseEndPointTuple = (baseEndPointTuple[0], itemEndPoint)
-                    endPointPaths.append(baseEndPointTuple)
-                    del baseEndPoints[itemEndPoint[2:lastSlash]]
-                except KeyError:
-                    # no base for this itemEndPoint
-                    endPointPaths.append((None, itemEndPoint))
-
-            epIndex += 1
-
-        # remaining base end points have no item end point
-        for baseEndPointTuple in baseEndPoints.values():
-            endPointPaths.append(baseEndPointTuple)
-
-        def EndPointPathCompare(a, b):
-            #print "Compare " + str(a) + " and " + str(b)
-            lhs = a[0]
-            if lhs is None:
-                lhs = a[1]
-            rhs = b[0]
-            if rhs is None:
-                rhs = b[1]
-            if lhs.find(rhs) == 0 \
-                    or rhs.find(lhs) == 0:
-                #print "Compare " + str(a) + " and " + str(b)
-                #print "Use length"
-                return len(rhs) - len(lhs)
-            #print "Use alpha"
-            return cmp(lhs, rhs)
-
-        endPointPaths = sorted(endPointPaths, cmp=EndPointPathCompare)
+        excludeEndPoints = [
+                "/1/debug/echo/<TOKEN>", # returns null json
+                "/1/filesystem/settings/character-encodings", # array with no items
+                "/1/fsa/path", # returns plain text, not JSON
+                "/1/license/eula", # returns plain text, not JSON
+                "/1/test/proxy/args/req/sleep", # return null json
+                "/1/test/proxy/args/req", # return null json
+                "/1/test/proxy/args",
+                "/1/test/proxy/uri/<LNN>",
+                "/1/test/proxy/uri",
+                "/2/versiontest/other",
+                "/3/cluster/email/default-template",
+                "/2/cluster/external-ips", # returns list not object
+                "/3/fsa/results/<ID>/directories/<LIN>", # array with no items
+                "/3/fsa/results/<ID>/directories" ] # array with no items
+        endPointPaths = GetEndpointPaths(args.host, papi_port, baseUrl, auth,
+                excludeEndPoints)
     else:
         endPointPaths = [
                 ("/1/auth/groups/<GROUP>/members",
@@ -874,7 +907,8 @@ def main():
             # next do the item PUT (i.e. update), DELETE, and GET because the GET seems
             # to be a limited version of the base path GET so the subclassing works
             # correct when done in this order
-            url = "https://" + args.host + ":8080" + baseUrl + itemEndPointPath
+            url = "https://" + args.host + ":" + papi_port + baseUrl \
+                    + itemEndPointPath
             resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
 
             itemRespJson = json.loads(resp.text)
@@ -902,7 +936,8 @@ def main():
 
         if baseEndPointPath is not None:
             print >> sys.stderr, "Processing " + baseEndPointPath
-            url = "https://" + args.host + ":8080" + baseUrl + baseEndPointPath
+            url = "https://" + args.host + ":" + papi_port + baseUrl \
+                    + baseEndPointPath
             resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
             baseRespJson = json.loads(resp.text)
             basePathParams = ParsePathParams(baseEndPointPath)
