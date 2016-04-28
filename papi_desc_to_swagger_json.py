@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import argparse
 import json
 import os
 import re
@@ -191,11 +192,18 @@ def IsiSchemaToSwaggerObjectDefs(
         prop = isiSchema["properties"][propName]
         if "type" not in prop:
             continue # must be a $ref
+        if "required" in prop:
+            if prop["required"] == True:
+                requiredProps.append(propName)
+            del prop["required"]
+
+        updateProps = False
         if type(prop["type"]) == list:
             # swagger doesn't like lists for types
             # so use the first type that is not "null"
             prop = isiSchema["properties"][propName] = \
                     FindBestTypeForProp(prop)
+            updateProps = True
 
         if prop["type"] == "object":
             subObjNameSpace = isiObjNameSpace + isiObjName
@@ -240,15 +248,32 @@ def IsiSchemaToSwaggerObjectDefs(
                 if item[0] != '@':
                     newEnum.append(item)
             if len(newEnum) > 0:
-                isiSchema["properties"][propName]["enum"] = newEnum
+                prop["enum"] = newEnum
             else:
-                del isiSchema["properties"][propName]["enum"]
+                del prop["enum"]
+            updateProps = True
+        elif prop["type"] == "any":
+            # Swagger does not support "any"
+            prop["type"] = "string"
+            updateProps = True
+        elif prop["type"] == "int":
+            # HACK fix for bugs in the PAPI
+            print >> sys.stderr, "*** Invalid prop type in object " \
+                    + isiObjName + " prop " + propName + ": " \
+                    + str(prop) + "\n"
+            prop["type"] = "integer"
+            updateProps = True
+        elif prop["type"] == "bool":
+            # HACK fix for bugs in the PAPI
+            print >> sys.stderr, "*** Invalid prop type in object " \
+                    + isiObjName + " prop " + propName + ": " \
+                    + str(prop) + "\n"
+            prop["type"] = "boolean"
+            updateProps = True
 
-
-        if "required" in prop and prop["required"] == True:
-            if "required" in isiSchema["properties"][propName]:
-                del isiSchema["properties"][propName]["required"]
-            requiredProps.append(propName)
+        if updateProps is True:
+            isiSchema["properties"][propName] = prop
+            updateProps = False
 
     # attache required props
     if len(requiredProps) > 0:
@@ -614,277 +639,319 @@ def ParsePathParams(endPointPath):
     return params
 
 
-swaggerJson = {
-    "swagger": "2.0",
-    "info": {
-      "version": "1.0.0",
-      "title": "Isilon PAPI",
-      "description": "Isilon Platform API.",
-      "termsOfService": "http://emc.com",
-      "contact": {
-        "name": "Isilon PAPI Team",
-        "email": "papi@isilon.com",
-        "url": "http://emc.com"
-      },
-      "license": {
-        "name": "MIT",
-        "url": "http://github.com/gruntjs/grunt/blob/master/LICENSE-MIT"
-      }
-    },
-    "schemes": [
-      "https"
-    ],
-    "consumes": [
-      "application/json"
-    ],
-    "produces": [
-      "application/json"
-    ],
-    "securityDefinitions": {
-      "basic_auth": {
-        "type": "basic"
-      }
-    },
-    "security": [{ "basic_auth": [] }],
-    "paths": {},
-    "definitions": {
-      "Error": {
-        "type": "object",
-        "required": [
-          "code",
-          "message"
+def main():
+    argparser = argparse.ArgumentParser(
+            description="Builds the Swagger config from the "\
+                    "PAPI end point descriptions.")
+    argparser.add_argument('-i', '--input',
+            dest="host", help="IP-address or hostname of the Isilon"\
+            "cluster to use as input.",
+            action="store")
+    argparser.add_argument('-o', '--output',
+            dest="outputFile", help="Path to the output file.",
+            action="store")
+    argparser.add_argument('-d', '--defs', dest='defsFile',
+            help="Path to a file that contains pre-built Swagger data model "\
+            "definitions.", action='store', default=None)
+    argparser.add_argument('-t', '--test', dest='test',
+            help="Test mode on.", action='store_true', default=False)
+
+    args = argparser.parse_args()
+
+    swaggerJson = {
+        "swagger": "2.0",
+        "info": {
+          "version": "1.0.0",
+          "title": "Isilon PAPI",
+          "description": "Isilon Platform API.",
+          "termsOfService": "http://emc.com",
+          "contact": {
+            "name": "Isilon PAPI Team",
+            "email": "papi@isilon.com",
+            "url": "http://emc.com"
+          },
+          "license": {
+            "name": "MIT",
+            "url": "http://github.com/gruntjs/grunt/blob/master/LICENSE-MIT"
+          }
+        },
+        "schemes": [
+          "https"
         ],
-        "properties": {
-            "code": {
-                "type": "integer",
-                "format": "int32"
-            },
-            "message": {
-                "type": "string"
-            }
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "securityDefinitions": {
+          "basic_auth": {
+            "type": "basic"
+          }
+        },
+        "security": [{ "basic_auth": [] }],
+        "paths": {},
+        "definitions": {}
         }
-      },
-      "Empty": {
-        "type": "object",
-        "properties": {}
-      }
-    }
-}
 
-auth = HTTPBasicAuth("root", "a")
-baseUrl = "/platform"
-desc_parms = {"describe": "", "json": ""}
-
-excludeEndPoints = [
-        "/1/debug/echo/<TOKEN>", # returns null json
-        "/1/filesystem/settings/character-encodings", # array with no items
-        "/1/fsa/path", # returns plain text, not JSON
-        "/1/license/eula", # returns plain text, not JSON
-        "/1/test/proxy/args/req/sleep", # return null json
-        "/1/test/proxy/args/req", # return null json
-        "/1/test/proxy/args",
-        "/1/test/proxy/uri/<LNN>",
-        "/1/test/proxy/uri",
-        "/2/versiontest/other",
-        "/3/cluster/email/default-template",
-        "/2/cluster/external-ips", # returns list not object
-        "/3/fsa/results/<ID>/directories/<LIN>", # array with no items
-        "/3/fsa/results/<ID>/directories" # array with no items
-        ]
-if True:
-    desc_list_parms = {"describe": "", "json": "", "list": ""}
-    url = "https://137.69.154.252:8080" + baseUrl
-    resp = requests.get(url=url, params=desc_list_parms, auth=auth, verify=False)
-    endPointListJson = json.loads(resp.text)
-
-    baseEndPoints = {}
-    endPointPaths = []
-    epIndex = 0
-    numEndPoints = len(endPointListJson["directory"])
-    while epIndex < numEndPoints:
-        curEndPoint = endPointListJson["directory"][epIndex]
-        if curEndPoint[2] != '/':
-            # skip floating point version numbers
-            epIndex += 1
-            continue
-        #print "curEndPoint[" + str(epIndex) + "] = " + curEndPoint
-        nextEpIndex = epIndex + 1
-        while nextEpIndex < numEndPoints:
-            nextEndPoint = endPointListJson["directory"][nextEpIndex]
-            # strip off the version and compare to see if they are
-            # the same.
-            if nextEndPoint[2:] != curEndPoint[2:]:
-                #if epIndex + 1 != nextEpIndex:
-                #    print "Using " + curEndPoint
-                break
-            #print "Skipping " + curEndPoint
-            curEndPoint = nextEndPoint
-            epIndex = nextEpIndex
-            nextEpIndex += 1
-
-        if curEndPoint in excludeEndPoints:
-            epIndex += 1
-            continue
-
-        if curEndPoint[-1] != '>':
-            baseEndPoints[curEndPoint[2:]] = (curEndPoint, None)
-        else:
-            try:
-                itemEndPoint = curEndPoint
-                lastSlash = itemEndPoint.rfind('/')
-                baseEndPointTuple = baseEndPoints[itemEndPoint[2:lastSlash]]
-                baseEndPointTuple = (baseEndPointTuple[0], itemEndPoint)
-                endPointPaths.append(baseEndPointTuple)
-                del baseEndPoints[itemEndPoint[2:lastSlash]]
-            except KeyError:
-                # no base for this itemEndPoint
-                endPointPaths.append((None, itemEndPoint))
-
-        epIndex += 1
-
-    # remaining base end points have no item end point
-    for baseEndPointTuple in baseEndPoints.values():
-        endPointPaths.append(baseEndPointTuple)
-
-    def EndPointPathCompare(a, b):
-        #print "Compare " + str(a) + " and " + str(b)
-        lhs = a[0]
-        if lhs is None:
-            lhs = a[1]
-        rhs = b[0]
-        if rhs is None:
-            rhs = b[1]
-        if lhs.find(rhs) == 0 \
-                or rhs.find(lhs) == 0:
-            #print "Compare " + str(a) + " and " + str(b)
-            #print "Use length"
-            return len(rhs) - len(lhs)
-        #print "Use alpha"
-        return cmp(lhs, rhs)
-
-    endPointPaths = sorted(endPointPaths, cmp=EndPointPathCompare)
-else:
-    endPointPaths = [
-            ("/1/auth/groups/<GROUP>/members",
-             "/1/auth/groups/<GROUP>/members/<MEMBER>"),
-            ("/1/auth/groups",
-             "/1/auth/groups/<GROUP>"),
-            ("/1/auth/mapping/users/lookup", None),
-            ("/3/auth/mapping/dump", None),
-            (None, "/1/auth/access/<USER>"),
-            ("/3/antivirus/settings", None),
-            ("/3/antivirus/scan", None),
-            (None, "/3/antivirus/quarantine/<PATH+>"),
-            ("/3/antivirus/policies", "/3/antivirus/policies/<NAME>"),
-            ("/1/protocols/nfs/exports", "/1/protocols/nfs/exports/<EID>"),
-            ("/1/protocols/smb/shares", "/1/protocols/smb/shares/<SHARE>"),
-            ("/1/storagepool/unprovisioned", None),
-            (None, "/3/hardware/tape/<name*>"),
-            ("/1/auth/mapping/identities",
-             "/1/auth/mapping/identities/<SOURCE>"),
-            ("/3/statistics/summary/client", None),
-            ("/1/storagepool/tiers",
-             "/1/storagepool/tiers/<TID>"),
-            ("/1/zones-summary",
-             "/1/zones-summary/<ZONE>")]
-
-successCount = 0
-failCount = 0
-objectDefs = {}
-for endPointTuple in endPointPaths:
-    baseEndPointPath = endPointTuple[0]
-    itemEndPointPath = endPointTuple[1]
-    if baseEndPointPath is None:
-        tmpBaseEndPointPath = \
-                ToSwaggerEndPoint(os.path.dirname(itemEndPointPath))
-        swaggerPath = baseUrl + tmpBaseEndPointPath
-        apiName, objNameSpace, objName = \
-                EndPointPathToApiObjName(tmpBaseEndPointPath)
+    if args.defsFile:
+        with open(args.defsFile, "r") as defFile:
+            swaggerDefs = json.loads(defFile.read())
     else:
-        apiName, objNameSpace, objName = \
-                EndPointPathToApiObjName(baseEndPointPath)
-        swaggerPath = baseUrl + ToSwaggerEndPoint(baseEndPointPath)
+        swaggerDefs = {
+          "Error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+          },
+          "Empty": {
+            "type": "object",
+            "properties": {}
+          },
+          "CreateResponse": {
+            "properties": {
+                "id": {
+                    "description": "ID of created item that can be used to refer to item in the collection-item resource path.",
+                    "type": "string"
+                    }
+                },
+            "required": [
+                "id"
+                ],
+            "type": "object"
+          }
+        }
 
-    if itemEndPointPath is not None:
-        print >> sys.stderr, "Processing " + itemEndPointPath
-        # next do the item PUT (i.e. update), DELETE, and GET because the GET seems
-        # to be a limited version of the base path GET so the subclassing works
-        # correct when done in this order
-        url = "https://137.69.154.252:8080" + baseUrl + itemEndPointPath
-        resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
+    swaggerJson["definitions"] = swaggerDefs
 
-        itemRespJson = json.loads(resp.text)
+    auth = HTTPBasicAuth("root", "a")
+    baseUrl = "/platform"
+    desc_parms = {"describe": "", "json": ""}
 
-        singularObjPostfix, itemInputType = \
-                ParsePathParams(os.path.basename(itemEndPointPath))[0]
-        extraPathParams = \
-                ParsePathParams(os.path.dirname(itemEndPointPath))
-        try:
-        #if True:
-            itemPathUrl, itemPath = \
-                    IsiItemEndPointDescToSwaggerPath(
-                            apiName, objNameSpace, objName, itemRespJson,
-                            singularObjPostfix, itemInputType,
-                            extraPathParams, objectDefs)
-            swaggerJson["paths"][swaggerPath + itemPathUrl] = itemPath
+    excludeEndPoints = [
+            "/1/debug/echo/<TOKEN>", # returns null json
+            "/1/filesystem/settings/character-encodings", # array with no items
+            "/1/fsa/path", # returns plain text, not JSON
+            "/1/license/eula", # returns plain text, not JSON
+            "/1/test/proxy/args/req/sleep", # return null json
+            "/1/test/proxy/args/req", # return null json
+            "/1/test/proxy/args",
+            "/1/test/proxy/uri/<LNN>",
+            "/1/test/proxy/uri",
+            "/2/versiontest/other",
+            "/3/cluster/email/default-template",
+            "/2/cluster/external-ips", # returns list not object
+            "/3/fsa/results/<ID>/directories/<LIN>", # array with no items
+            "/3/fsa/results/<ID>/directories" # array with no items
+            ]
+    if args.test is False:
+        desc_list_parms = {"describe": "", "json": "", "list": ""}
+        url = "https://" + args.host + ":8080" + baseUrl
+        resp = requests.get(url=url, params=desc_list_parms, auth=auth, verify=False)
+        endPointListJson = json.loads(resp.text)
 
-            if "HEAD_args" in itemRespJson:
-                print >> sys.stderr, "WARNING: HEAD_args in: " + itemEndPointPath
+        baseEndPoints = {}
+        endPointPaths = []
+        epIndex = 0
+        numEndPoints = len(endPointListJson["directory"])
+        while epIndex < numEndPoints:
+            curEndPoint = endPointListJson["directory"][epIndex]
+            if curEndPoint[2] != '/':
+                # skip floating point version numbers
+                epIndex += 1
+                continue
+            #print "curEndPoint[" + str(epIndex) + "] = " + curEndPoint
+            nextEpIndex = epIndex + 1
+            while nextEpIndex < numEndPoints:
+                nextEndPoint = endPointListJson["directory"][nextEpIndex]
+                # strip off the version and compare to see if they are
+                # the same.
+                if nextEndPoint[2:] != curEndPoint[2:]:
+                    #if epIndex + 1 != nextEpIndex:
+                    #    print "Using " + curEndPoint
+                    break
+                #print "Skipping " + curEndPoint
+                curEndPoint = nextEndPoint
+                epIndex = nextEpIndex
+                nextEpIndex += 1
 
-            successCount += 1
-        except Exception as e:
-        #    print >> sys.stderr, "Caught exception processing: " + itemEndPointPath
-            failCount += 1
+            if curEndPoint in excludeEndPoints:
+                epIndex += 1
+                continue
 
-    if baseEndPointPath is not None:
-        print >> sys.stderr, "Processing " + baseEndPointPath
-        url = "https://137.69.154.252:8080" + baseUrl + baseEndPointPath
-        resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
-        baseRespJson = json.loads(resp.text)
-        basePathParams = ParsePathParams(baseEndPointPath)
-        basePath = {}
-        # start with base path POST because it defines the base creation object
-        # model
-        try:
-        #if True:
-            if "POST_args" in baseRespJson:
-                basePath = IsiPostBaseEndPointDescToSwaggerPath(
-                                apiName, objNameSpace, objName, baseRespJson,
-                                basePathParams, objectDefs)
+            if curEndPoint[-1] != '>':
+                baseEndPoints[curEndPoint[2:]] = (curEndPoint, None)
+            else:
+                try:
+                    itemEndPoint = curEndPoint
+                    lastSlash = itemEndPoint.rfind('/')
+                    baseEndPointTuple = baseEndPoints[itemEndPoint[2:lastSlash]]
+                    baseEndPointTuple = (baseEndPointTuple[0], itemEndPoint)
+                    endPointPaths.append(baseEndPointTuple)
+                    del baseEndPoints[itemEndPoint[2:lastSlash]]
+                except KeyError:
+                    # no base for this itemEndPoint
+                    endPointPaths.append((None, itemEndPoint))
 
-            if "GET_args" in baseRespJson:
-                getBasePath = IsiGetBaseEndPointDescToSwaggerPath(
-                                apiName, objNameSpace, objName, baseRespJson,
-                                basePathParams, objectDefs)
-                basePath.update(getBasePath)
+            epIndex += 1
 
-            if "PUT_args" in baseRespJson:
-                putBasePath = IsiPutBaseEndPointDescToSwaggerPath(
-                                apiName, objNameSpace, objName, baseRespJson,
-                                basePathParams, objectDefs)
-                basePath.update(putBasePath)
+        # remaining base end points have no item end point
+        for baseEndPointTuple in baseEndPoints.values():
+            endPointPaths.append(baseEndPointTuple)
 
-            if "DELETE_args" in baseRespJson:
-                delBasePath = IsiDeleteBaseEndPointDescToSwaggerPath(
-                                apiName, objNameSpace, objName, baseRespJson,
-                                basePathParams, objectDefs)
-                basePath.update(delBasePath)
+        def EndPointPathCompare(a, b):
+            #print "Compare " + str(a) + " and " + str(b)
+            lhs = a[0]
+            if lhs is None:
+                lhs = a[1]
+            rhs = b[0]
+            if rhs is None:
+                rhs = b[1]
+            if lhs.find(rhs) == 0 \
+                    or rhs.find(lhs) == 0:
+                #print "Compare " + str(a) + " and " + str(b)
+                #print "Use length"
+                return len(rhs) - len(lhs)
+            #print "Use alpha"
+            return cmp(lhs, rhs)
 
-            if len(basePath) > 0:
-                swaggerJson["paths"][swaggerPath] = basePath
+        endPointPaths = sorted(endPointPaths, cmp=EndPointPathCompare)
+    else:
+        endPointPaths = [
+                ("/1/auth/groups/<GROUP>/members",
+                 "/1/auth/groups/<GROUP>/members/<MEMBER>"),
+                ("/1/auth/groups",
+                 "/1/auth/groups/<GROUP>"),
+                ("/1/auth/mapping/users/lookup", None),
+                ("/3/auth/mapping/dump", None),
+                (None, "/1/auth/access/<USER>"),
+                ("/3/antivirus/settings", None),
+                ("/3/antivirus/scan", None),
+                (None, "/3/antivirus/quarantine/<PATH+>"),
+                ("/3/antivirus/policies", "/3/antivirus/policies/<NAME>"),
+                ("/1/protocols/nfs/exports", "/1/protocols/nfs/exports/<EID>"),
+                ("/1/protocols/smb/shares", "/1/protocols/smb/shares/<SHARE>"),
+                ("/1/storagepool/unprovisioned", None),
+                (None, "/3/hardware/tape/<name*>"),
+                ("/1/auth/mapping/identities",
+                 "/1/auth/mapping/identities/<SOURCE>"),
+                ("/3/statistics/summary/client", None),
+                ("/1/storagepool/tiers",
+                 "/1/storagepool/tiers/<TID>"),
+                ("/1/zones-summary",
+                 "/1/zones-summary/<ZONE>")]
 
-            if "HEAD_args" in baseRespJson:
-                print >> sys.stderr, "WARNING: HEAD_args in: " + baseEndPointPath
-            successCount += 1
-        except Exception as e:
-        #    print >> sys.stderr, "Caught exception processing: " + baseEndPointPath
-            failCount += 1
+    successCount = 0
+    failCount = 0
+    objectDefs = swaggerJson["definitions"]
+    for endPointTuple in endPointPaths:
+        baseEndPointPath = endPointTuple[0]
+        itemEndPointPath = endPointTuple[1]
+        if baseEndPointPath is None:
+            tmpBaseEndPointPath = \
+                    ToSwaggerEndPoint(os.path.dirname(itemEndPointPath))
+            swaggerPath = baseUrl + tmpBaseEndPointPath
+            apiName, objNameSpace, objName = \
+                    EndPointPathToApiObjName(tmpBaseEndPointPath)
+        else:
+            apiName, objNameSpace, objName = \
+                    EndPointPathToApiObjName(baseEndPointPath)
+            swaggerPath = baseUrl + ToSwaggerEndPoint(baseEndPointPath)
 
-if len(objectDefs) > 0:
-    swaggerJson["definitions"].update(objectDefs)
+        if itemEndPointPath is not None:
+            print >> sys.stderr, "Processing " + itemEndPointPath
+            # next do the item PUT (i.e. update), DELETE, and GET because the GET seems
+            # to be a limited version of the base path GET so the subclassing works
+            # correct when done in this order
+            url = "https://" + args.host + ":8080" + baseUrl + itemEndPointPath
+            resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
 
-print >> sys.stderr, "End points successfully processed: " + str(successCount) \
-        + ", failed to process: " + str(failCount) \
-        + ", excluded: " + str(len(excludeEndPoints)) + "."
-print json.dumps(swaggerJson,
-        sort_keys=True, indent=4, separators=(',', ': '))
+            itemRespJson = json.loads(resp.text)
+
+            singularObjPostfix, itemInputType = \
+                    ParsePathParams(os.path.basename(itemEndPointPath))[0]
+            extraPathParams = \
+                    ParsePathParams(os.path.dirname(itemEndPointPath))
+            try:
+            #if True:
+                itemPathUrl, itemPath = \
+                        IsiItemEndPointDescToSwaggerPath(
+                                apiName, objNameSpace, objName, itemRespJson,
+                                singularObjPostfix, itemInputType,
+                                extraPathParams, objectDefs)
+                swaggerJson["paths"][swaggerPath + itemPathUrl] = itemPath
+
+                if "HEAD_args" in itemRespJson:
+                    print >> sys.stderr, "WARNING: HEAD_args in: " + itemEndPointPath
+
+                successCount += 1
+            except Exception as e:
+            #    print >> sys.stderr, "Caught exception processing: " + itemEndPointPath
+                failCount += 1
+
+        if baseEndPointPath is not None:
+            print >> sys.stderr, "Processing " + baseEndPointPath
+            url = "https://" + args.host + ":8080" + baseUrl + baseEndPointPath
+            resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
+            baseRespJson = json.loads(resp.text)
+            basePathParams = ParsePathParams(baseEndPointPath)
+            basePath = {}
+            # start with base path POST because it defines the base creation object
+            # model
+            try:
+            #if True:
+                if "POST_args" in baseRespJson:
+                    basePath = IsiPostBaseEndPointDescToSwaggerPath(
+                                    apiName, objNameSpace, objName, baseRespJson,
+                                    basePathParams, objectDefs)
+
+                if "GET_args" in baseRespJson:
+                    getBasePath = IsiGetBaseEndPointDescToSwaggerPath(
+                                    apiName, objNameSpace, objName, baseRespJson,
+                                    basePathParams, objectDefs)
+                    basePath.update(getBasePath)
+
+                if "PUT_args" in baseRespJson:
+                    putBasePath = IsiPutBaseEndPointDescToSwaggerPath(
+                                    apiName, objNameSpace, objName, baseRespJson,
+                                    basePathParams, objectDefs)
+                    basePath.update(putBasePath)
+
+                if "DELETE_args" in baseRespJson:
+                    delBasePath = IsiDeleteBaseEndPointDescToSwaggerPath(
+                                    apiName, objNameSpace, objName, baseRespJson,
+                                    basePathParams, objectDefs)
+                    basePath.update(delBasePath)
+
+                if len(basePath) > 0:
+                    swaggerJson["paths"][swaggerPath] = basePath
+
+                if "HEAD_args" in baseRespJson:
+                    print >> sys.stderr, "WARNING: HEAD_args in: " + baseEndPointPath
+                successCount += 1
+            except Exception as e:
+            #    print >> sys.stderr, "Caught exception processing: " + baseEndPointPath
+                failCount += 1
+
+    print >> sys.stderr, "End points successfully processed: " + str(successCount) \
+            + ", failed to process: " + str(failCount) \
+            + ", excluded: " + str(len(excludeEndPoints)) + "."
+
+    with open(args.outputFile, "w") as outputFile:
+        outputFile.write(json.dumps(swaggerJson,
+            sort_keys=True, indent=4, separators=(',', ': ')))
+
+
+if __name__ == "__main__":
+    main()
