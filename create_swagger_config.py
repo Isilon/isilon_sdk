@@ -36,6 +36,19 @@ def IsiPropsToSwaggerParams(isiProps, paramType):
                 print >> sys.stderr, "WARNING: " + fieldName + " not " \
                         "defined for Swagger in prop: " + str(isiProp)
                 continue
+            if fieldName == "type":
+                if isiProp[fieldName] == "int":
+                    # HACK fix for bugs in the PAPI
+                    print >> sys.stderr, "*** Invalid type in params " \
+                            + "of type " + str(paramType) + ": " \
+                            + str(isiProps)
+                    isiProp[fieldName] = "integer"
+                elif isiProp[fieldName] == "bool":
+                    # HACK fix for bugs in the PAPI
+                    print >> sys.stderr, "*** Invalid type in params " \
+                            + "of type " + str(paramType) + ": " \
+                            + str(isiProps)
+                    isiProp[fieldName] = "boolean"
             swaggerParam[fieldName] = isiProp[fieldName]
         # add the new param to the list of params
         swaggerParameters.append(swaggerParam)
@@ -155,6 +168,21 @@ def IsiArrayPropToSwaggerArrayProp(
         IsiArrayPropToSwaggerArrayProp(prop["items"], "items",
                 isiObjName, isiObjNameSpace, isiSchemaProps[propName],
                 objDefs, classExtPostFix)
+    elif "type" in prop["items"]:
+        if prop["items"]["type"] == "any":
+            # Swagger does not support "any"
+            prop["items"]["type"] = "string"
+        elif prop["items"]["type"] == "int":
+            print >> sys.stderr, "*** Invalid prop type in object " \
+                    + isiObjName + " prop " + propName + ": " \
+                    + str(prop) + "\n"
+            prop["items"]["type"] = "integer"
+        elif prop["items"]["type"] == "bool":
+            # HACK fix for bugs in the PAPI
+            print >> sys.stderr, "*** Invalid prop type in object " \
+                    + isiObjName + " prop " + propName + ": " \
+                    + str(prop) + "\n"
+            prop["items"]["type"] = "boolean"
     elif "type" not in prop["items"] and "$ref" not in prop["items"]:
         raise RuntimeError("Array with no type or $ref: " + str(prop))
 
@@ -199,19 +227,23 @@ def IsiSchemaToSwaggerObjectDefs(
     for propName in isiSchema["properties"]:
         prop = isiSchema["properties"][propName]
         if "type" not in prop:
-            continue # must be a $ref
+            if "enum" in prop:
+                print >> sys.stderr, "*** Invalid enum prop with no type " \
+                        "in object " + isiObjName + " prop " \
+                        + propName + ": " + str(prop) + "\n"
+                prop["type"] = "string"
+            else:
+                continue # must be a $ref
         if "required" in prop:
             if prop["required"] == True:
                 requiredProps.append(propName)
             del prop["required"]
 
-        updateProps = False
         if type(prop["type"]) == list:
             # swagger doesn't like lists for types
             # so use the first type that is not "null"
             prop = isiSchema["properties"][propName] = \
                     FindBestTypeForProp(prop)
-            updateProps = True
 
         if prop["type"] == "object":
             subObjNameSpace = isiObjNameSpace + isiObjName
@@ -252,36 +284,36 @@ def IsiSchemaToSwaggerObjectDefs(
         elif prop["type"] == "string" and "enum" in prop:
             newEnum = []
             for item in prop["enum"]:
+                if type(item) != str and type(item) != unicode:
+                    print >> sys.stderr, "*** Invalid prop with multi-type "\
+                            "enum in object " + isiObjName + " prop " \
+                            + propName + ": " + str(prop) + "\n"
+                    # Swagger can't deal with multi-type enums so just
+                    # eliminate the enum.
+                    newEnum = []
+                    break
                 # swagger doesn't know how to interpret '@DEFAULT' values
-                if item[0] != '@':
+                elif item[0] != '@':
                     newEnum.append(item)
             if len(newEnum) > 0:
                 prop["enum"] = newEnum
             else:
                 del prop["enum"]
-            updateProps = True
         elif prop["type"] == "any":
             # Swagger does not support "any"
             prop["type"] = "string"
-            updateProps = True
         elif prop["type"] == "int":
             # HACK fix for bugs in the PAPI
             print >> sys.stderr, "*** Invalid prop type in object " \
                     + isiObjName + " prop " + propName + ": " \
                     + str(prop) + "\n"
             prop["type"] = "integer"
-            updateProps = True
         elif prop["type"] == "bool":
             # HACK fix for bugs in the PAPI
             print >> sys.stderr, "*** Invalid prop type in object " \
                     + isiObjName + " prop " + propName + ": " \
                     + str(prop) + "\n"
             prop["type"] = "boolean"
-            updateProps = True
-
-        if updateProps is True:
-            isiSchema["properties"][propName] = prop
-            updateProps = False
 
     # attache required props
     if len(requiredProps) > 0:
