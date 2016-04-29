@@ -284,9 +284,15 @@ def IsiSchemaToSwaggerObjectDefs(
         elif prop["type"] == "string" and "enum" in prop:
             newEnum = []
             for item in prop["enum"]:
+                if type(item) != str and type(item) != unicode:
+                    print >> sys.stderr, "*** Invalid prop with multi-type "\
+                            "enum in object " + isiObjName + " prop " \
+                            + propName + ": " + str(prop) + "\n"
+                    # Swagger can't deal with multi-type enums so just
+                    # eliminate the enum.
+                    newEnum = []
+                    break
                 # swagger doesn't know how to interpret '@DEFAULT' values
-                if type(item) != str or type(item) != unicode:
-                    newEnum.append(unicode(item))
                 elif item[0] != '@':
                     newEnum.append(item)
             if len(newEnum) > 0:
