@@ -227,7 +227,13 @@ def IsiSchemaToSwaggerObjectDefs(
     for propName in isiSchema["properties"]:
         prop = isiSchema["properties"][propName]
         if "type" not in prop:
-            continue # must be a $ref
+            if "enum" in prop:
+                print >> sys.stderr, "*** Invalid enum prop with no type " \
+                        "in object " + isiObjName + " prop " \
+                        + propName + ": " + str(prop) + "\n"
+                prop["type"] = "string"
+            else:
+                continue # must be a $ref
         if "required" in prop:
             if prop["required"] == True:
                 requiredProps.append(propName)
@@ -279,7 +285,9 @@ def IsiSchemaToSwaggerObjectDefs(
             newEnum = []
             for item in prop["enum"]:
                 # swagger doesn't know how to interpret '@DEFAULT' values
-                if item[0] != '@':
+                if type(item) != str or type(item) != unicode:
+                    newEnum.append(unicode(item))
+                elif item[0] != '@':
                     newEnum.append(item)
             if len(newEnum) > 0:
                 prop["enum"] = newEnum
