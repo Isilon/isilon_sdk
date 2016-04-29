@@ -205,13 +205,11 @@ def IsiSchemaToSwaggerObjectDefs(
                 requiredProps.append(propName)
             del prop["required"]
 
-        updateProps = False
         if type(prop["type"]) == list:
             # swagger doesn't like lists for types
             # so use the first type that is not "null"
             prop = isiSchema["properties"][propName] = \
                     FindBestTypeForProp(prop)
-            updateProps = True
 
         if prop["type"] == "object":
             subObjNameSpace = isiObjNameSpace + isiObjName
@@ -259,29 +257,21 @@ def IsiSchemaToSwaggerObjectDefs(
                 prop["enum"] = newEnum
             else:
                 del prop["enum"]
-            updateProps = True
         elif prop["type"] == "any":
             # Swagger does not support "any"
             prop["type"] = "string"
-            updateProps = True
         elif prop["type"] == "int":
             # HACK fix for bugs in the PAPI
             print >> sys.stderr, "*** Invalid prop type in object " \
                     + isiObjName + " prop " + propName + ": " \
                     + str(prop) + "\n"
             prop["type"] = "integer"
-            updateProps = True
         elif prop["type"] == "bool":
             # HACK fix for bugs in the PAPI
             print >> sys.stderr, "*** Invalid prop type in object " \
                     + isiObjName + " prop " + propName + ": " \
                     + str(prop) + "\n"
             prop["type"] = "boolean"
-            updateProps = True
-
-        if updateProps is True:
-            isiSchema["properties"][propName] = prop
-            updateProps = False
 
     # attache required props
     if len(requiredProps) > 0:
