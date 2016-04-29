@@ -36,6 +36,19 @@ def IsiPropsToSwaggerParams(isiProps, paramType):
                 print >> sys.stderr, "WARNING: " + fieldName + " not " \
                         "defined for Swagger in prop: " + str(isiProp)
                 continue
+            if fieldName == "type":
+                if isiProp[fieldName] == "int":
+                    # HACK fix for bugs in the PAPI
+                    print >> sys.stderr, "*** Invalid type in params " \
+                            + "of type " + str(paramType) + ": " \
+                            + str(isiProps)
+                    isiProp[fieldName] = "integer"
+                elif isiProp[fieldName] == "bool":
+                    # HACK fix for bugs in the PAPI
+                    print >> sys.stderr, "*** Invalid type in params " \
+                            + "of type " + str(paramType) + ": " \
+                            + str(isiProps)
+                    isiProp[fieldName] = "boolean"
             swaggerParam[fieldName] = isiProp[fieldName]
         # add the new param to the list of params
         swaggerParameters.append(swaggerParam)
@@ -155,6 +168,21 @@ def IsiArrayPropToSwaggerArrayProp(
         IsiArrayPropToSwaggerArrayProp(prop["items"], "items",
                 isiObjName, isiObjNameSpace, isiSchemaProps[propName],
                 objDefs, classExtPostFix)
+    elif "type" in prop["items"]:
+        if prop["items"]["type"] == "any":
+            # Swagger does not support "any"
+            prop["items"]["type"] = "string"
+        elif prop["items"]["type"] == "int":
+            print >> sys.stderr, "*** Invalid prop type in object " \
+                    + isiObjName + " prop " + propName + ": " \
+                    + str(prop) + "\n"
+            prop["items"]["type"] = "integer"
+        elif prop["items"]["type"] == "bool":
+            # HACK fix for bugs in the PAPI
+            print >> sys.stderr, "*** Invalid prop type in object " \
+                    + isiObjName + " prop " + propName + ": " \
+                    + str(prop) + "\n"
+            prop["items"]["type"] = "boolean"
     elif "type" not in prop["items"] and "$ref" not in prop["items"]:
         raise RuntimeError("Array with no type or $ref: " + str(prop))
 
