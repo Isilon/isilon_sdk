@@ -5,7 +5,9 @@ responses from the PAPI handlers on your cluster (specified by cluster name or
 ip address as the first argument to this script).  Swagger tools can now use
 this config to create language bindings and documentation.
 """
+import argparse
 import json
+import getpass
 import os
 import re
 import requests
@@ -13,17 +15,6 @@ from requests.auth import HTTPBasicAuth
 import sys
 
 requests.packages.urllib3.disable_warnings()
-
-if len(sys.argv) < 4:
-    print ("\nUsage: " + sys.argv[0] + " <cluster-name-or-ip-address> "
-        "<username> <password>\n")
-    sys.exit()
-
-source_node_or_cluster = sys.argv[1]
-papi_port = "8080"
-auth = HTTPBasicAuth(sys.argv[2], sys.argv[3])
-baseUrl = "/platform"
-desc_parms = {"describe": "", "json": ""}
 
 k_swaggerParamIsiPropCommonFields = [
     "description", "required", "type", "default", "maximum", "minimum", "enum",
@@ -167,6 +158,7 @@ def IsiArrayPropToSwaggerArrayProp(
     elif "type" not in prop["items"] and "$ref" not in prop["items"]:
         raise RuntimeError("Array with no type or $ref: " + str(prop))
 
+
 def IsiSchemaToSwaggerObjectDefs(
         isiObjNameSpace, isiObjName, isiSchema, objDefs,
         classExtPostFix="Extended"):
@@ -208,11 +200,18 @@ def IsiSchemaToSwaggerObjectDefs(
         prop = isiSchema["properties"][propName]
         if "type" not in prop:
             continue # must be a $ref
+        if "required" in prop:
+            if prop["required"] == True:
+                requiredProps.append(propName)
+            del prop["required"]
+
+        updateProps = False
         if type(prop["type"]) == list:
             # swagger doesn't like lists for types
             # so use the first type that is not "null"
             prop = isiSchema["properties"][propName] = \
                     FindBestTypeForProp(prop)
+            updateProps = True
 
         if prop["type"] == "object":
             subObjNameSpace = isiObjNameSpace + isiObjName
@@ -257,15 +256,32 @@ def IsiSchemaToSwaggerObjectDefs(
                 if item[0] != '@':
                     newEnum.append(item)
             if len(newEnum) > 0:
-                isiSchema["properties"][propName]["enum"] = newEnum
+                prop["enum"] = newEnum
             else:
-                del isiSchema["properties"][propName]["enum"]
+                del prop["enum"]
+            updateProps = True
+        elif prop["type"] == "any":
+            # Swagger does not support "any"
+            prop["type"] = "string"
+            updateProps = True
+        elif prop["type"] == "int":
+            # HACK fix for bugs in the PAPI
+            print >> sys.stderr, "*** Invalid prop type in object " \
+                    + isiObjName + " prop " + propName + ": " \
+                    + str(prop) + "\n"
+            prop["type"] = "integer"
+            updateProps = True
+        elif prop["type"] == "bool":
+            # HACK fix for bugs in the PAPI
+            print >> sys.stderr, "*** Invalid prop type in object " \
+                    + isiObjName + " prop " + propName + ": " \
+                    + str(prop) + "\n"
+            prop["type"] = "boolean"
+            updateProps = True
 
-
-        if "required" in prop and prop["required"] == True:
-            if "required" in isiSchema["properties"][propName]:
-                del isiSchema["properties"][propName]["required"]
-            requiredProps.append(propName)
+        if updateProps is True:
+            isiSchema["properties"][propName] = prop
+            updateProps = False
 
     # attache required props
     if len(requiredProps) > 0:
@@ -631,81 +647,8 @@ def ParsePathParams(endPointPath):
     return params
 
 
-swaggerJson = {
-    "swagger": "2.0",
-    "info": {
-      "version": "1.0.0",
-      "title": "Isilon SDK",
-      "description": "Isilon SDK - Swagger Open API Specification for OneFS API",
-      "termsOfService": "http://www.emc.com",
-      "contact": {
-        "name": "Isilon SDK Team",
-        "email": "sdk@isilon.com",
-        "url": "http://www.emc.com"
-      },
-      "license": {
-        "name": "MIT",
-        "url": "http://github.com/gruntjs/grunt/blob/master/LICENSE-MIT"
-      }
-    },
-    "schemes": [
-      "https"
-    ],
-    "consumes": [
-      "application/json"
-    ],
-    "produces": [
-      "application/json"
-    ],
-    "securityDefinitions": {
-      "basic_auth": {
-        "type": "basic"
-      }
-    },
-    "security": [{ "basic_auth": [] }],
-    "paths": {},
-    "definitions": {
-      "Error": {
-        "type": "object",
-        "required": [
-          "code",
-          "message"
-        ],
-        "properties": {
-            "code": {
-                "type": "integer",
-                "format": "int32"
-            },
-            "message": {
-                "type": "string"
-            }
-        }
-      },
-      "Empty": {
-        "type": "object",
-        "properties": {}
-      }
-    }
-}
-
-excludeEndPoints = [
-        "/1/debug/echo/<TOKEN>", # returns null json
-        "/1/filesystem/settings/character-encodings", # array with no items
-        "/1/fsa/path", # returns plain text, not JSON
-        "/1/license/eula", # returns plain text, not JSON
-        "/1/test/proxy/args/req/sleep", # return null json
-        "/1/test/proxy/args/req", # return null json
-        "/1/test/proxy/args",
-        "/1/test/proxy/uri/<LNN>",
-        "/1/test/proxy/uri",
-        "/2/versiontest/other",
-        "/3/cluster/email/default-template",
-        "/2/cluster/external-ips", # returns list not object
-        "/3/fsa/results/<ID>/directories/<LIN>", # array with no items
-        "/3/fsa/results/<ID>/directories" # array with no items
-        ]
-
-def GetEndpointPaths():
+def GetEndpointPaths(source_node_or_cluster, papi_port, baseUrl, auth,
+        excludeEndPoints):
     """
     Gets the full list of PAPI URIs reported by source_node_or_cluster using
     the ?describe&list&json query arguments at the root level.
@@ -768,6 +711,7 @@ def GetEndpointPaths():
         endPointPaths.append(baseEndPointTuple)
 
     def EndPointPathCompare(a, b):
+        #print "Compare " + str(a) + " and " + str(b)
         lhs = a[0]
         if lhs is None:
             lhs = a[1]
@@ -776,110 +720,273 @@ def GetEndpointPaths():
             rhs = b[1]
         if lhs.find(rhs) == 0 \
                 or rhs.find(lhs) == 0:
+            #print "Compare " + str(a) + " and " + str(b)
+            #print "Use length"
             return len(rhs) - len(lhs)
+        #print "Use alpha"
         return cmp(lhs, rhs)
 
     return sorted(endPointPaths, cmp=EndPointPathCompare)
 
-successCount = 0
-failCount = 0
-endPointPaths = GetEndpointPaths()
-objectDefs = {}
-for endPointTuple in endPointPaths:
-    baseEndPointPath = endPointTuple[0]
-    itemEndPointPath = endPointTuple[1]
-    if baseEndPointPath is None:
-        tmpBaseEndPointPath = \
-                ToSwaggerEndPoint(os.path.dirname(itemEndPointPath))
-        swaggerPath = baseUrl + tmpBaseEndPointPath
-        apiName, objNameSpace, objName = \
-                EndPointPathToApiObjName(tmpBaseEndPointPath)
+
+def main():
+    argparser = argparse.ArgumentParser(
+            description="Builds the Swagger config from the "\
+                    "PAPI end point descriptions.")
+    argparser.add_argument('-i', '--input',
+            dest="host", help="IP-address or hostname of the Isilon"\
+            "cluster to use as input.",
+            action="store")
+    argparser.add_argument('-o', '--output',
+            dest="outputFile", help="Path to the output file.",
+            action="store")
+    argparser.add_argument('-u', '--username', dest='username',
+            help="The username to use for the cluster.",
+            action='store', default=None)
+    argparser.add_argument('-p', '--password', dest='password',
+            help="The password to use for the cluster.",
+            action='store', default=None)
+    argparser.add_argument('-d', '--defs', dest='defsFile',
+            help="Path to a file that contains pre-built Swagger data model "\
+            "definitions.", action='store', default=None)
+    argparser.add_argument('-t', '--test', dest='test',
+            help="Test mode on.", action='store_true', default=False)
+
+    args = argparser.parse_args()
+
+    if args.username is None:
+        args.username = raw_input("Please provide the username used to access "
+                + args.host + " via PAPI: ")
+    if args.password is None:
+        args.password = getpass.getpass("Password: ")
+
+    swaggerJson = {
+        "swagger": "2.0",
+        "info": {
+          "version": "1.0.0",
+          "title": "Isilon SDK",
+          "description": "Isilon SDK - Swagger Open API Specification for OneFS API",
+          "termsOfService": "http://www.emc.com",
+          "contact": {
+            "name": "Isilon SDK Team",
+            "email": "sdk@isilon.com",
+            "url": "http://www.emc.com"
+          },
+          "license": {
+            "name": "MIT",
+            "url": "http://github.com/gruntjs/grunt/blob/master/LICENSE-MIT"
+          }
+        },
+        "schemes": [
+          "https"
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "securityDefinitions": {
+          "basic_auth": {
+            "type": "basic"
+          }
+        },
+        "security": [{ "basic_auth": [] }],
+        "paths": {},
+        "definitions": {}
+        }
+
+    if args.defsFile:
+        with open(args.defsFile, "r") as defFile:
+            swaggerDefs = json.loads(defFile.read())
     else:
-        apiName, objNameSpace, objName = \
-                EndPointPathToApiObjName(baseEndPointPath)
-        swaggerPath = baseUrl + ToSwaggerEndPoint(baseEndPointPath)
+        swaggerDefs = {
+          "Error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+          },
+          "Empty": {
+            "type": "object",
+            "properties": {}
+          },
+          "CreateResponse": {
+            "properties": {
+                "id": {
+                    "description": "ID of created item that can be used to refer to item in the collection-item resource path.",
+                    "type": "string"
+                    }
+                },
+            "required": [
+                "id"
+                ],
+            "type": "object"
+          }
+        }
 
-    if itemEndPointPath is not None:
-        print >> sys.stderr, "Processing " + itemEndPointPath
-        # next do the item PUT (i.e. update), DELETE, and GET because the GET seems
-        # to be a limited version of the base path GET so the subclassing works
-        # correct when done in this order
-        url = "https://" + source_node_or_cluster + ":" + papi_port +\
-            baseUrl + itemEndPointPath
-        resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
+    swaggerJson["definitions"] = swaggerDefs
 
-        itemRespJson = json.loads(resp.text)
+    auth = HTTPBasicAuth(args.username, args.password)
+    baseUrl = "/platform"
+    papi_port = "8080"
+    desc_parms = {"describe": "", "json": ""}
 
-        singularObjPostfix, itemInputType = \
-                ParsePathParams(os.path.basename(itemEndPointPath))[0]
-        extraPathParams = \
-                ParsePathParams(os.path.dirname(itemEndPointPath))
-        try:
-        #if True:
-            itemPathUrl, itemPath = \
-                    IsiItemEndPointDescToSwaggerPath(
-                            apiName, objNameSpace, objName, itemRespJson,
-                            singularObjPostfix, itemInputType,
-                            extraPathParams, objectDefs)
-            swaggerJson["paths"][swaggerPath + itemPathUrl] = itemPath
+    if args.test is False:
+        excludeEndPoints = [
+                "/1/debug/echo/<TOKEN>", # returns null json
+                "/1/filesystem/settings/character-encodings", # array with no items
+                "/1/fsa/path", # returns plain text, not JSON
+                "/1/license/eula", # returns plain text, not JSON
+                "/1/test/proxy/args/req/sleep", # return null json
+                "/1/test/proxy/args/req", # return null json
+                "/1/test/proxy/args",
+                "/1/test/proxy/uri/<LNN>",
+                "/1/test/proxy/uri",
+                "/2/versiontest/other",
+                "/3/cluster/email/default-template",
+                "/2/cluster/external-ips", # returns list not object
+                "/3/fsa/results/<ID>/directories/<LIN>", # array with no items
+                "/3/fsa/results/<ID>/directories" ] # array with no items
+        endPointPaths = GetEndpointPaths(args.host, papi_port, baseUrl, auth,
+                excludeEndPoints)
+    else:
+        endPointPaths = [
+                ("/1/auth/groups/<GROUP>/members",
+                 "/1/auth/groups/<GROUP>/members/<MEMBER>"),
+                ("/1/auth/groups",
+                 "/1/auth/groups/<GROUP>"),
+                ("/1/auth/mapping/users/lookup", None),
+                ("/3/auth/mapping/dump", None),
+                (None, "/1/auth/access/<USER>"),
+                ("/3/antivirus/settings", None),
+                ("/3/antivirus/scan", None),
+                (None, "/3/antivirus/quarantine/<PATH+>"),
+                ("/3/antivirus/policies", "/3/antivirus/policies/<NAME>"),
+                ("/1/protocols/nfs/exports", "/1/protocols/nfs/exports/<EID>"),
+                ("/1/protocols/smb/shares", "/1/protocols/smb/shares/<SHARE>"),
+                ("/1/storagepool/unprovisioned", None),
+                (None, "/3/hardware/tape/<name*>"),
+                ("/1/auth/mapping/identities",
+                 "/1/auth/mapping/identities/<SOURCE>"),
+                ("/3/statistics/summary/client", None),
+                ("/1/storagepool/tiers",
+                 "/1/storagepool/tiers/<TID>"),
+                ("/1/zones-summary",
+                 "/1/zones-summary/<ZONE>")]
 
-            if "HEAD_args" in itemRespJson:
-                print >> sys.stderr, "WARNING: HEAD_args in: " + itemEndPointPath
+    successCount = 0
+    failCount = 0
+    objectDefs = swaggerJson["definitions"]
+    for endPointTuple in endPointPaths:
+        baseEndPointPath = endPointTuple[0]
+        itemEndPointPath = endPointTuple[1]
+        if baseEndPointPath is None:
+            tmpBaseEndPointPath = \
+                    ToSwaggerEndPoint(os.path.dirname(itemEndPointPath))
+            swaggerPath = baseUrl + tmpBaseEndPointPath
+            apiName, objNameSpace, objName = \
+                    EndPointPathToApiObjName(tmpBaseEndPointPath)
+        else:
+            apiName, objNameSpace, objName = \
+                    EndPointPathToApiObjName(baseEndPointPath)
+            swaggerPath = baseUrl + ToSwaggerEndPoint(baseEndPointPath)
 
-            successCount += 1
-        except Exception as e:
-        #    print >> sys.stderr, "Caught exception processing: " + itemEndPointPath
-            failCount += 1
+        if itemEndPointPath is not None:
+            print >> sys.stderr, "Processing " + itemEndPointPath
+            # next do the item PUT (i.e. update), DELETE, and GET because the GET seems
+            # to be a limited version of the base path GET so the subclassing works
+            # correct when done in this order
+            url = "https://" + args.host + ":" + papi_port + baseUrl \
+                    + itemEndPointPath
+            resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
 
-    if baseEndPointPath is not None:
-        print >> sys.stderr, "Processing " + baseEndPointPath
-        url = "https://" + source_node_or_cluster + ":" + papi_port +\
-            baseUrl + baseEndPointPath
-        resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
-        baseRespJson = json.loads(resp.text)
-        basePathParams = ParsePathParams(baseEndPointPath)
-        basePath = {}
-        # start with base path POST because it defines the base creation object
-        # model
-        try:
-        #if True:
-            if "POST_args" in baseRespJson:
-                basePath = IsiPostBaseEndPointDescToSwaggerPath(
-                                apiName, objNameSpace, objName, baseRespJson,
-                                basePathParams, objectDefs)
+            itemRespJson = json.loads(resp.text)
 
-            if "GET_args" in baseRespJson:
-                getBasePath = IsiGetBaseEndPointDescToSwaggerPath(
-                                apiName, objNameSpace, objName, baseRespJson,
-                                basePathParams, objectDefs)
-                basePath.update(getBasePath)
+            singularObjPostfix, itemInputType = \
+                    ParsePathParams(os.path.basename(itemEndPointPath))[0]
+            extraPathParams = \
+                    ParsePathParams(os.path.dirname(itemEndPointPath))
+            try:
+            #if True:
+                itemPathUrl, itemPath = \
+                        IsiItemEndPointDescToSwaggerPath(
+                                apiName, objNameSpace, objName, itemRespJson,
+                                singularObjPostfix, itemInputType,
+                                extraPathParams, objectDefs)
+                swaggerJson["paths"][swaggerPath + itemPathUrl] = itemPath
 
-            if "PUT_args" in baseRespJson:
-                putBasePath = IsiPutBaseEndPointDescToSwaggerPath(
-                                apiName, objNameSpace, objName, baseRespJson,
-                                basePathParams, objectDefs)
-                basePath.update(putBasePath)
+                if "HEAD_args" in itemRespJson:
+                    print >> sys.stderr, "WARNING: HEAD_args in: " + itemEndPointPath
 
-            if "DELETE_args" in baseRespJson:
-                delBasePath = IsiDeleteBaseEndPointDescToSwaggerPath(
-                                apiName, objNameSpace, objName, baseRespJson,
-                                basePathParams, objectDefs)
-                basePath.update(delBasePath)
+                successCount += 1
+            except Exception as e:
+            #    print >> sys.stderr, "Caught exception processing: " + itemEndPointPath
+                failCount += 1
 
-            if len(basePath) > 0:
-                swaggerJson["paths"][swaggerPath] = basePath
+        if baseEndPointPath is not None:
+            print >> sys.stderr, "Processing " + baseEndPointPath
+            url = "https://" + args.host + ":" + papi_port + baseUrl \
+                    + baseEndPointPath
+            resp = requests.get(url=url, params=desc_parms, auth=auth, verify=False)
+            baseRespJson = json.loads(resp.text)
+            basePathParams = ParsePathParams(baseEndPointPath)
+            basePath = {}
+            # start with base path POST because it defines the base creation object
+            # model
+            try:
+            #if True:
+                if "POST_args" in baseRespJson:
+                    basePath = IsiPostBaseEndPointDescToSwaggerPath(
+                                    apiName, objNameSpace, objName, baseRespJson,
+                                    basePathParams, objectDefs)
 
-            if "HEAD_args" in baseRespJson:
-                print >> sys.stderr, "WARNING: HEAD_args in: " + baseEndPointPath
-            successCount += 1
-        except Exception as e:
-            failCount += 1
+                if "GET_args" in baseRespJson:
+                    getBasePath = IsiGetBaseEndPointDescToSwaggerPath(
+                                    apiName, objNameSpace, objName, baseRespJson,
+                                    basePathParams, objectDefs)
+                    basePath.update(getBasePath)
 
-if len(objectDefs) > 0:
-    swaggerJson["definitions"].update(objectDefs)
+                if "PUT_args" in baseRespJson:
+                    putBasePath = IsiPutBaseEndPointDescToSwaggerPath(
+                                    apiName, objNameSpace, objName, baseRespJson,
+                                    basePathParams, objectDefs)
+                    basePath.update(putBasePath)
 
-print >> sys.stderr, "End points successfully processed: " + str(successCount) \
-        + ", failed to process: " + str(failCount) \
-        + ", excluded: " + str(len(excludeEndPoints)) + "."
-print json.dumps(swaggerJson,
-        sort_keys=True, indent=4, separators=(',', ': '))
+                if "DELETE_args" in baseRespJson:
+                    delBasePath = IsiDeleteBaseEndPointDescToSwaggerPath(
+                                    apiName, objNameSpace, objName, baseRespJson,
+                                    basePathParams, objectDefs)
+                    basePath.update(delBasePath)
+
+                if len(basePath) > 0:
+                    swaggerJson["paths"][swaggerPath] = basePath
+
+                if "HEAD_args" in baseRespJson:
+                    print >> sys.stderr, "WARNING: HEAD_args in: " + baseEndPointPath
+                successCount += 1
+            except Exception as e:
+            #    print >> sys.stderr, "Caught exception processing: " + baseEndPointPath
+                failCount += 1
+
+    print >> sys.stderr, "End points successfully processed: " + str(successCount) \
+            + ", failed to process: " + str(failCount) \
+            + ", excluded: " + str(len(excludeEndPoints)) + "."
+
+    with open(args.outputFile, "w") as outputFile:
+        outputFile.write(json.dumps(swaggerJson,
+            sort_keys=True, indent=4, separators=(',', ': ')))
+
+
+if __name__ == "__main__":
+    main()
