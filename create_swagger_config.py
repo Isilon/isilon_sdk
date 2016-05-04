@@ -60,8 +60,9 @@ class PostFixUsed:
 
 
 def PluralObjNameToSingular(objName, postFix="", postFixUsed=None):
+    acronyms = ["Ads", "Nis"] # list of acronyms that end in 's'
     # if it's two 'ss' on the end then don't remove the last one
-    if objName[-1] == 's' and objName[-2] != 's':
+    if objName not in acronyms and objName[-1] == 's' and objName[-2] != 's':
         # if container object ends with 's' then trim off the 's'
         # to (hopefully) create the singular version
         if objName[-3:] == 'ies':
@@ -390,8 +391,10 @@ def EndPointPathToApiObjName(endPoint):
         isiObjName = isiObjNameSpace
     else:
         isiObjName = ""
-        for name in names:
+        for name in names[-2:]:
             isiObjName += re.sub('[^0-9a-zA-Z]+', '', name.title())
+        if len(names) > 2:
+            isiObjNameSpace = re.sub('[^0-9a-zA-Z]+', '', names[-3].title())
     return isiApiName, isiObjNameSpace, isiObjName
 
 
@@ -606,6 +609,10 @@ def IsiItemEndPointDescToSwaggerPath(
                         isiApiName, isiObjNameSpace, oneObjName, operation,
                         isiPutArgs, itemInputSchema, None, objDefs,
                         inputSchemaParamObjName)
+        # hack to get operation to insert ById to make the op name make sense
+        if oneObjName[-2:] == "Id":
+            swaggerPath["put"]["operationId"] = \
+                    operation + isiObjNameSpace + oneObjName[:-2] + "ById"
         # add the item-id as a url path parameter
         putIdParam = itemIdParam.copy()
         putIdParam["description"] = isiPutArgs["description"]
@@ -619,6 +626,10 @@ def IsiItemEndPointDescToSwaggerPath(
                 CreateSwaggerOperation(
                         isiApiName, isiObjNameSpace, oneObjName, operation,
                         isiDeleteArgs, None, None, objDefs)
+        # hack to get operation to insert ById to make the op name make sense
+        if oneObjName[-2:] == "Id":
+            swaggerPath[operation]["operationId"] = \
+                    operation + isiObjNameSpace + oneObjName[:-2] + "ById"
         # add the item-id as a url path parameter
         delIdParam = itemIdParam.copy()
         delIdParam["description"] = isiDeleteArgs["description"]
@@ -637,6 +648,10 @@ def IsiItemEndPointDescToSwaggerPath(
                         isiGetArgs, None, getRespSchema, objDefs)
         # hack to force the api function to be "get<SingleObj>"
         swaggerPath["get"]["operationId"] = operation + isiObjNameSpace + oneObjName
+        # hack to get operation to insert ById to make the op name make sense
+        if oneObjName[-2:] == "Id":
+            swaggerPath[operation]["operationId"] = \
+                    operation + isiObjNameSpace + oneObjName[:-2] + "ById"
         # add the item-id as a url path parameter
         getIdParam = itemIdParam.copy()
         getIdParam["description"] = isiGetArgs["description"]
@@ -656,6 +671,10 @@ def IsiItemEndPointDescToSwaggerPath(
                         isiApiName, isiObjNameSpace, oneObjName, operation,
                         isiPostArgs, postInputSchema, postRespSchema, objDefs,
                         None, "CreateParams")
+        # hack to get operation to insert ById to make the op name make sense
+        if oneObjName[-2:] == "Id":
+            swaggerPath["post"]["operationId"] = \
+                    operation + isiObjNameSpace + oneObjName[:-2] + "ById"
         AddPathParams(swaggerPath["post"]["parameters"], extraPathParams)
 
     return itemIdUrl, swaggerPath
@@ -875,47 +894,30 @@ def main():
     desc_parms = {"describe": "", "json": ""}
 
     if args.test is False:
-        excludeEndPoints = [
-                "/1/debug/echo/<TOKEN>", # returns null json
-                "/1/filesystem/settings/character-encodings", # array with no items
-                "/1/fsa/path", # returns plain text, not JSON
-                "/1/license/eula", # returns plain text, not JSON
-                "/1/test/proxy/args/req/sleep", # return null json
-                "/1/test/proxy/args/req", # return null json
-                "/1/test/proxy/args",
-                "/1/test/proxy/uri/<LNN>",
-                "/1/test/proxy/uri",
-                "/2/versiontest/other",
-                "/3/cluster/email/default-template",
-                "/2/cluster/external-ips", # returns list not object
-                "/3/fsa/results/<ID>/directories/<LIN>", # array with no items
-                "/3/fsa/results/<ID>/directories" ] # array with no items
+        excludeEndPoints = [ ]
+                #"/1/debug/echo/<TOKEN>", # returns null json
+                #"/1/filesystem/settings/character-encodings", # array with no items
+                #"/1/fsa/path", # returns plain text, not JSON
+                #"/1/license/eula", # returns plain text, not JSON
+                #"/1/test/proxy/args/req/sleep", # return null json
+                #"/1/test/proxy/args/req", # return null json
+                #"/1/test/proxy/args",
+                #"/1/test/proxy/uri/<LNN>",
+                #"/1/test/proxy/uri",
+                #"/2/versiontest/other",
+                #"/3/cluster/email/default-template",
+                #"/2/cluster/external-ips", # returns list not object
+                #"/3/fsa/results/<ID>/directories/<LIN>", # array with no items
+                #"/3/fsa/results/<ID>/directories" ] # array with no items
         endPointPaths = GetEndpointPaths(args.host, papi_port, baseUrl, auth,
                 excludeEndPoints)
     else:
+        excludeEndPoints = []
         endPointPaths = [
-                ("/1/auth/groups/<GROUP>/members",
-                 "/1/auth/groups/<GROUP>/members/<MEMBER>"),
-                ("/1/auth/groups",
-                 "/1/auth/groups/<GROUP>"),
-                ("/1/auth/mapping/users/lookup", None),
-                ("/3/auth/mapping/dump", None),
-                (None, "/1/auth/access/<USER>"),
-                ("/3/antivirus/settings", None),
-                ("/3/antivirus/scan", None),
-                (None, "/3/antivirus/quarantine/<PATH+>"),
-                ("/3/antivirus/policies", "/3/antivirus/policies/<NAME>"),
-                ("/1/protocols/nfs/exports", "/1/protocols/nfs/exports/<EID>"),
-                ("/1/protocols/smb/shares", "/1/protocols/smb/shares/<SHARE>"),
-                ("/1/storagepool/unprovisioned", None),
-                (None, "/3/hardware/tape/<name*>"),
-                ("/1/auth/mapping/identities",
-                 "/1/auth/mapping/identities/<SOURCE>"),
-                ("/3/statistics/summary/client", None),
-                ("/1/storagepool/tiers",
-                 "/1/storagepool/tiers/<TID>"),
-                ("/1/zones-summary",
-                 "/1/zones-summary/<ZONE>")]
+                ("/1/snapshot/aliases",
+                    "/1/snapshot/aliases/<SID>"),
+                ("/3/auth/providers/ads",
+                 "/3/auth/providers/ads/<ID>")]
 
     successCount = 0
     failCount = 0
