@@ -196,7 +196,18 @@ def IsiSchemaToSwaggerObjectDefs(
     # list.
     if "type" not in isiSchema:
         # have seen this for empty responses
-        return "#/definitions/Empty"
+        if "properties" not in isiSchema and "settings" not in isiSchema:
+            print >> sys.stderr, "*** Invalid empty schema for object %s. " \
+                    "Adding 'properties' and 'type'." % (isiObjName)
+            schemaCopy = isiSchema.copy()
+            for key in isiSchema.keys():
+                del isiSchema[key]
+            isiSchema["properties"] = schemaCopy
+        else:
+            print >> sys.stderr, "*** Invalid schema for object %s, no " \
+                    "'type' specified. Adding 'type': 'object'." \
+                    % (isiObjName)
+        isiSchema["type"] = "object"
 
     if type(isiSchema["type"]) == list:
         for schemaListItem in isiSchema["type"]:
@@ -350,15 +361,24 @@ def FindOrAddObjDef(objDefs, newObjDef, newObjName, classExtPostFix):
             existingProps = existingObj["allOf"][-1]["properties"]
         else:
             existingProps = objDefs[newObjName]["properties"]
-        extendedObjDef = \
-                { "allOf" : [ { "$ref": "#/definitions/" + newObjName } ] }
-        uniqueProps = {}
-        for propName in newObjDef["properties"]:
-            # delete properties that are shared.
-            if propName not in existingProps:
-                uniqueProps[propName] = newObjDef["properties"][propName]
-        newObjDef["properties"] = uniqueProps
-        extendedObjDef["allOf"].append(newObjDef)
+        isExtension = True
+        for propName in existingProps:
+            if propName not in newObjDef["properties"]:
+                isExtension = False
+                break
+        if isExtension is True:
+            extendedObjDef = \
+                    { "allOf" : [ { "$ref": "#/definitions/" + newObjName } ] }
+            uniqueProps = {}
+            for propName in newObjDef["properties"]:
+                # delete properties that are shared.
+                if propName not in existingProps:
+                    uniqueProps[propName] = newObjDef["properties"][propName]
+            newObjDef["properties"] = uniqueProps
+            extendedObjDef["allOf"].append(newObjDef)
+        else:
+            extendedObjDef = newObjDef
+
         newObjName += classExtPostFix
         objDefs[newObjName] = extendedObjDef
     else:
@@ -391,8 +411,32 @@ def EndPointPathToApiObjName(endPoint):
         isiObjName = isiObjNameSpace
     else:
         isiObjName = ""
+        prevName = re.sub('[^0-9a-zA-Z]+', '', names[-3].title()) \
+                if len(names) > 2 else isiObjNameSpace
+        nameIndex = 0
         for name in names[-2:]:
-            isiObjName += re.sub('[^0-9a-zA-Z]+', '', name.title())
+            nameIndex += 1
+            nextName = re.sub('[^0-9a-zA-Z]+', '', name.title())
+            # If there is an "ID" in th middle of the URL then try to replace
+            # with a better name using the portion of the URL right before the
+            #<ID>
+            if nameIndex < 2 and \
+                    name.upper().endswith("ID>"):
+                pu = PostFixUsed()
+                prevNameSingle = \
+                        PluralObjNameToSingular(prevName, postFixUsed=pu)
+                # if postFixUsed is true then the prevName is not capable of
+                # being singularized
+                if pu.flag is False:
+                    # print >> sys.stderr, "$$$ Using %s instead of %s $$$" \
+                            # % (prevNameSingle, nextName)
+                    nextName = prevNameSingle
+                else:
+                    # print >> sys.stderr, "$$$ Using Item instead of %s $$$" \
+                            # % (nextName)
+                    nextName = "Item"
+            isiObjName += nextName
+            prevName = nextName
         if len(names) > 2:
             isiObjNameSpace = re.sub('[^0-9a-zA-Z]+', '', names[-3].title())
     return isiApiName, isiObjNameSpace, isiObjName
@@ -914,10 +958,8 @@ def main():
     else:
         excludeEndPoints = []
         endPointPaths = [
-                ("/1/snapshot/aliases",
-                    "/1/snapshot/aliases/<SID>"),
-                ("/3/auth/providers/ads",
-                 "/3/auth/providers/ads/<ID>")]
+                ("/1/snapshot/snapshots/<SID>/locks",
+                "/1/snapshot/snapshots/<SID>/locks/<LID>")]
 
     successCount = 0
     failCount = 0
@@ -965,7 +1007,8 @@ def main():
 
                 successCount += 1
             except Exception as e:
-            #    print >> sys.stderr, "Caught exception processing: " + itemEndPointPath
+                if args.test:
+                    print >> sys.stderr, "Caught exception processing: " + itemEndPointPath
                 failCount += 1
 
         if baseEndPointPath is not None:
@@ -1010,7 +1053,8 @@ def main():
                     print >> sys.stderr, "WARNING: HEAD_args in: " + baseEndPointPath
                 successCount += 1
             except Exception as e:
-            #    print >> sys.stderr, "Caught exception processing: " + baseEndPointPath
+                if args.test:
+                    print >> sys.stderr, "Caught exception processing: " + baseEndPointPath
                 failCount += 1
 
     print >> sys.stderr, "End points successfully processed: " + str(successCount) \
