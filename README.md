@@ -5,9 +5,9 @@ Tools to allow integration of Isilon REST APIs with Swagger (swagger.io)
 
 1. Clone this repository.
 2. Find a OneFS cluster, get the IP address.
-3. Run `python create_swagger_config.py > swagger_config.json`
+3. Run `python create_swagger_config.py -i <cluster-ip-address> -o <output_file> --username <username> --password <password>` <br> if you omit --username or --password then it will prompt you
 
-This will automatically generate a swagger config "swagger_config.json" based on the ?describe responses from the PAPI handlers on your node.  Swagger tools can now use this config to create language bindings and documentation.
+This will automatically generate a swagger config <output_file> based on the ?describe responses from the PAPI handlers on your node.  Swagger tools can now use this config to create language bindings and documentation.
 
 #### To generate python PAPI bindings using the swagger config:
 1. Clone the swagger-codegen repo from https://github.com/swagger-api/swagger-codegen
