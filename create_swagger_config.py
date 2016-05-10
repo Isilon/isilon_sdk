@@ -20,6 +20,8 @@ k_swaggerParamIsiPropCommonFields = [
     "description", "required", "type", "default", "maximum", "minimum", "enum",
     "items"]
 
+g_operations = {} # tracks swagger ops generated from URLs to ensure uniqueness
+
 def IsiPropsToSwaggerParams(isiProps, paramType):
     if len(isiProps) == 0:
         return []
@@ -386,6 +388,57 @@ def FindOrAddObjDef(objDefs, newObjDef, newObjName, classExtPostFix):
     return "#/definitions/" + newObjName
 
 
+def CheckSwaggerOpIsUnique(apiName, objNameSpace, objName, endPoint):
+    opId = apiName + ":" + objNameSpace + ":" + objName
+    if opId in g_operations:
+        raise RuntimeError("Found duplicate operation %s for end points:\n" \
+                "%s\n%s" % (opId, g_operations[opId], endPoint))
+    g_operations[opId] = endPoint
+
+
+def BuildSwaggerName(names, start, end, omitParams=False):
+    swaggerName = ""
+    for index in range(start, end):
+        name = names[index]
+        nextName = re.sub('[^0-9a-zA-Z]+', '', name.title())
+        if name.startswith("<") and name.endswith(">") and omitParams is True:
+            continue # API names dont use Param fields - it's redundant
+        # If there is an "ID" in th middle of the URL then try to replace
+        # with a better name using the names from the URL that come before.
+        # Special case for "LNN" which stands for Logical Node Number.
+        if name.endswith("ID>") or name == "<LNN>":
+            nextName = "Item" # default name if we can't find a better name
+            for subIndex in reversed(range(0, index)):
+                prevName = re.sub('[^0-9a-zA-Z]+', '', names[subIndex].title())
+                pu = PostFixUsed()
+                prevNameSingle = \
+                        PluralObjNameToSingular(prevName, postFixUsed=pu)
+                # if postFixUsed is true then the prevName is not capable of
+                # being singularized (probably because it is already singular).
+                if pu.flag is False:
+                    nextName = prevNameSingle
+                    break
+        swaggerName += nextName
+    return swaggerName
+
+
+def BuildIsiApiName(names):
+    startIndex = 0
+    endIndex = 1
+    # use the first item or the last instance of <FOO> that is not on the end
+    # point URL.
+    for index in reversed(range(0, len(names) - 1)):
+        name = names[index]
+        if name.startswith("<") and name.endswith(">"):
+            endIndex = index - 1 if index > 2 else index
+            break
+    isiApiName = BuildSwaggerName(names, 0, endIndex,
+            omitParams=True)
+    # return the name and the end index so the IsiObjNameSpace and IsiObjName
+    # can be built starting from there.
+    return isiApiName, endIndex
+
+
 def EndPointPathToApiObjName(endPoint):
     """
     Convert the end point url to an object and api name.
@@ -395,50 +448,26 @@ def EndPointPathToApiObjName(endPoint):
     names = endPoint.split("/")
     # discard the version
     del names[0]
-    # use the first part of the path after the version
-    isiApiName = re.sub('[^0-9a-zA-Z]+', '', names[0].title())
+    # deal with special cases of very short end point URLs
     if len(names) == 2:
+        isiApiName = re.sub('[^0-9a-zA-Z]+', '', names[0].title())
         isiObjNameSpace = isiApiName
+        isiObjName = re.sub('[^0-9a-zA-Z]+', '', names[1].title())
+        return isiApiName, isiObjNameSpace, isiObjName
     elif len(names) == 1:
+        isiApiName = re.sub('[^0-9a-zA-Z]+', '', names[0].title())
         isiObjNameSpace = ""
         isiObjName = isiApiName
         return isiApiName, isiObjNameSpace, isiObjName
+
+    isiApiName, nextIndex = BuildIsiApiName(names)
+    if nextIndex == len(names) - 1:
+        isiObjNameSpace = ""
+        isiObjName = BuildSwaggerName(names, nextIndex, len(names))
     else:
-        isiObjNameSpace = re.sub('[^0-9a-zA-Z]+', '', names[1].title())
-        del names[0]
-    del names[0]
-    if len(names) == 0:
-        isiObjName = isiObjNameSpace
-    else:
-        isiObjName = ""
-        prevName = re.sub('[^0-9a-zA-Z]+', '', names[-3].title()) \
-                if len(names) > 2 else isiObjNameSpace
-        nameIndex = 0
-        for name in names[-2:]:
-            nameIndex += 1
-            nextName = re.sub('[^0-9a-zA-Z]+', '', name.title())
-            # If there is an "ID" in th middle of the URL then try to replace
-            # with a better name using the portion of the URL right before the
-            #<ID>
-            if nameIndex < 2 and \
-                    name.upper().endswith("ID>"):
-                pu = PostFixUsed()
-                prevNameSingle = \
-                        PluralObjNameToSingular(prevName, postFixUsed=pu)
-                # if postFixUsed is true then the prevName is not capable of
-                # being singularized
-                if pu.flag is False:
-                    # print >> sys.stderr, "$$$ Using %s instead of %s $$$" \
-                            # % (prevNameSingle, nextName)
-                    nextName = prevNameSingle
-                else:
-                    # print >> sys.stderr, "$$$ Using Item instead of %s $$$" \
-                            # % (nextName)
-                    nextName = "Item"
-            isiObjName += nextName
-            prevName = nextName
-        if len(names) > 2:
-            isiObjNameSpace = re.sub('[^0-9a-zA-Z]+', '', names[-3].title())
+        isiObjNameSpace = BuildSwaggerName(names, nextIndex, nextIndex + 1)
+        isiObjName = BuildSwaggerName(names, nextIndex + 1, len(names))
+
     return isiApiName, isiObjNameSpace, isiObjName
 
 
@@ -938,28 +967,22 @@ def main():
     desc_parms = {"describe": "", "json": ""}
 
     if args.test is False:
-        excludeEndPoints = [ ]
-                #"/1/debug/echo/<TOKEN>", # returns null json
-                #"/1/filesystem/settings/character-encodings", # array with no items
-                #"/1/fsa/path", # returns plain text, not JSON
-                #"/1/license/eula", # returns plain text, not JSON
-                #"/1/test/proxy/args/req/sleep", # return null json
-                #"/1/test/proxy/args/req", # return null json
-                #"/1/test/proxy/args",
-                #"/1/test/proxy/uri/<LNN>",
-                #"/1/test/proxy/uri",
-                #"/2/versiontest/other",
-                #"/3/cluster/email/default-template",
-                #"/2/cluster/external-ips", # returns list not object
-                #"/3/fsa/results/<ID>/directories/<LIN>", # array with no items
-                #"/3/fsa/results/<ID>/directories" ] # array with no items
+        excludeEndPoints = [
+                "/1/auth/users/<USER>/change_password",
+                # use /3/auth/users/<USER>/change-password instead
+                "/1/auth/users/<USER>/member_of",
+                "/1/auth/users/<USER>/member_of/<MEMBER_OF>",
+                # use /3/auth/users/<USER>/member-of instead
+                "/1/storagepool/suggested_protection/<NID>"
+                # use /3/storagepool/suggested-protection/<NID> instead
+                ]
         endPointPaths = GetEndpointPaths(args.host, papi_port, baseUrl, auth,
                 excludeEndPoints)
     else:
         excludeEndPoints = []
         endPointPaths = [
-                ("/1/snapshot/snapshots/<SID>/locks",
-                "/1/snapshot/snapshots/<SID>/locks/<LID>")]
+                ("/3/network/groupnets/<GROUPNET>/subnets/<SUBNET>/pools",
+                    "/3/network/groupnets/<GROUPNET>/subnets/<SUBNET>/pools/<POOL>")]
 
     successCount = 0
     failCount = 0
@@ -977,6 +1000,9 @@ def main():
             apiName, objNameSpace, objName = \
                     EndPointPathToApiObjName(baseEndPointPath)
             swaggerPath = baseUrl + ToSwaggerEndPoint(baseEndPointPath)
+
+        CheckSwaggerOpIsUnique(apiName, objNameSpace, objName,
+                swaggerPath)
 
         if itemEndPointPath is not None:
             print >> sys.stderr, "Processing " + itemEndPointPath

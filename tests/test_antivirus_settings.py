@@ -1,16 +1,16 @@
-import swagger_client
+import isi_sdk
 import urllib3
 
 urllib3.disable_warnings()
 # configure username and password
-swagger_client.configuration.username = "root"
-swagger_client.configuration.password = "a"
-swagger_client.configuration.verify_ssl = False
+isi_sdk.configuration.username = "root"
+isi_sdk.configuration.password = "a"
+isi_sdk.configuration.verify_ssl = False
 
 # configure host
-host = "https://10.7.160.60:8080"
-apiClient = swagger_client.ApiClient(host)
-antivirusApi = swagger_client.AntivirusApi(apiClient)
+host = "https://VNODE2294.west.isilon.com:8080"
+apiClient = isi_sdk.ApiClient(host)
+antivirusApi = isi_sdk.AntivirusApi(apiClient)
 
 settings = antivirusApi.get_antivirus_settings()
 print "Settings=" + str(settings)

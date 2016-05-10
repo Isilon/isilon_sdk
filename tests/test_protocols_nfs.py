@@ -1,16 +1,16 @@
-import swagger_client
+import isi_sdk
 import urllib3
 
 urllib3.disable_warnings()
 # configure username and password
-swagger_client.configuration.username = "root"
-swagger_client.configuration.password = "a"
-swagger_client.configuration.verify_ssl = False
+isi_sdk.configuration.username = "root"
+isi_sdk.configuration.password = "a"
+isi_sdk.configuration.verify_ssl = False
 
 # configure host
-host = "https://10.7.160.60:8080"
-apiClient = swagger_client.ApiClient(host)
-protocolsApi = swagger_client.ProtocolsApi(apiClient)
+host = "https://VNODE2294.west.isilon.com:8080"
+apiClient = isi_sdk.ApiClient(host)
+protocolsApi = isi_sdk.ProtocolsApi(apiClient)
 
 # get all exports
 nfsExports = protocolsApi.list_nfs_exports()
@@ -21,7 +21,7 @@ getExportResp = protocolsApi.get_nfs_export(nfsExports.exports[-1].id)
 
 # update it with a PUT
 anExport = getExportResp.exports[0]
-updateExport = swagger_client.NfsExport()
+updateExport = isi_sdk.NfsExport()
 
 # toggle the symlinks parameter
 updateExport.symlinks = anExport.symlinks == False
@@ -37,7 +37,7 @@ if getExportResp.exports[0].symlinks != updateExport.symlinks:
 
 
 # create a new export
-newExport = swagger_client.NfsExport()
+newExport = isi_sdk.NfsExport()
 newExport.paths = ["/ifs/data"]
 
 # use force because path already exists as export so would normally fail
@@ -55,7 +55,7 @@ try:
     print "Verifying delete."
     resp = protocolsApi.get_nfs_export(nfs_export_id=createResp.id)
     print "Response should be 404, not: " + str(resp)
-except swagger_client.rest.ApiException:
+except isi_sdk.rest.ApiException:
     pass
 
 print "Done."
