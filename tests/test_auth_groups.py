@@ -1,18 +1,18 @@
-import swagger_client
+import isi_sdk
 import urllib3
 
 urllib3.disable_warnings()
 # configure username and password
-swagger_client.configuration.username = "root"
-swagger_client.configuration.password = "a"
-swagger_client.configuration.verify_ssl = False
+isi_sdk.configuration.username = "root"
+isi_sdk.configuration.password = "a"
+isi_sdk.configuration.verify_ssl = False
 
 # configure host
-host = "https://10.7.160.60:8080"
-apiClient = swagger_client.ApiClient(host)
-authApi = swagger_client.AuthApi(apiClient)
+host = "https://VNODE2294.west.isilon.com:8080"
+apiClient = isi_sdk.ApiClient(host)
+authApi = isi_sdk.AuthApi(apiClient)
 
-newAuthGroup = swagger_client.AuthGroupCreateParams()
+newAuthGroup = isi_sdk.AuthGroupCreateParams()
 newAuthGroup.name = "alex"
 
 print "Creating group " + newAuthGroup.name
@@ -38,7 +38,7 @@ for group in authGroups.groups:
 
 print "Found it again: " + str(foundNewGroup)
 
-updateAuthGroup = swagger_client.AuthGroup()
+updateAuthGroup = isi_sdk.AuthGroup()
 # The only updatable value according to the description is the gid, but when i
 # try to change it, the response is that i need to include a force parameter,
 # but there is no force parameter in the description. Seems like a bug.
@@ -46,7 +46,7 @@ authApi.update_auth_group(auth_group_id=newAuthGroup.name,
                           auth_group=updateAuthGroup)
 
 # try adding a member
-groupMember = swagger_client.GroupsGroupMember()
+groupMember = isi_sdk.GroupsGroupMember()
 groupMember.name = "admin"
 groupMember.type = "user"
 

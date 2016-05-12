@@ -1,17 +1,17 @@
-import swagger_client
+import isi_sdk
 import urllib3
 
 urllib3.disable_warnings()
 
 # configure username and password
-swagger_client.configuration.username = "root"
-swagger_client.configuration.password = "a"
-swagger_client.configuration.verify_ssl = False
+isi_sdk.configuration.username = "root"
+isi_sdk.configuration.password = "a"
+isi_sdk.configuration.verify_ssl = False
 
 # configure host
-host = "https://10.7.160.60:8080"
-apiClient = swagger_client.ApiClient(host)
-protocolsApi = swagger_client.ProtocolsApi(apiClient)
+host = "https://VNODE2294.west.isilon.com:8080"
+apiClient = isi_sdk.ApiClient(host)
+protocolsApi = isi_sdk.ProtocolsApi(apiClient)
 
 # get all shares
 smbShares = protocolsApi.list_smb_shares()
@@ -30,13 +30,13 @@ aShare = getShareResp.shares[0]
 # build an object from a dict, which would allow the different data models to
 # translate between each other, e.g.:
 # updateShare =
-#     apiClient.__deserializeModel(aShare.to_dict(),swagger_client.SmbShare)
+#     apiClient.__deserializeModel(aShare.to_dict(),isi_sdk.SmbShare)
 # its too bad that the data models don't directly support construction from a
 # dict (seems easy enough considering they support "to_dict", might as well
 # support "from_dict", perhaps can request a new Swagger feature. Although,
 # ideally the Isilon PAPI data models were consistent or at least weren't so
 # strict about extra data.
-updateShare = swagger_client.SmbShare()
+updateShare = isi_sdk.SmbShare()
 
 # toggle the browsable parameter
 updateShare.browsable = aShare.browsable == False
@@ -51,7 +51,7 @@ print "It worked == " \
         + str(getShareResp.shares[0].browsable == updateShare.browsable)
 
 # create a new share
-newShare = swagger_client.SmbShareCreateParams()
+newShare = isi_sdk.SmbShareCreateParams()
 newShare.path = "/ifs/data"
 newShare.name = "ifs_data"
 
@@ -70,7 +70,7 @@ try:
     print "Verifying delete."
     resp = protocolsApi.get_smb_share(smb_share_id=createResp.id)
     print "Response should be 404, not: " + str(resp)
-except swagger_client.rest.ApiException:
+except isi_sdk.rest.ApiException:
     pass
 
 print "Done."

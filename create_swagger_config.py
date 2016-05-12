@@ -20,6 +20,8 @@ k_swaggerParamIsiPropCommonFields = [
     "description", "required", "type", "default", "maximum", "minimum", "enum",
     "items"]
 
+g_operations = {} # tracks swagger ops generated from URLs to ensure uniqueness
+
 def IsiPropsToSwaggerParams(isiProps, paramType):
     if len(isiProps) == 0:
         return []
@@ -60,8 +62,9 @@ class PostFixUsed:
 
 
 def PluralObjNameToSingular(objName, postFix="", postFixUsed=None):
+    acronyms = ["Ads", "Nis"] # list of acronyms that end in 's'
     # if it's two 'ss' on the end then don't remove the last one
-    if objName[-1] == 's' and objName[-2] != 's':
+    if objName not in acronyms and objName[-1] == 's' and objName[-2] != 's':
         # if container object ends with 's' then trim off the 's'
         # to (hopefully) create the singular version
         if objName[-3:] == 'ies':
@@ -195,7 +198,18 @@ def IsiSchemaToSwaggerObjectDefs(
     # list.
     if "type" not in isiSchema:
         # have seen this for empty responses
-        return "#/definitions/Empty"
+        if "properties" not in isiSchema and "settings" not in isiSchema:
+            print >> sys.stderr, "*** Invalid empty schema for object %s. " \
+                    "Adding 'properties' and 'type'." % (isiObjName)
+            schemaCopy = isiSchema.copy()
+            for key in isiSchema.keys():
+                del isiSchema[key]
+            isiSchema["properties"] = schemaCopy
+        else:
+            print >> sys.stderr, "*** Invalid schema for object %s, no " \
+                    "'type' specified. Adding 'type': 'object'." \
+                    % (isiObjName)
+        isiSchema["type"] = "object"
 
     if type(isiSchema["type"]) == list:
         for schemaListItem in isiSchema["type"]:
@@ -349,20 +363,80 @@ def FindOrAddObjDef(objDefs, newObjDef, newObjName, classExtPostFix):
             existingProps = existingObj["allOf"][-1]["properties"]
         else:
             existingProps = objDefs[newObjName]["properties"]
-        extendedObjDef = \
-                { "allOf" : [ { "$ref": "#/definitions/" + newObjName } ] }
-        uniqueProps = {}
-        for propName in newObjDef["properties"]:
-            # delete properties that are shared.
-            if propName not in existingProps:
-                uniqueProps[propName] = newObjDef["properties"][propName]
-        newObjDef["properties"] = uniqueProps
-        extendedObjDef["allOf"].append(newObjDef)
+        isExtension = True
+        for propName in existingProps:
+            if propName not in newObjDef["properties"]:
+                isExtension = False
+                break
+        if isExtension is True:
+            extendedObjDef = \
+                    { "allOf" : [ { "$ref": "#/definitions/" + newObjName } ] }
+            uniqueProps = {}
+            for propName in newObjDef["properties"]:
+                # delete properties that are shared.
+                if propName not in existingProps:
+                    uniqueProps[propName] = newObjDef["properties"][propName]
+            newObjDef["properties"] = uniqueProps
+            extendedObjDef["allOf"].append(newObjDef)
+        else:
+            extendedObjDef = newObjDef
+
         newObjName += classExtPostFix
         objDefs[newObjName] = extendedObjDef
     else:
         objDefs[newObjName] = newObjDef
     return "#/definitions/" + newObjName
+
+
+def CheckSwaggerOpIsUnique(apiName, objNameSpace, objName, endPoint):
+    opId = apiName + ":" + objNameSpace + ":" + objName
+    if opId in g_operations:
+        raise RuntimeError("Found duplicate operation %s for end points:\n" \
+                "%s\n%s" % (opId, g_operations[opId], endPoint))
+    g_operations[opId] = endPoint
+
+
+def BuildSwaggerName(names, start, end, omitParams=False):
+    swaggerName = ""
+    for index in range(start, end):
+        name = names[index]
+        nextName = re.sub('[^0-9a-zA-Z]+', '', name.title())
+        if name.startswith("<") and name.endswith(">") and omitParams is True:
+            continue # API names dont use Param fields - it's redundant
+        # If there is an "ID" in th middle of the URL then try to replace
+        # with a better name using the names from the URL that come before.
+        # Special case for "LNN" which stands for Logical Node Number.
+        if name.endswith("ID>") or name == "<LNN>":
+            nextName = "Item" # default name if we can't find a better name
+            for subIndex in reversed(range(0, index)):
+                prevName = re.sub('[^0-9a-zA-Z]+', '', names[subIndex].title())
+                pu = PostFixUsed()
+                prevNameSingle = \
+                        PluralObjNameToSingular(prevName, postFixUsed=pu)
+                # if postFixUsed is true then the prevName is not capable of
+                # being singularized (probably because it is already singular).
+                if pu.flag is False:
+                    nextName = prevNameSingle
+                    break
+        swaggerName += nextName
+    return swaggerName
+
+
+def BuildIsiApiName(names):
+    startIndex = 0
+    endIndex = 1
+    # use the first item or the last instance of <FOO> that is not on the end
+    # point URL.
+    for index in reversed(range(0, len(names) - 1)):
+        name = names[index]
+        if name.startswith("<") and name.endswith(">"):
+            endIndex = index - 1 if index > 2 else index
+            break
+    isiApiName = BuildSwaggerName(names, 0, endIndex,
+            omitParams=True)
+    # return the name and the end index so the IsiObjNameSpace and IsiObjName
+    # can be built starting from there.
+    return isiApiName, endIndex
 
 
 def EndPointPathToApiObjName(endPoint):
@@ -374,24 +448,26 @@ def EndPointPathToApiObjName(endPoint):
     names = endPoint.split("/")
     # discard the version
     del names[0]
-    # use the first part of the path after the version
-    isiApiName = re.sub('[^0-9a-zA-Z]+', '', names[0].title())
+    # deal with special cases of very short end point URLs
     if len(names) == 2:
+        isiApiName = re.sub('[^0-9a-zA-Z]+', '', names[0].title())
         isiObjNameSpace = isiApiName
+        isiObjName = re.sub('[^0-9a-zA-Z]+', '', names[1].title())
+        return isiApiName, isiObjNameSpace, isiObjName
     elif len(names) == 1:
+        isiApiName = re.sub('[^0-9a-zA-Z]+', '', names[0].title())
         isiObjNameSpace = ""
         isiObjName = isiApiName
         return isiApiName, isiObjNameSpace, isiObjName
+
+    isiApiName, nextIndex = BuildIsiApiName(names)
+    if nextIndex == len(names) - 1:
+        isiObjNameSpace = ""
+        isiObjName = BuildSwaggerName(names, nextIndex, len(names))
     else:
-        isiObjNameSpace = re.sub('[^0-9a-zA-Z]+', '', names[1].title())
-        del names[0]
-    del names[0]
-    if len(names) == 0:
-        isiObjName = isiObjNameSpace
-    else:
-        isiObjName = ""
-        for name in names:
-            isiObjName += re.sub('[^0-9a-zA-Z]+', '', name.title())
+        isiObjNameSpace = BuildSwaggerName(names, nextIndex, nextIndex + 1)
+        isiObjName = BuildSwaggerName(names, nextIndex + 1, len(names))
+
     return isiApiName, isiObjNameSpace, isiObjName
 
 
@@ -606,6 +682,10 @@ def IsiItemEndPointDescToSwaggerPath(
                         isiApiName, isiObjNameSpace, oneObjName, operation,
                         isiPutArgs, itemInputSchema, None, objDefs,
                         inputSchemaParamObjName)
+        # hack to get operation to insert ById to make the op name make sense
+        if oneObjName[-2:] == "Id":
+            swaggerPath["put"]["operationId"] = \
+                    operation + isiObjNameSpace + oneObjName[:-2] + "ById"
         # add the item-id as a url path parameter
         putIdParam = itemIdParam.copy()
         putIdParam["description"] = isiPutArgs["description"]
@@ -619,6 +699,10 @@ def IsiItemEndPointDescToSwaggerPath(
                 CreateSwaggerOperation(
                         isiApiName, isiObjNameSpace, oneObjName, operation,
                         isiDeleteArgs, None, None, objDefs)
+        # hack to get operation to insert ById to make the op name make sense
+        if oneObjName[-2:] == "Id":
+            swaggerPath[operation]["operationId"] = \
+                    operation + isiObjNameSpace + oneObjName[:-2] + "ById"
         # add the item-id as a url path parameter
         delIdParam = itemIdParam.copy()
         delIdParam["description"] = isiDeleteArgs["description"]
@@ -637,6 +721,10 @@ def IsiItemEndPointDescToSwaggerPath(
                         isiGetArgs, None, getRespSchema, objDefs)
         # hack to force the api function to be "get<SingleObj>"
         swaggerPath["get"]["operationId"] = operation + isiObjNameSpace + oneObjName
+        # hack to get operation to insert ById to make the op name make sense
+        if oneObjName[-2:] == "Id":
+            swaggerPath[operation]["operationId"] = \
+                    operation + isiObjNameSpace + oneObjName[:-2] + "ById"
         # add the item-id as a url path parameter
         getIdParam = itemIdParam.copy()
         getIdParam["description"] = isiGetArgs["description"]
@@ -656,6 +744,10 @@ def IsiItemEndPointDescToSwaggerPath(
                         isiApiName, isiObjNameSpace, oneObjName, operation,
                         isiPostArgs, postInputSchema, postRespSchema, objDefs,
                         None, "CreateParams")
+        # hack to get operation to insert ById to make the op name make sense
+        if oneObjName[-2:] == "Id":
+            swaggerPath["post"]["operationId"] = \
+                    operation + isiObjNameSpace + oneObjName[:-2] + "ById"
         AddPathParams(swaggerPath["post"]["parameters"], extraPathParams)
 
     return itemIdUrl, swaggerPath
@@ -876,46 +968,21 @@ def main():
 
     if args.test is False:
         excludeEndPoints = [
-                "/1/debug/echo/<TOKEN>", # returns null json
-                "/1/filesystem/settings/character-encodings", # array with no items
-                "/1/fsa/path", # returns plain text, not JSON
-                "/1/license/eula", # returns plain text, not JSON
-                "/1/test/proxy/args/req/sleep", # return null json
-                "/1/test/proxy/args/req", # return null json
-                "/1/test/proxy/args",
-                "/1/test/proxy/uri/<LNN>",
-                "/1/test/proxy/uri",
-                "/2/versiontest/other",
-                "/3/cluster/email/default-template",
-                "/2/cluster/external-ips", # returns list not object
-                "/3/fsa/results/<ID>/directories/<LIN>", # array with no items
-                "/3/fsa/results/<ID>/directories" ] # array with no items
+                "/1/auth/users/<USER>/change_password",
+                # use /3/auth/users/<USER>/change-password instead
+                "/1/auth/users/<USER>/member_of",
+                "/1/auth/users/<USER>/member_of/<MEMBER_OF>",
+                # use /3/auth/users/<USER>/member-of instead
+                "/1/storagepool/suggested_protection/<NID>"
+                # use /3/storagepool/suggested-protection/<NID> instead
+                ]
         endPointPaths = GetEndpointPaths(args.host, papi_port, baseUrl, auth,
                 excludeEndPoints)
     else:
+        excludeEndPoints = []
         endPointPaths = [
-                ("/1/auth/groups/<GROUP>/members",
-                 "/1/auth/groups/<GROUP>/members/<MEMBER>"),
-                ("/1/auth/groups",
-                 "/1/auth/groups/<GROUP>"),
-                ("/1/auth/mapping/users/lookup", None),
-                ("/3/auth/mapping/dump", None),
-                (None, "/1/auth/access/<USER>"),
-                ("/3/antivirus/settings", None),
-                ("/3/antivirus/scan", None),
-                (None, "/3/antivirus/quarantine/<PATH+>"),
-                ("/3/antivirus/policies", "/3/antivirus/policies/<NAME>"),
-                ("/1/protocols/nfs/exports", "/1/protocols/nfs/exports/<EID>"),
-                ("/1/protocols/smb/shares", "/1/protocols/smb/shares/<SHARE>"),
-                ("/1/storagepool/unprovisioned", None),
-                (None, "/3/hardware/tape/<name*>"),
-                ("/1/auth/mapping/identities",
-                 "/1/auth/mapping/identities/<SOURCE>"),
-                ("/3/statistics/summary/client", None),
-                ("/1/storagepool/tiers",
-                 "/1/storagepool/tiers/<TID>"),
-                ("/1/zones-summary",
-                 "/1/zones-summary/<ZONE>")]
+                ("/3/network/groupnets/<GROUPNET>/subnets/<SUBNET>/pools",
+                    "/3/network/groupnets/<GROUPNET>/subnets/<SUBNET>/pools/<POOL>")]
 
     successCount = 0
     failCount = 0
@@ -933,6 +1000,9 @@ def main():
             apiName, objNameSpace, objName = \
                     EndPointPathToApiObjName(baseEndPointPath)
             swaggerPath = baseUrl + ToSwaggerEndPoint(baseEndPointPath)
+
+        CheckSwaggerOpIsUnique(apiName, objNameSpace, objName,
+                swaggerPath)
 
         if itemEndPointPath is not None:
             print >> sys.stderr, "Processing " + itemEndPointPath
@@ -963,7 +1033,8 @@ def main():
 
                 successCount += 1
             except Exception as e:
-            #    print >> sys.stderr, "Caught exception processing: " + itemEndPointPath
+                if args.test:
+                    print >> sys.stderr, "Caught exception processing: " + itemEndPointPath
                 failCount += 1
 
         if baseEndPointPath is not None:
@@ -1008,7 +1079,8 @@ def main():
                     print >> sys.stderr, "WARNING: HEAD_args in: " + baseEndPointPath
                 successCount += 1
             except Exception as e:
-            #    print >> sys.stderr, "Caught exception processing: " + baseEndPointPath
+                if args.test:
+                    print >> sys.stderr, "Caught exception processing: " + baseEndPointPath
                 failCount += 1
 
     print >> sys.stderr, "End points successfully processed: " + str(successCount) \
