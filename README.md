@@ -14,14 +14,14 @@ This will automatically generate a swagger config <output_file> based on the ?de
 2. Follow the relevant instructions there (in the README.md) to install the codegen java program.  In my case I did "apt-get install maven" to get maven then ran "mvn package" to install codegen.
 3. Run codegen on the swagger_config.json file generated above.  You can also use one of the "example_output.json" available in the root directory of this repo.  For example:
 
-`java -jar modules/swagger-codegen-cli/target/swagger-codegen-cli.jar generate -i output.json -l python -o ./papi_client/python`
+`java -jar modules/swagger-codegen-cli/target/swagger-codegen-cli.jar generate -i output.json -l python -o ./papi_client/python -c swagger-codegen-config.json`
 
 #### To generate API documentation from the swagger config:
 1. Generate a PAPI swagger config as above, or use the "example_output.json" in this repo.
 2. Install codegen as described above.
 3. Use codegen with the language specified as "nodejs" or "html" to output API docs instead of a bindings library for a language, for example:
 
-``java -jar modules/swagger-codegen-cli/target/swagger-codegen-cli.jar generate -i swagger_config.json -l dynamic-html -o ./papi_doc`
+``java -jar modules/swagger-codegen-cli/target/swagger-codegen-cli.jar generate -i swagger_config.json -l dynamic-html -o ./papi_doc -c swagger-codegen-config.json`
 
 Note that you do not need to have NodeJS installed to browse the "nodejs" style dynamic output docs - just go into the generated directory structure, find index.html, and open it in your browser.  You can see an example of my most recently generated docs at:
 
@@ -33,19 +33,19 @@ Note that you do not need to have NodeJS installed to browse the "nodejs" style 
 3. In your python programs, you can now write code like the following to interact with PAPI handlers:
 
 ```
-import swagger_client
+import isi_sdk
 import urllib3
 urllib3.disable_warnings()
 
 # configure username and password
-swagger_client.configuration.username = "root"
-swagger_client.configuration.password = "a"
-swagger_client.configuration.verify_ssl = False
+isi_sdk.configuration.username = "root"
+isi_sdk.configuration.password = "a"
+isi_sdk.configuration.verify_ssl = False
 
 # configure host
 host = "https://10.7.160.60:8080"
-apiClient = swagger_client.ApiClient(host)
-protocolsApi = swagger_client.ProtocolsApi(apiClient)
+apiClient = isi_sdk.ApiClient(host)
+protocolsApi = isi_sdk.ProtocolsApi(apiClient)
 
 # get all exports
 nfsExports = protocolsApi.list_nfs_exports()

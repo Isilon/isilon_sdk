@@ -172,9 +172,12 @@ def IsiArrayPropToSwaggerArrayProp(
                 isiObjName, isiObjNameSpace, isiSchemaProps[propName],
                 objDefs, classExtPostFix)
     elif "type" in prop["items"]:
-        if prop["items"]["type"] == "any":
+        if prop["items"]["type"] == "any" or prop["items"]["type"] == "string":
             # Swagger does not support "any"
-            prop["items"]["type"] = "string"
+            if prop["items"]["type"] == "any":
+                prop["items"]["type"] = "string"
+            if "pattern" in prop["items"]:
+                prop["items"]["pattern"] = "/" + prop["items"]["pattern"] + "/"
         elif prop["items"]["type"] == "int":
             print >> sys.stderr, "*** Invalid prop type in object " \
                     + isiObjName + " prop " + propName + ": " \
@@ -328,6 +331,9 @@ def IsiSchemaToSwaggerObjectDefs(
                     + isiObjName + " prop " + propName + ": " \
                     + str(prop) + "\n"
             prop["type"] = "boolean"
+
+        if "pattern" in prop:
+            prop["pattern"] = "/" + prop["pattern"] + "/"
 
     # attache required props
     if len(requiredProps) > 0:
@@ -875,6 +881,9 @@ def main():
             "definitions.", action='store', default=None)
     argparser.add_argument('-t', '--test', dest='test',
             help="Test mode on.", action='store_true', default=False)
+    argparser.add_argument('-e', '--excludes-file', dest='excludes_file',
+            help="Path to file that contains json list of end point URLs to "\
+                    "exclude from processing.", action="store", default=None)
 
     args = argparser.parse_args()
 
@@ -967,6 +976,12 @@ def main():
     desc_parms = {"describe": "", "json": ""}
 
     if args.test is False:
+        # these excludes are only valid for 8.0 clusters, 7.2 clusters should
+        # specify excluded end points via the excluded_end_points_7_2.json.
+        # This is necessary because 7.2 PAPI does not sort the end points in
+        # the same way that 8.0 does when returning the list of end points. So
+        # the logic in GetEndpointPaths for picking the highest version of a
+        # particular end point does not work for 7.2 clusters.
         excludeEndPoints = [
                 "/1/auth/users/<USER>/change_password",
                 # use /3/auth/users/<USER>/change-password instead
@@ -976,6 +991,9 @@ def main():
                 "/1/storagepool/suggested_protection/<NID>"
                 # use /3/storagepool/suggested-protection/<NID> instead
                 ]
+        if args.excludes_file is not None:
+            with open(args.excludes_file, "r") as excludes_file_in:
+                excludeEndPoints = json.loads(excludes_file_in.read())
         endPointPaths = GetEndpointPaths(args.host, papi_port, baseUrl, auth,
                 excludeEndPoints)
     else:
