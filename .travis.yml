@@ -1,0 +1,13 @@
+language: python
+python:
+  - "3.4"
+  - "2.7"
+
+virtualenv:
+  system_site_packages: false
+
+install:
+  - pip install requests>=2.9.1
+
+script:
+  - python tests/unit_test_config_generator.py
