@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """
 This script will print to stdout a swagger config based on the ?describe
 responses from the PAPI handlers on your cluster (specified by cluster name or
