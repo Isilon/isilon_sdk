@@ -391,20 +391,14 @@ def FindOrAddObjDef(objDefs, newObjDef, newObjName, classExtPostFix):
     for objName in objDefs:
         existingObjDef = GetObjectDef(objName, objDefs)
         if newObjDef["properties"] == existingObjDef["properties"]:
-            try:
-                if sorted(newObjDef.get("required", [])) == \
+            if sorted(newObjDef.get("required", [])) == \
                     sorted(existingObjDef.get("required", [])):
-                    return "#/definitions/" + objName
-                else:
-                    # the only difference is the list of required props, so use
-                    # the existingObjDef as the basis for an extended object.
-                    extendedObjName = objName
-                    break
-            except:
-                print str(newObjDef)
-                print str(existingObjDef)
-                raise
-
+                return "#/definitions/" + objName
+            else:
+                # the only difference is the list of required props, so use
+                # the existingObjDef as the basis for an extended object.
+                extendedObjName = objName
+                break
 
     if extendedObjName in objDefs:
         # TODO at this point the subclass mechanism depends on the data models
