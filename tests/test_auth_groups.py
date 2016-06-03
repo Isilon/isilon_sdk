@@ -46,14 +46,15 @@ authApi.update_auth_group(auth_group_id=newAuthGroup.name,
                           auth_group=updateAuthGroup)
 
 # try adding a member
-groupMember = isi_sdk.GroupsGroupMember()
+groupMember = isi_sdk.GroupMember()
 groupMember.name = "admin"
 groupMember.type = "user"
 
-authApi.create_groups_group_member(group=newAuthGroup.name,
-                                   groups_group_member=groupMember)
+authGroupsApi = isi_sdk.AuthGroupsApi(apiClient)
+authGroupsApi.create_group_member(group=newAuthGroup.name,
+        group_member=groupMember)
 
-groupMembers = authApi.list_groups_group_members(group=newAuthGroup.name)
+groupMembers = authGroupsApi.list_group_members(group=newAuthGroup.name)
 foundMember = False
 for member in groupMembers.members:
     if member.name == groupMember.name:
@@ -62,10 +63,10 @@ for member in groupMembers.members:
 print "Found member: " + str(foundMember)
 
 # delete the member
-authApi.delete_groups_group_member(group=newAuthGroup.name,
-                                   groups_group_member_id=groupMembers.members[0].id)
+authGroupsApi.delete_group_member(group=newAuthGroup.name,
+        group_member_id=groupMembers.members[0].id)
 
-groupMembers = authApi.list_groups_group_members(group=newAuthGroup.name)
+groupMembers = authGroupsApi.list_group_members(group=newAuthGroup.name)
 foundMember = False
 for member in groupMembers.members:
     if member.name == groupMember.name:

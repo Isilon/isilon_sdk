@@ -14,14 +14,14 @@ This will automatically generate a swagger config <output_file> based on the ?de
 2. Follow the relevant instructions there (in the README.md) to install the codegen java program.  In my case I did "apt-get install maven" to get maven then ran "mvn package" to install codegen.
 3. Run codegen on the swagger_config.json file generated above.  You can also use one of the "example_output.json" available in the root directory of this repo.  For example:
 
-`java -jar modules/swagger-codegen-cli/target/swagger-codegen-cli.jar generate -i output.json -l python -o ./papi_client/python -c swagger-codegen-config.json`
+`java -jar modules/swagger-codegen-cli/target/swagger-codegen-cli.jar generate -i output.json -l python -o ./papi_client/python -c swagger-codegen-config.json -t swagger_templates/`
 
 #### To generate API documentation from the swagger config:
 1. Generate a PAPI swagger config as above, or use the "example_output.json" in this repo.
 2. Install codegen as described above.
 3. Use codegen with the language specified as "nodejs" or "html" to output API docs instead of a bindings library for a language, for example:
 
-``java -jar modules/swagger-codegen-cli/target/swagger-codegen-cli.jar generate -i swagger_config.json -l dynamic-html -o ./papi_doc -c swagger-codegen-config.json`
+``java -jar modules/swagger-codegen-cli/target/swagger-codegen-cli.jar generate -i swagger_config.json -l dynamic-html -o ./papi_doc -c swagger-codegen-config.json -t swagger_templates/`
 
 Note that you do not need to have NodeJS installed to browse the "nodejs" style dynamic output docs - just go into the generated directory structure, find index.html, and open it in your browser.  You can see an example of my most recently generated docs at:
 
