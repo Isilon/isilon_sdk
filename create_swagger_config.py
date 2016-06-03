@@ -12,6 +12,7 @@ import os
 import re
 import requests
 from requests.auth import HTTPBasicAuth
+import traceback
 import sys
 
 requests.packages.urllib3.disable_warnings()
@@ -111,7 +112,8 @@ def FindBestTypeForProp(prop):
 
 def IsiArrayPropToSwaggerArrayProp(
         prop, propName,
-        isiObjName, isiObjNameSpace, isiSchemaProps, objDefs, classExtPostFix):
+        isiObjName, isiObjNameSpace, isiSchemaProps, objDefs,
+        classExtPostFix, isResponseObject):
 
     if "items" not in prop and "item" in prop:
         prop["items"] = prop["item"]
@@ -138,7 +140,7 @@ def IsiArrayPropToSwaggerArrayProp(
         objRef = IsiSchemaToSwaggerObjectDefs(
                     itemsObjNameSpace, itemsObjName,
                     prop["items"], objDefs,
-                    classExtPostFix)
+                    classExtPostFix, isResponseObject)
         isiSchemaProps[propName]["items"] = \
                 {"description" : propDescription, "$ref" : objRef}
     elif "type" in prop["items"] \
@@ -160,7 +162,7 @@ def IsiArrayPropToSwaggerArrayProp(
         objRef = IsiSchemaToSwaggerObjectDefs(
                     itemsObjNameSpace, itemsObjName,
                     prop["items"]["type"], objDefs,
-                    classExtPostFix)
+                    classExtPostFix, isResponseObject)
         isiSchemaProps[propName]["items"] = {"$ref" : objRef}
     elif "type" in prop["items"] \
             and type(prop["items"]["type"]) == list:
@@ -170,7 +172,7 @@ def IsiArrayPropToSwaggerArrayProp(
             and prop["items"]["type"] == "array":
         IsiArrayPropToSwaggerArrayProp(prop["items"], "items",
                 isiObjName, isiObjNameSpace, isiSchemaProps[propName],
-                objDefs, classExtPostFix)
+                objDefs, classExtPostFix, isResponseObject)
     elif "type" in prop["items"]:
         if prop["items"]["type"] == "any" or prop["items"]["type"] == "string":
             # Swagger does not support "any"
@@ -195,7 +197,7 @@ def IsiArrayPropToSwaggerArrayProp(
 
 def IsiSchemaToSwaggerObjectDefs(
         isiObjNameSpace, isiObjName, isiSchema, objDefs,
-        classExtPostFix="Extended"):
+        classExtPostFix, isResponseObject=False):
     # converts isiSchema to a single schema with "#ref" for sub-objects
     # which is what Swagger expects. Adds the sub-objects to the objDefs
     # list.
@@ -253,7 +255,18 @@ def IsiSchemaToSwaggerObjectDefs(
                 continue # must be a $ref
         if "required" in prop:
             if prop["required"] == True:
-                requiredProps.append(propName)
+                # Often the PAPI will have a required field whose value can be
+                # either a real value, such as a string, or it can be a null,
+                # which Swagger can not deal with. This is only problematic
+                # in objects that are returned as a response because it ends up
+                # causing the Swagger code to throw an exception upon receiving
+                # a PAPI response that contains null values for the "required"
+                # fields. So if the type is a multi-type (i.e. list) and
+                # isResponseObject is True, then we don't add the field to the
+                # list of required fields.
+                if type(prop["type"]) != list \
+                        or isResponseObject is False:
+                    requiredProps.append(propName)
             del prop["required"]
 
         if type(prop["type"]) == list:
@@ -274,7 +287,7 @@ def IsiSchemaToSwaggerObjectDefs(
 
             objRef = IsiSchemaToSwaggerObjectDefs(
                         subObjNameSpace, subObjName, prop, objDefs,
-                        classExtPostFix)
+                        classExtPostFix, isResponseObject)
             isiSchema["properties"][propName] = \
                     {"description" : propDescription, "$ref" : objRef}
         elif type(prop["type"]) == dict \
@@ -290,13 +303,13 @@ def IsiSchemaToSwaggerObjectDefs(
 
             objRef = IsiSchemaToSwaggerObjectDefs(
                         subObjNameSpace, subObjName, prop["type"], objDefs,
-                        classExtPostFix)
+                        classExtPostFix, isResponseObject)
             isiSchema["properties"][propName] = \
                     {"description" : propDescription, "$ref" : objRef}
         elif prop["type"] == "array":
             IsiArrayPropToSwaggerArrayProp(prop, propName,
                     isiObjName, isiObjNameSpace, isiSchema["properties"],
-                    objDefs, classExtPostFix)
+                    objDefs, classExtPostFix, isResponseObject)
             # code below is work around for bug in /auth/access/<USER> end point
         elif prop["type"] == "string" and "enum" in prop:
             newEnum = []
@@ -338,9 +351,35 @@ def IsiSchemaToSwaggerObjectDefs(
     # attache required props
     if len(requiredProps) > 0:
         isiSchema["required"] = requiredProps
+    elif "required" in isiSchema:
+        # sometimes top-level objects have this field even though it is
+        # redundant
+        del isiSchema["required"]
 
     return FindOrAddObjDef(objDefs,
             isiSchema, isiObjNameSpace + isiObjName, classExtPostFix)
+
+
+def GetObjectDef(objName, objDefs):
+    curObj = objDefs[objName]
+    if "allOf" in curObj:
+        refObjName = os.path.basename(curObj["allOf"][0]["$ref"])
+        refObj = GetObjectDef(refObjName, objDefs)
+
+        fullObjDef = {}
+        fullObjDef["properties"] = curObj["allOf"][-1]["properties"].copy()
+        fullObjDef["properties"].update(refObj["properties"])
+        if "required" in curObj["allOf"][-1]:
+            fullObjDef["required"] = list(curObj["allOf"][-1]["required"])
+        if "required" in refObj:
+            try:
+                fullObjDef["required"].extend(refObj["required"])
+                # eliminate dups
+                fullObjDef["required"] = list(set(fullObjDef["required"]))
+            except KeyError:
+                fullObjDef["required"] = list(refObj["required"])
+        return fullObjDef
+    return curObj
 
 
 def FindOrAddObjDef(objDefs, newObjDef, newObjName, classExtPostFix):
@@ -348,14 +387,26 @@ def FindOrAddObjDef(objDefs, newObjDef, newObjName, classExtPostFix):
     Reuse existing object def if there's a match or add a new one
     Return the "definitions" path
     """
+    extendedObjName = newObjName
     for objName in objDefs:
-        existingObjDef = objDefs[objName]
-        if "allOf" in existingObjDef:
-            continue #skip subclasses
+        existingObjDef = GetObjectDef(objName, objDefs)
         if newObjDef["properties"] == existingObjDef["properties"]:
-            return "#/definitions/" + objName
+            try:
+                if sorted(newObjDef.get("required", [])) == \
+                    sorted(existingObjDef.get("required", [])):
+                    return "#/definitions/" + objName
+                else:
+                    # the only difference is the list of required props, so use
+                    # the existingObjDef as the basis for an extended object.
+                    extendedObjName = objName
+                    break
+            except:
+                print str(newObjDef)
+                print str(existingObjDef)
+                raise
 
-    if newObjName in objDefs:
+
+    if extendedObjName in objDefs:
         # TODO at this point the subclass mechanism depends on the data models
         # being generated in the correct order, where base classes are
         # generated before sub classes. This is done by processing the
@@ -364,30 +415,40 @@ def FindOrAddObjDef(objDefs, newObjDef, newObjName, classExtPostFix):
         # the same pattern that nfs exports uses is not repeated by the other
         # endpoints.
         # crude/limited subclass generation
-        existingObj = objDefs[newObjName]
-        if "allOf" in existingObj:
-            existingProps = existingObj["allOf"][-1]["properties"]
-        else:
-            existingProps = objDefs[newObjName]["properties"]
+        existingObj = GetObjectDef(extendedObjName, objDefs)
         isExtension = True
-        for propName in existingProps:
+        existingProps = existingObj["properties"]
+        existingRequired = existingObj.get("required", [])
+
+        for propName, propValue in existingProps.iteritems():
             if propName not in newObjDef["properties"]:
+                isExtension = False
+                break
+            elif newObjDef["properties"][propName] != propValue:
+                isExtension = False
+                break
+            if propName in existingRequired \
+                    and propName not in newObjDef.get("required", []):
                 isExtension = False
                 break
         if isExtension is True:
             extendedObjDef = \
-                    { "allOf" : [ { "$ref": "#/definitions/" + newObjName } ] }
+                    { "allOf" : [ { "$ref": "#/definitions/" + extendedObjName } ] }
             uniqueProps = {}
+            uniqueRequired = newObjDef.get("required", [])
             for propName in newObjDef["properties"]:
                 # delete properties that are shared.
                 if propName not in existingProps:
                     uniqueProps[propName] = newObjDef["properties"][propName]
+                if propName in existingRequired:
+                    uniqueRequired.remove(propName)
             newObjDef["properties"] = uniqueProps
             extendedObjDef["allOf"].append(newObjDef)
         else:
             extendedObjDef = newObjDef
 
-        newObjName += classExtPostFix
+        while newObjName in objDefs:
+            newObjName += classExtPostFix
         objDefs[newObjName] = extendedObjDef
     else:
         objDefs[newObjName] = newObjDef
@@ -537,7 +598,8 @@ def CreateSwaggerOperation(
     if isiRespSchema is not None:
         objRef = IsiSchemaToSwaggerObjectDefs(
                     isiRespObjNameSpace, isiRespObjName, isiRespSchema,
-                    objDefs, classExtPostFix)
+                    objDefs, classExtPostFix,
+                    isResponseObject=True)
         # create 200 response
         swagger200Resp = {}
         swagger200Resp["description"] = isiInputArgs["description"]
@@ -999,8 +1061,7 @@ def main():
     else:
         excludeEndPoints = []
         endPointPaths = [
-                ("/3/network/groupnets/<GROUPNET>/subnets/<SUBNET>/pools",
-                    "/3/network/groupnets/<GROUPNET>/subnets/<SUBNET>/pools/<POOL>")]
+                ("/1/quota/quotas", "/1/quota/quotas/<QID>")]
 
     successCount = 0
     failCount = 0
@@ -1051,8 +1112,9 @@ def main():
 
                 successCount += 1
             except Exception as e:
+                print >> sys.stderr, "Caught exception processing: " + itemEndPointPath
                 if args.test:
-                    print >> sys.stderr, "Caught exception processing: " + itemEndPointPath
+                    traceback.print_exc(file=sys.stderr)
                 failCount += 1
 
         if baseEndPointPath is not None:
@@ -1097,8 +1159,9 @@ def main():
                     print >> sys.stderr, "WARNING: HEAD_args in: " + baseEndPointPath
                 successCount += 1
             except Exception as e:
+                print >> sys.stderr, "Caught exception processing: " + baseEndPointPath
                 if args.test:
-                    print >> sys.stderr, "Caught exception processing: " + baseEndPointPath
+                    traceback.print_exc(file=sys.stderr)
                 failCount += 1
 
     print >> sys.stderr, "End points successfully processed: " + str(successCount) \
