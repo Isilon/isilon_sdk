@@ -1,62 +1,77 @@
-# isilon-swagger
-Tools to allow integration of Isilon REST APIs with Swagger (swagger.io)
+# Isilon Software Development Kit (isi-sdk)
+Language bindings for the OneFS API and tools for building them
 
-#### To generate a swagger config for PAPI:
+This repository is part of the Isilon SDK.  It includes language bindings for easier programmatic access to the OneFS RESTful API for cluster configuration (on your cluster this is the RESTful API made up of all the URIs underneath https://[cluster]:8080/platform/*, also called the "Platform API" or PAPI").
 
-1. Clone this repository.
-2. Find a OneFS cluster, get the IP address.
-3. Run `python create_swagger_config.py -i <cluster-ip-address> -o <output_file> --username <username> --password <password>` <br> if you omit --username or --password then it will prompt you
+You can download the language bindings for Python from the "releases" page of this repo (the link is on the main "code" tab on the bar of links just below the project description).  If you just want to access PAPI more easily from your Python programs, these language bindings may be all you need, and you can follow the instructions and example below to get started.
 
-This will automatically generate a swagger config <output_file> based on the ?describe responses from the PAPI handlers on your node.  Swagger tools can now use this config to create language bindings and documentation.
+This repository also includes tools to build PAPI bindings yourself for a large range of other programming languages.  For more info see the [readme.dev.md](readme.dev.md) file in this directory.
 
-#### To generate python PAPI bindings using the swagger config:
-1. Clone the swagger-codegen repo from https://github.com/swagger-api/swagger-codegen
-2. Follow the relevant instructions there (in the README.md) to install the codegen java program.  In my case I did "apt-get install maven" to get maven then ran "mvn package" to install codegen.
-3. Run codegen on the swagger_config.json file generated above.  You can also use one of the "example_output.json" available in the root directory of this repo.  For example:
+### Installing the pre-built Python PAPI bindings
 
-`java -jar modules/swagger-codegen-cli/target/swagger-codegen-cli.jar generate -i output.json -l python -o ./papi_client/python -c swagger-codegen-config.json`
+1. Download the latest package from the "releases" page of this repo.
 
-#### To generate API documentation from the swagger config:
-1. Generate a PAPI swagger config as above, or use the "example_output.json" in this repo.
-2. Install codegen as described above.
-3. Use codegen with the language specified as "nodejs" or "html" to output API docs instead of a bindings library for a language, for example:
+2. Install via [Setuptools](http://pypi.python.org/pypi/setuptools).  For example, unzip the package archive to a directory and from there run:
 
-``java -jar modules/swagger-codegen-cli/target/swagger-codegen-cli.jar generate -i swagger_config.json -l dynamic-html -o ./papi_doc -c swagger-codegen-config.json`
-
-Note that you do not need to have NodeJS installed to browse the "nodejs" style dynamic output docs - just go into the generated directory structure, find index.html, and open it in your browser.  You can see an example of my most recently generated docs at:
-
-`http://cribsbiox.west.isilon.com/home/bwilkins/swagger/papi_doc_dynamic/docs/`
-
-#### To write code with the python PAPI bindings:
-1. Generate a python PAPI bindings package using the above steps, or just use the one I've put at `http://cribsbiox.west.isilon.com/home/bwilkins/swagger/papi_client/python/`
-2. Install the library with `python setup.py install --user` from the `papi_client` directory
-3. In your python programs, you can now write code like the following to interact with PAPI handlers:
-
+```sh
+python setup.py install --user
 ```
-import isi_sdk
+(or `sudo python setup.py install` to install the package for all users)
+
+You may need to install the Python [Setuptools](http://pypi.python.org/pypi/setuptools) on your system, if they are not already installed. For instructions, see http://pypi.python.org/pypi/setuptools.
+
+Then at a Python prompt or in your Python programs, import the package:
+```python
+import isi_sdk_8_0 # or isi_sdk_7_2, depending on the release you downloaded
+```
+
+## Example program
+
+Here's an example of using the Python PAPI bindings to retrieve a list of NFS exports from your cluster:
+
+```python
+import isi_sdk_8_0 # or isi_sdk_7_2, depending on the release you downloaded
+from isi_sdk_8_0.rest import ApiException
+from pprint import pprint
 import urllib3
 urllib3.disable_warnings()
 
 # configure username and password
-isi_sdk.configuration.username = "root"
-isi_sdk.configuration.password = "a"
-isi_sdk.configuration.verify_ssl = False
+isi_sdk_8_0.configuration.username = "YOUR_USERNAME"
+isi_sdk_8_0.configuration.password = "YOUR_PASSWORD"
+isi_sdk_8_0.configuration.verify_ssl = False
 
 # configure host
-host = "https://10.7.160.60:8080"
-apiClient = isi_sdk.ApiClient(host)
-protocolsApi = isi_sdk.ProtocolsApi(apiClient)
+host = "https://YOUR_CLUSTER_HOSTNAME_OR_NODE_IP_ADDRESS:8080"
+api_client = isi_sdk_8_0.ApiClient(host)
+protocols_api = isi_sdk_8_0.ProtocolsApi(api_client)
 
 # get all exports
-nfsExports = protocolsApi.list_nfs_exports()
-print "NFS Exports:\n" + str(nfsExports)
-
+sort = "description"
+limit = 50
+dir = "ASC"
+try: 
+    api_response = protocols_api.list_nfs_exports(sort=sort, limit=limit, dir=dir)
+    pprint(api_response)
+except ApiException as e:
+    print "Exception when calling ProtocolsApi->list_nfs_exports: %s\n" % e
 ```
 
-For more examples of coding to the python PAPI bindings, see the test scripts in the `tests/` subdirectory of this repo.
+For more examples of coding to the Python PAPI bindings, see the test scripts in the `tests/` subdirectory of this repo.
 
-As you code, you may want to generate docs with the steps above, or refer to the docs I generated and put at:
+### Bindings Documentation
 
-`http://cribsbiox.west.isilon.com/home/bwilkins/swagger/papi_doc_dynamic/docs/`
+The most up-to-date documentation for the language bindings is included in the root directory of your downloaded release package (or of your own generated bindings if you've generated your own using the instructions at [readme.dev.md](readme.dev.md)).  It is a set of markdown files starting with the README.md in the root directory of the package.
 
-In some cases just looking at the actual swagger config will be more informative though because currently the generated "NodeJS" style docs obscure the full format of a lot of PAPI's return objects.  I'm looking into different swagger documentation tools.
+We intend to also publish online docs as part of the build process for this repo's releases, but we haven't finished setting that up yet.  Meanwhile, if you really need online docs, some are still available at the legacy bindings repos linked below, but these will gradually be going out of sync with the latest bindings releases in this repo.
+
+- [Legacy 8.0 Bindings Docs](https://github.com/Isilon/isilon_sdk_8_0_python)
+
+- [Legacy 7.2 Bindings Docs](https://github.com/Isilon/isilon_sdk_7_2_python)
+
+### Other Isilon SDK and API links:
+
+* For OneFS API reference documents, discussions, and blog posts, refer to the [OneFS SDK Info Hub](https://community.emc.com/docs/DOC-48273).
+* To browse the Isilon InsiqhtIQ statistics API, refer to the [Stat Key Browser](https://github.com/isilon/isilon_stat_browser.git) Github repository.
+
+
