@@ -1,7 +1,7 @@
 # Isilon Software Development Kit (isi-sdk)
 Language bindings for the OneFS API and tools for building them
 
-This repository is part of the Isilon SDK.  It includes language bindings for easier programmatic access to the OneFS RESTful API for cluster configuration (on your cluster this is the RESTful API made up of all the URIs underneath https://[cluster]:8080/platform/*, also called the "Platform API" or PAPI").
+This repository is part of the Isilon SDK.  It includes language bindings for easier programmatic access to the OneFS API for cluster configuration (on your cluster this is the REST API made up of all the URIs underneath https://[cluster]:8080/platform/*, also called the "Platform API" or PAPI").
 
 You can download the language bindings for Python from the "releases" page of this repo (the link is on the main "code" tab on the bar of links just below the project description).  If you just want to access PAPI more easily from your Python programs, these language bindings may be all you need, and you can follow the instructions and example below to get started.
 
@@ -57,7 +57,7 @@ except ApiException as e:
     print "Exception when calling ProtocolsApi->list_nfs_exports: %s\n" % e
 ```
 
-For more examples of coding to the Python PAPI bindings, see the test scripts in the `tests/` subdirectory of this repo.
+There are more examples of coding to the Python PAPI bindings in the `tests/` subdirectory of this repo.  The tests currently run against a generic isi_sdk import which is how the bindings library is named by default if you build your own bindings.  If you want to run the tests against one of the libraries you've downloaded from the prebuilt releases page, you should change the `import isi_sdk` lines to `import isi_sdk_7_2` or `import isi_sdk_8_0` depending on which one you downloaded.
 
 ### Bindings Documentation
 
@@ -71,7 +71,7 @@ We intend to also publish online docs as part of the build process for this repo
 
 ### Other Isilon SDK and API links:
 
-* For OneFS API reference documents, discussions, and blog posts, refer to the [OneFS SDK Info Hub](https://community.emc.com/docs/DOC-48273).
+* For OneFS API reference documents, discussions, and blog posts, refer to the [Isilon SDK Info Hub](https://community.emc.com/docs/DOC-48273).
 * To browse the Isilon InsiqhtIQ statistics API, refer to the [Stat Key Browser](https://github.com/isilon/isilon_stat_browser.git) Github repository.
 
 
