@@ -16,7 +16,6 @@ This repository also includes tools to build PAPI bindings yourself for a large 
 ```sh
 python setup.py install --user
 ```
-(or `sudo python setup.py install` to install the package for all users)
 
 You may need to install the Python [Setuptools](http://pypi.python.org/pypi/setuptools) on your system, if they are not already installed. For instructions, see http://pypi.python.org/pypi/setuptools.
 
