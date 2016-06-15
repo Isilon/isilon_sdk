@@ -23,7 +23,7 @@ This will automatically generate a swagger config `<output_file>` based on the ?
 3. Copy the `<output_file>` file generated above (or one of the pre-made "example_output.json" files) and "swagger-codegen-config.json" from your isi_sdk root directory to your swagger-codegen root directory.
 4. Run codegen on `<output_file>`.  For example, from your swagger-codegen root directory, use:
 
-`java -jar modules/swagger-codegen-cli/target/swagger-codegen-cli.jar generate -i swagger-config.json -l python -o ./isi_sdk -c swagger-codegen-config.json`
+`java -jar modules/swagger-codegen-cli/target/swagger-codegen-cli.jar generate -i swagger-config.json -l python -o ./isi_sdk -c swagger-codegen-config.json -t swagger_templates/python`
 
 For other languages, substitute the name of the language you want for `python`.  This will create a language bindings library you can install in the `./isi_sdk` subdirectory.
 
@@ -32,3 +32,7 @@ Documentation for the bindings should be generated along with the bindings thems
 ### Contributing to the isi-sdk OpenAPI config generator
 
 If you have a patch for the config generator scripts that improves the generated swagger config and the bindings that come from it, please submit a pull request to this repository.  We will review it and once the patch is accepted the bindings will be automatically rebuilt and published as a new release.
+
+### Custom swagger-codegen templates
+
+In some cases the standard swagger-codegen templates may not be suitable with the OneFS API, necessitating the use of [custom templates](https://github.com/swagger-api/swagger-codegen/wiki/Building-your-own-Templates). The [Python template](./swagger_templates/python) for example, has been customized for generation of the Isilon SDK. Customized templates are located in `/swagger_templates/<language>`. This naming convention allows the automated build process to locate and use the appropriate custom templates. If no custom template exists for a language, the default template will be used automatically.
