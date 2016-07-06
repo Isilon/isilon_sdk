@@ -21,7 +21,17 @@ k_swaggerParamIsiPropCommonFields = [
     "description", "required", "type", "default", "maximum", "minimum", "enum",
     "items"]
 
-g_operations = {} # tracks swagger ops generated from URLs to ensure uniqueness
+g_operations = {} # tracks swagger ops generated from URLs to ensure uniquenes
+
+
+def OneFsShortVers(host, port, auth):
+    """Query a cluster and return the 2 major version digits"""
+    url = "https://{0}:{1}/platform/1/cluster/config".format(host, port)
+    config = requests.get(url, auth=auth, verify=False).json()
+    release = config["onefs_version"]["release"].strip("v")
+    short_vers = ".".join(release.split(".")[:2])
+    return short_vers
+
 
 def IsiPropsToSwaggerParams(isiProps, paramType):
     if len(isiProps) == 0:
@@ -954,16 +964,16 @@ def main():
         "info": {
           "version": "1.0.0",
           "title": "Isilon SDK",
-          "description": "Isilon SDK - Swagger Open API Specification for OneFS API",
-          "termsOfService": "http://www.emc.com",
+          "description": "Isilon SDK - Language bindings for the OneFS API",
+          "termsOfService": "https://github.com/emccode/emccode.github.io/wiki/EMC-CODE-Governance,-Contributing,-and-Code-of-Conduct",
           "contact": {
             "name": "Isilon SDK Team",
             "email": "sdk@isilon.com",
-            "url": "http://www.emc.com"
+            "url": "https://github.com/Isilon/isilon_sdk"
           },
           "license": {
             "name": "MIT",
-            "url": "http://github.com/gruntjs/grunt/blob/master/LICENSE-MIT"
+            "url": "https://github.com/Isilon/isilon_sdk/blob/master/LICENSE"
           }
         },
         "schemes": [
@@ -1157,6 +1167,8 @@ def main():
                 if args.test:
                     traceback.print_exc(file=sys.stderr)
                 failCount += 1
+
+    swaggerJson["info"]["version"] = OneFsShortVers(args.host, papi_port, auth)
 
     print >> sys.stderr, "End points successfully processed: " + str(successCount) \
             + ", failed to process: " + str(failCount) \

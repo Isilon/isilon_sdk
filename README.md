@@ -1,3 +1,9 @@
+[![Build Status](https://travis-ci.org/Isilon/isilon_sdk.svg?branch=master)](https://travis-ci.org/Isilon/isilon_sdk)
+[![](http://issuestats.com/github/isilon/isilon_sdk/badge/pr?style=flat-square)](http://issuestats.com/github/isilon/isilon_sdk)
+[![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/isilon/isilon_sdk.svg)](http://isitmaintained.com/project/isilon/isilon_sdk "Average time to resolve an issue")
+[![Percentage of issues still open](http://isitmaintained.com/badge/open/isilon/isilon_sdk.svg)](http://isitmaintained.com/project/isilon/isilon_sdk "Percentage of issues still open")
+
+
 # Isilon Software Development Kit (isi-sdk)
 Language bindings for the OneFS API and tools for building them
 
@@ -9,54 +15,28 @@ This repository also includes tools to build PAPI bindings yourself for a large 
 
 ### Installing the pre-built Python PAPI bindings
 
-1. Download the latest package from the "releases" page of this repo.
+#### Prerequisites
 
-2. Install via [Setuptools](http://pypi.python.org/pypi/setuptools).  For example, unzip the package archive to a directory and from there run:
+* [Python](https://www.python.org/downloads/) 2.7 or later
+* [pip](https://pip.pypa.io/en/stable/installing/)
 
-```sh
-python setup.py install --user
-```
+#### Installing the package
 
-You may need to install the Python [Setuptools](http://pypi.python.org/pypi/setuptools) on your system, if they are not already installed. For instructions, see http://pypi.python.org/pypi/setuptools.
+If you will only connect to OneFS 8.0 and later clusters:
 
-Then at a Python prompt or in your Python programs, import the package:
-```python
-import isi_sdk_8_0 # or isi_sdk_7_2, depending on the release you downloaded
-```
+`pip install isi_sdk_8_0`
 
-## Example program
+If connecting to OneFS 7.2 and later clusters:
 
-Here's an example of using the Python PAPI bindings to retrieve a list of NFS exports from your cluster:
+`pip install isi_sdk_7_2`
 
-```python
-import isi_sdk_8_0 # or isi_sdk_7_2, depending on the release you downloaded
-from isi_sdk_8_0.rest import ApiException
-from pprint import pprint
-import urllib3
-urllib3.disable_warnings()
+### Basic Usage
 
-# configure username and password
-isi_sdk_8_0.configuration.username = "YOUR_USERNAME"
-isi_sdk_8_0.configuration.password = "YOUR_PASSWORD"
-isi_sdk_8_0.configuration.verify_ssl = False
+See the generated packages on PyPI for example code:
 
-# configure host
-host = "https://YOUR_CLUSTER_HOSTNAME_OR_NODE_IP_ADDRESS:8080"
-api_client = isi_sdk_8_0.ApiClient(host)
-protocols_api = isi_sdk_8_0.ProtocolsApi(api_client)
+[isi\_sdk\_8\_0](https://pypi.python.org/pypi/isi-sdk-8-0)
 
-# get all exports
-sort = "description"
-limit = 50
-dir = "ASC"
-try: 
-    api_response = protocols_api.list_nfs_exports(sort=sort, limit=limit, dir=dir)
-    pprint(api_response)
-except ApiException as e:
-    print "Exception when calling ProtocolsApi->list_nfs_exports: %s\n" % e
-```
-
-There are more examples of coding to the Python PAPI bindings in the `tests/` subdirectory of this repo.  The tests currently run against a generic isi_sdk import which is how the bindings library is named by default if you build your own bindings.  If you want to run the tests against one of the libraries you've downloaded from the prebuilt releases page, you should change the `import isi_sdk` lines to `import isi_sdk_7_2` or `import isi_sdk_8_0` depending on which one you downloaded.
+[isi\_sdk\_7\_2](https://pypi.python.org/pypi/isi-sdk-7-2)
 
 ### Bindings Documentation
 
@@ -71,6 +51,6 @@ We intend to also publish online docs as part of the build process for this repo
 ### Other Isilon SDK and API links:
 
 * For OneFS API reference documents, discussions, and blog posts, refer to the [Isilon SDK Info Hub](https://community.emc.com/docs/DOC-48273).
-* To browse the Isilon InsiqhtIQ statistics API, refer to the [Stat Key Browser](https://github.com/isilon/isilon_stat_browser.git) Github repository.
+* To browse the Isilon InsightIQ statistics API, refer to the [Stat Key Browser](https://github.com/isilon/isilon_stat_browser.git) Github repository.
 
 
