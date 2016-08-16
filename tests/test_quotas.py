@@ -1,15 +1,16 @@
 import isi_sdk
 import urllib3
+import test_constants
 
 urllib3.disable_warnings()
 
 # configure username and password
-isi_sdk.configuration.username = "root"
-isi_sdk.configuration.password = "a"
-isi_sdk.configuration.verify_ssl = False
+isi_sdk.configuration.username = test_constants.USERNAME
+isi_sdk.configuration.password = test_constants.PASSWORD
+isi_sdk.configuration.verify_ssl = test_constants.VERIFY_SSL
 
 # configure host
-host = "https://VNODE2294.west.isilon.com:8080"
+host = test_constants.HOST
 apiClient = isi_sdk.ApiClient(host)
 quotaApi = isi_sdk.QuotaApi(apiClient)
 
