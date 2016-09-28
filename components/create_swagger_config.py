@@ -21,6 +21,13 @@ k_swaggerParamIsiPropCommonFields = [
     "description", "required", "type", "default", "maximum", "minimum", "enum",
     "items"]
 
+# list of url parameters that need to be url encoded, this hack works for now,
+# but could cause problems if new params are added that are not unique.
+k_urlEncodeParams = ["NfsAliaseId"]
+# our extension to swagger which is used to generate code for doing the url
+# encoding of the parameters specified above.
+X_ISI_URL_ENCODE_PATH_PARAM = "x-isi-url-encode-path-param"
+
 g_operations = {} # tracks swagger ops generated from URLs to ensure uniquenes
 
 
@@ -246,8 +253,17 @@ def IsiSchemaToSwaggerObjectDefs(
     # found a few empty objects that omit the properties field
     if "properties" not in isiSchema:
         if "settings" in isiSchema:
-            # saw this with /3/cluster/timezone
-            isiSchema["properties"] = isiSchema["settings"]
+            if "type" in isiSchema["settings"] \
+                    and isiSchema["settings"]["type"] == "object" \
+                    and "properties" in isiSchema["settings"]:
+                # saw this with /3/protocols/nfs/netgroup
+                isiSchema["properties"] = {"settings":isiSchema["settings"]}
+            else:
+                # saw this with /3/cluster/timezone
+                isiSchema["properties"] = \
+                        {"settings":{
+                            "properties":isiSchema["settings"],
+                            "type": "object"}}
             del isiSchema["settings"]
         else:
             isiSchema["properties"] = {}
@@ -600,14 +616,35 @@ def CreateSwaggerOperation(
     # create responses
     swaggerResponses = {}
     if isiRespSchema is not None:
-        objRef = IsiSchemaToSwaggerObjectDefs(
-                    isiRespObjNameSpace, isiRespObjName, isiRespSchema,
-                    objDefs, classExtPostFix,
-                    isResponseObject=True)
+        try:
+            responseType = isiRespSchema["type"]
+        except KeyError:
+            # there is some code in IsiSchemaToSwaggerObjectDefs that handles
+            # response schema's that don't have a "type" so just force type to
+            # be an "object" so that IsiSchemaToSwaggerObjectDefs can fix.
+            responseType = "object"
         # create 200 response
         swagger200Resp = {}
-        swagger200Resp["description"] = isiInputArgs["description"]
-        swagger200Resp["schema"] = { "$ref": objRef }
+        # the "type" of /4/protocols/smb/shares and /3/antivirus/servers is a
+        # list of objects, so treat them the same as "type" == "object"
+        if responseType == "object" or type(responseType) == list:
+            objRef = \
+                    IsiSchemaToSwaggerObjectDefs(
+                            isiRespObjNameSpace, isiRespObjName, isiRespSchema,
+                            objDefs, classExtPostFix,
+                            isResponseObject=True)
+            swagger200Resp["description"] = isiInputArgs["description"]
+            swagger200Resp["schema"] = { "$ref": objRef }
+        else:
+            # the "type" of /2/cluster/external-ips is array
+            swagger200Resp["description"] = isiRespSchema["description"]
+            swagger200Resp["schema"] = {"type": responseType}
+            if responseType == "array":
+                IsiArrayPropToSwaggerArrayProp(isiRespSchema,
+                        "items", isiRespObjName, isiRespObjNameSpace,
+                        isiRespSchema, objDefs, classExtPostFix,
+                        isResponseObject=True)
+                swagger200Resp["schema"]["items"] = isiRespSchema["items"]
         # add to responses
         swaggerResponses["200"] = swagger200Resp
     else:
@@ -629,12 +666,19 @@ def CreateSwaggerOperation(
 
 def AddPathParams(swaggerParams, extraPathParams):
     for paramName, paramType in extraPathParams:
+        pathParam = BuildPathParam(paramName, paramType)
+        swaggerParams.append(pathParam)
+
+
+def BuildPathParam(paramName, paramType):
         pathParam = {}
         pathParam["name"] = paramName
         pathParam["in"] = "path"
         pathParam["required"] = True
         pathParam["type"] = paramType
-        swaggerParams.append(pathParam)
+        if paramName in k_urlEncodeParams:
+            pathParam[X_ISI_URL_ENCODE_PATH_PARAM] = True
+        return pathParam
 
 
 def IsiPostBaseEndPointDescToSwaggerPath(
@@ -736,11 +780,7 @@ def IsiItemEndPointDescToSwaggerPath(
         itemId = isiObjNameSpace + oneObjName
         inputSchemaParamObjName = oneObjName + "Params"
     itemIdUrl = "/{" + itemId + "}"
-    itemIdParam = {}
-    itemIdParam["name"] = itemId
-    itemIdParam["in"] = "path"
-    itemIdParam["required"] = True
-    itemIdParam["type"] = itemInputType
+    itemIdParam = BuildPathParam(itemId, itemInputType)
 
     if "PUT_args" in isiDescJson:
         isiPutArgs = isiDescJson["PUT_args"]
@@ -1065,7 +1105,12 @@ def main():
     else:
         excludeEndPoints = []
         endPointPaths = [
-                ("/1/quota/quotas", "/1/quota/quotas/<QID>")]
+                ("/2/protocols/nfs/aliases", "/2/protocols/nfs/aliases/<AID>"),
+                ("/3/protocols/nfs/netgroup", None),
+                ("/3/cluster/timezone", None),
+                ("/2/cluster/external-ips", None),
+                ("/3/antivirus/servers", "/3/antivirus/servers/<ID+>"),
+                ("/4/protocols/smb/shares", "/4/protocols/smb/shares/<SHARE>")]
 
     successCount = 0
     failCount = 0

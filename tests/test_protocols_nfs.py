@@ -13,6 +13,30 @@ host = test_constants.HOST
 apiClient = isi_sdk.ApiClient(host)
 protocolsApi = isi_sdk.ProtocolsApi(apiClient)
 
+nfs_netgroup_settings = isi_sdk.NfsNetgroupSettings()
+nfs_netgroup_settings.retry = 50
+nfs_netgroup = isi_sdk.NfsNetgroup()
+nfs_netgroup.settings = nfs_netgroup_settings
+
+protocolsApi.update_nfs_netgroup(nfs_netgroup)
+
+test_nfs_netgroup = protocolsApi.get_nfs_netgroup()
+
+if test_nfs_netgroup.settings.retry != nfs_netgroup.settings.retry:
+    raise RuntimeError("Netgroup Update Failed")
+
+new_nfs_alias = isi_sdk.NfsAliaseCreateParams()
+new_nfs_alias.name = "/FStress"
+new_nfs_alias.path = "/ifs/fstress"
+protocolsApi.create_nfs_aliase(new_nfs_alias)
+
+nfs_aliases = protocolsApi.list_nfs_aliases()
+for nfs_alias in nfs_aliases.aliases:
+    nfs_alias = protocolsApi.get_nfs_aliase(nfs_alias.id)
+    print "NFS Alias: " + str(nfs_alias)
+
+protocolsApi.delete_nfs_aliase(new_nfs_alias.name)
+print "Deleted alias " + new_nfs_alias.name
 # get all exports
 nfsExports = protocolsApi.list_nfs_exports()
 print "NFS Exports:\n" + str(nfsExports)
