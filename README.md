@@ -22,17 +22,17 @@ This repository also includes tools to build PAPI bindings yourself for a large 
 
 #### Installing the package
 
-If you will only connect to OneFS 8.0 and later clusters:
-
-`pip install isi_sdk_8_0`
-
-If connecting to OneFS 7.2 and later clusters:
-
-`pip install isi_sdk_7_2`
+| Cluster Version       | Install Instruction         |
+|-----------------------|-----------------------------|
+| OneFS 8.0.1 and later | `pip install isi_sdk_8_0_1` |
+| OneFS 8.0 and later   | `pip install isi_sdk_8_0`   |
+| OneFS 7.2 and later   | `pip install isi_sdk_7_2`   |
 
 ### Basic Usage
 
 See the generated packages on PyPI for example code:
+
+[isi\_sdk\_8\_0\_1](https://pypi.python.org/pypi/isi-sdk-8-0-1)
 
 [isi\_sdk\_8\_0](https://pypi.python.org/pypi/isi-sdk-8-0)
 
