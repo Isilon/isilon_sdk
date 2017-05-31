@@ -28,6 +28,8 @@ This repository also includes tools to build PAPI bindings yourself for a large 
 | OneFS 8.0 and later   | `pip install isi_sdk_8_0`   |
 | OneFS 7.2 and later   | `pip install isi_sdk_7_2`   |
 
+Installation will default to using binary distribution wheel (bdist). Source distributions (sdist) are also available on pip begining with v0.1.6 and can be installed with `pip install --no-binary :all: <pkg name> `
+
 ### Basic Usage
 
 See the generated packages on PyPI for example code:
