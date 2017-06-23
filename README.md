@@ -24,6 +24,7 @@ This repository also includes tools to build PAPI bindings yourself for a large 
 
 | Cluster Version       | Install Instruction         |
 |-----------------------|-----------------------------|
+| OneFS 8.1.0 and later | `pip install isi_sdk_8_1_0` |
 | OneFS 8.0.1 and later | `pip install isi_sdk_8_0_1` |
 | OneFS 8.0 and later   | `pip install isi_sdk_8_0`   |
 | OneFS 7.2 and later   | `pip install isi_sdk_7_2`   |
@@ -33,6 +34,8 @@ Installation will default to using binary distribution wheel (bdist). Source dis
 ### Basic Usage
 
 See the generated packages on PyPI for example code:
+
+[isi\_sdk\_8\_1\_0](https://pypi.python.org/pypi/isi-sdk-8-1-0)
 
 [isi\_sdk\_8\_0\_1](https://pypi.python.org/pypi/isi-sdk-8-0-1)
 
@@ -44,11 +47,6 @@ See the generated packages on PyPI for example code:
 
 The most up-to-date documentation for the language bindings is included in the root directory of your downloaded release package (or of your own generated bindings if you've generated your own using the instructions at [readme.dev.md](readme.dev.md)).  It is a set of markdown files starting with the README.md in the root directory of the package.
 
-We intend to also publish online docs as part of the build process for this repo's releases, but we haven't finished setting that up yet.  Meanwhile, if you really need online docs, some are still available at the legacy bindings repos linked below, but these will gradually be going out of sync with the latest bindings releases in this repo.
-
-- [Legacy 8.0 Bindings Docs](https://github.com/Isilon/isilon_sdk_8_0_python)
-
-- [Legacy 7.2 Bindings Docs](https://github.com/Isilon/isilon_sdk_7_2_python)
 
 ### Other Isilon SDK and API links:
 
