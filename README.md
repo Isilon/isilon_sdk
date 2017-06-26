@@ -22,16 +22,18 @@ This repository also includes tools to build PAPI bindings yourself for a large 
 
 #### Installing the package
 
-| Cluster Version       | Install Instruction         |
-|-----------------------|-----------------------------|
-| OneFS 8.1.0 and later | `pip install isi_sdk_8_1_0` |
-| OneFS 8.0.1 and later | `pip install isi_sdk_8_0_1` |
-| OneFS 8.0 and later   | `pip install isi_sdk_8_0`   |
-| OneFS 7.2 and later   | `pip install isi_sdk_7_2`   |
+You can install Isilon SDK packages from PyPI using pip.
+
+| Cluster Version       | Install Instruction         | PyPI Link                                  |
+|-----------------------|-----------------------------|--------------------------------------------|
+| OneFS 8.1.0 and later | `pip install isi_sdk_8_1_0` | [https://pypi.python.org/pypi/isi-sdk-8-1-0](https://pypi.python.org/pypi/isi-sdk-8-1-0) |
+| OneFS 8.0.1 and later | `pip install isi_sdk_8_0_1` | [https://pypi.python.org/pypi/isi-sdk-8-0-1](https://pypi.python.org/pypi/isi-sdk-8-0-1) |
+| OneFS 8.0 and later   | `pip install isi_sdk_8_0`   | [https://pypi.python.org/pypi/isi-sdk-8-0](https://pypi.python.org/pypi/isi-sdk-8-0)   |
+| OneFS 7.2 and later   | `pip install isi_sdk_7_2`   | [https://pypi.python.org/pypi/isi-sdk-7-2](https://pypi.python.org/pypi/isi-sdk-7-2)   |
 
 Installation will default to using binary distribution wheel (bdist). Source distributions (sdist) are also available on pip begining with v0.1.6 and can be installed with `pip install --no-binary :all: <pkg name> `
 
-### Basic Usage
+### Basic Usage / Example Code
 
 See the generated packages on PyPI for example code:
 
