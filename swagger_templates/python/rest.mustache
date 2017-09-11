@@ -200,7 +200,7 @@ class RESTClientObject(object):
 
     def _submit_requests(self, method, url, query_params=None, headers=None,
                          body=None, post_params=None, encode_multipart=None):
-        if re.search(r'^http[s]?://localhost') is not None:
+        if url.startswith('papi://PAPI_LOCAL_HOST'):
             # operating on-cluster.  use isi.rest with papi.sock instead of urllib3
             # so we can avoid re-authenticating.
 
