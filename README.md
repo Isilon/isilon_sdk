@@ -44,12 +44,6 @@ See the generated packages on PyPI for example code:
 
 The most up-to-date documentation for the language bindings is included in the root directory of your downloaded release package (or of your own generated bindings if you've generated your own using the instructions at [readme.dev.md](readme.dev.md)).  It is a set of markdown files starting with the README.md in the root directory of the package.
 
-We intend to also publish online docs as part of the build process for this repo's releases, but we haven't finished setting that up yet.  Meanwhile, if you really need online docs, some are still available at the legacy bindings repos linked below, but these will gradually be going out of sync with the latest bindings releases in this repo.
-
-- [Legacy 8.0 Bindings Docs](https://github.com/Isilon/isilon_sdk_8_0_python)
-
-- [Legacy 7.2 Bindings Docs](https://github.com/Isilon/isilon_sdk_7_2_python)
-
 ### Other Isilon SDK and API links:
 
 * For OneFS API reference documents, discussions, and blog posts, refer to the [Isilon SDK Info Hub](https://community.emc.com/docs/DOC-48273).

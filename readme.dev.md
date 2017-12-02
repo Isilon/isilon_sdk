@@ -15,6 +15,8 @@ The walkthrough below will guide you through the generation process step by step
 2. Find a OneFS cluster, get the IP address.
 3. Run `python components/create_swagger_config.py -i <cluster-ip-address> -o <output_file> --username <username> --password <password>` <br> if you omit --username or --password then it will prompt you
 
+**Note:** An endpoint exclude file must be specified when using a OneFS 7.2 cluster for generation of the bindings. Add `-e excluded_end_points_7_2.json`to the above command. The file excluded_end_points_7_2.json can be found in the root of this repository.
+
 This will automatically generate a swagger config `<output_file>` based on the ?describe responses from the PAPI handlers on your node.  Swagger tools can now use this config to create language bindings and documentation.
 
 ### To generate PAPI bindings for Python or other languages using the swagger config:
