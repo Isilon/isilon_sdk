@@ -238,13 +238,14 @@ def IsiSchemaToSwaggerObjectDefs(
             if "type" not in schemaListItem:
                 # hack - just return empty object
                 return "#/definitions/Empty"
-            # use the first single object schema (usually the "list" type) is
-            # used to allow for multiple items to be created with a single
-            # call.
+            # As of OneFS 8.1.0, the response body schema may be a list where
+            # the first object in the list is the errors object and the second
+            # object in the list is the success object. Thus, this loop will
+            # iterate until it has assigned the properties from the last
+            # object in the list.
             if schemaListItem["type"] == "object":
                 isiSchema["type"] = "object"
                 isiSchema["properties"] = schemaListItem["properties"]
-                break
 
     if isiSchema["type"] != "object":
         raise RuntimeError("Isi Schema is not type 'object': "\
