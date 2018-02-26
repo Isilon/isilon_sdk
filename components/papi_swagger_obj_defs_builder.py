@@ -16,7 +16,7 @@ def find_matching_obj_def(obj_defs, new_obj_def):
             if new_obj_def["properties"] == existing_obj_def["properties"]:
                 return obj_name
         elif "properties" not in existing_obj_def:
-            print "**** No properties: {}".format(existing_obj_def)
+            print("**** No properties: {}".format(existing_obj_def))
     return None
 
 
@@ -119,8 +119,8 @@ def isi_to_swagger_array_prop(prop, properties, prop_name, isi_obj_name,
             prop["items"] = prop["item"]
             del prop["item"]
         else:
-            print "*** No items: {}_{} = {}".format(
-                isi_obj_name, prop_name, properties[prop_name])
+            print("*** No items: {}_{} = {}".format(
+                isi_obj_name, prop_name, properties[prop_name]))
             # string will kind of work for anything
             prop["items"] = {"type": "string"}
 
@@ -158,8 +158,8 @@ def isi_to_swagger_array_prop(prop, properties, prop_name, isi_obj_name,
             prop["items"], properties[prop_name], "items",
             isi_obj_name, isi_obj_list, isi_obj_names, obj_defs)
     elif "type" not in prop["items"] and "$ref" not in prop["items"]:
-        print "*** Array with no type or $ref: {}: {}".format(
-            isi_obj_name, prop)
+        print("*** Array with no type or $ref: {}: {}".format(
+            isi_obj_name, prop))
         # string will kind of work for anything
         prop["items"] = {"type": "string"}
 
@@ -247,13 +247,13 @@ def isi_to_swagger_object_def(isi_obj_name, isi_schema, obj_defs,
             prop["type"] = "string"
             update_props = True
         elif prop["type"] == "int":
-            print "*** Invalid prop type in object {} prop {}: {}".format(
-                isi_obj_name, prop_name, prop)
+            print("*** Invalid prop type in object {} prop {}: {}".format(
+                isi_obj_name, prop_name, prop))
             prop["type"] = "integer"
             update_props = True
         elif prop["type"] == "bool":
-            print "*** Invalid prop type in object {} prop {}: {}".format(
-                isi_obj_name, prop_name, prop)
+            print("*** Invalid prop type in object {} prop {}: {}".format(
+                isi_obj_name, prop_name, prop))
             prop["type"] = "boolean"
             update_props = True
 
@@ -320,7 +320,7 @@ def main():
 
     papiDocDir = os.path.abspath(args.papiDocDir)
     if os.path.exists(papiDocDir) is False:
-        print "Invalid path: {}".format(papiDocDir)
+        print("Invalid path: {}".format(papiDocDir))
         sys.exit(1)
 
     sys.path.append(papiDocDir)
