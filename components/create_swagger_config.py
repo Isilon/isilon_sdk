@@ -19,7 +19,7 @@ requests.packages.urllib3.disable_warnings()
 
 k_swaggerParamIsiPropCommonFields = [
     "description", "required", "type", "default", "maximum", "minimum", "enum",
-    "items"]
+    "items", "maxLength", "minLength", "pattern"]
 
 # list of url parameters that need to be url encoded, this hack works for now,
 # but could cause problems if new params are added that are not unique.
@@ -56,6 +56,11 @@ def IsiPropsToSwaggerParams(isiProps, paramType):
                 print >> sys.stderr, "WARNING: " + fieldName + " not " \
                         "defined for Swagger in prop: " + str(isiProp)
                 continue
+            if fieldName == "pattern":
+                # XXX: bkrueger (27 Feb 2018) - Remove after upgrading
+                # Swagger from 2.2 to 2.3
+                # wrap with '/' to conform to Perl regex conventions
+                isiProp["pattern"] = '/' + isiProp["pattern"] + '/'
             if fieldName == "type":
                 if isiProp[fieldName] == "int":
                     # HACK fix for bugs in the PAPI
