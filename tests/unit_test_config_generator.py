@@ -73,16 +73,39 @@ class TestCreateSwaggerConfig(unittest.TestCase):
             csc.ParsePathParams(PATHS[3]),
             [])
 
+    def test_IsiPropsToSwaggerParams(self):
+        """Pattern is wrapped with forward slashes."""
+        isi_props = {
+            'licenses_to_include': {
+                'description': 'Licenses to include in activation file.',
+                'maxLength': 2500,
+                'minLength': 1,
+                'pattern': '.+',
+                'type': 'string'
+            }
+        }
+        actual = csc.IsiPropsToSwaggerParams(isi_props, 'query')
+
+        expected = [{
+            'description': 'Licenses to include in activation file.',
+            'pattern': '/.+/',
+            'in': 'query',
+            'minLength': 1,
+            'maxLength': 2500,
+            'type': 'string',
+            'name': 'licenses_to_include'
+        }]
+        self.assertEqual(actual, expected)
+
+
 if __name__ == '__main__':
     if __package__ is None:
         import sys
         from os import path
-        # Append swagger-config-generator root directory. 
+        # Append swagger-config-generator root directory.
         sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
         from components import create_swagger_config as csc
-        from components import papi_swagger_obj_defs_builder as odb
         unittest.main()
     else:
         from ..components import create_swagger_config as csc
-        from ..components import papi_swagger_obj_defs_builder as odb
         unittest.main()
