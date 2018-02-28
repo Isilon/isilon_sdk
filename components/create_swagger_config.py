@@ -5,6 +5,8 @@ responses from the PAPI handlers on your cluster (specified by cluster name or
 ip address as the first argument to this script).  Swagger tools can now use
 this config to create language bindings and documentation.
 """
+from __future__ import print_function
+
 import argparse
 import getpass
 import json
