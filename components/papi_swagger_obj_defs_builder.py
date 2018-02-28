@@ -1,3 +1,6 @@
+"""Builds Swagger data model definitions using PAPI source docs."""
+from __future__ import print_function
+
 import argparse
 import json
 import modulefinder
@@ -6,432 +9,411 @@ import re
 import sys
 
 
-def FindMatchingObjDef(objDefs, newObjDef):
-    for objName in objDefs:
-        existingObjDef = objDefs[objName]
-        if "properties" in newObjDef \
-                and "properties" in existingObjDef:
-            if newObjDef["properties"] == existingObjDef["properties"]:
-                return objName
-        elif "properties" not in existingObjDef:
-            print >> sys.stderr, "**** No properties: " \
-                    + str(existingObjDef) + "\n"
+def find_matching_obj_def(obj_defs, new_obj_def):
+    """Find matching object definition."""
+    for obj_name in obj_defs:
+        existing_obj_def = obj_defs[obj_name]
+        if 'properties' in new_obj_def and 'properties' in existing_obj_def:
+            if new_obj_def['properties'] == existing_obj_def['properties']:
+                return obj_name
+        elif 'properties' not in existing_obj_def:
+            print('**** No properties: {}'.format(existing_obj_def))
     return None
 
 
-def FindOrAddObjDef(objDefs, newObjDef, newObjName):
-    """
-    Reuse existing object def if there's a match or add a new one
-    """
-    matchingObj = FindMatchingObjDef(objDefs, newObjDef)
-    if matchingObj is not None:
-        # print "Found match for " + newObjName + " = " + matchingObj
-        return matchingObj
-    # print "No match for " + newObjName
-    objDefs[newObjName] = newObjDef
-    return newObjName
+def find_or_add_obj_def(obj_defs, new_obj_def, new_obj_name):
+    """Reuse existing object definition if exists or add new one."""
+    matching_obj = find_matching_obj_def(obj_defs, new_obj_def)
+    if matching_obj is not None:
+        return matching_obj
+
+    obj_defs[new_obj_name] = new_obj_def
+    return new_obj_name
 
 
-def AddDependencies(modDir, fileName, modules):
+def add_dependencies(module_dir, filename, modules):
     finder = modulefinder.ModuleFinder()
-    finder.run_script(os.path.join(modDir, fileName))
+    finder.run_script(os.path.join(module_dir, filename))
     for module in finder.modules.values():
-        # if the module comes from the modDir then process it to get
+        # if the module comes from the module_dir then process it to get
         # its dependencies.
-        if os.path.dirname(str(module.__file__)) == modDir:
-            modFileName = os.path.basename(module.__file__)
-            if modFileName == fileName:
+        if os.path.dirname(str(module.__file__)) == module_dir:
+            mod_filename = os.path.basename(module.__file__)
+            if mod_filename == filename:
                 continue
             # if this module has not already been added then add it.
-            if modFileName.endswith("_types.py") \
-                    or (modFileName.find("_types_v") != -1 \
-                    and modFileName.endswith(".py")):
-                if modFileName not in modules:
+            if (mod_filename.endswith('_types.py') or
+                    (mod_filename.find('_types_v') != -1 and
+                     mod_filename.endswith('.py'))):
+                if mod_filename not in modules:
                     # add the modules that this module is dependent on
-                    AddDependencies(modDir, modFileName, modules)
-                    modules.append(modFileName)
+                    add_dependencies(module_dir, mod_filename, modules)
+                    modules.append(mod_filename)
 
 
-def BuildModuleList(fileNames, modDir, modules):
-    for fileName in fileNames:
-        if fileName.endswith("_types.py") \
-                or (fileName.find("_types_v") != -1 \
-                and fileName.endswith(".py")):
-            if fileName not in modules:
+def build_module_list(filenames, module_dir, modules):
+    for filename in filenames:
+        if (filename.endswith('_types.py') or (
+                filename.find('_types_v') != -1 and filename.endswith('.py'))):
+            if filename not in modules:
                 # add the modules that this module is dependent on
-                AddDependencies(modDir, fileName, modules)
-                modules.append(fileName)
+                add_dependencies(module_dir, filename, modules)
+                modules.append(filename)
 
 
-def FindBestTypeForProp(prop):
-    multipleTypes = prop["type"]
+def find_best_type_for_prop(prop):
+    multiple_types = prop['type']
     # delete it so that we throw an exception if none of types
-    # are non-"null"
-    del prop["type"]
-    try:
-        propDescription = prop["description"]
-    except KeyError:
-        propDescription = ""
-    bestDictProp = None
-    for oneType in multipleTypes:
+    # are non-'null'
+    del prop['type']
+
+    for one_type in multiple_types:
         # sometimes the types are base types and sometimes they
         # are sub objects
-        if type(oneType) == dict:
-            if oneType["type"] == "null":
+        if isinstance(one_type, dict):
+            if one_type['type'] == 'null':
                 continue
-            if bestDictProp is None \
-                    or bestDictProp["type"] == "string":
-                # favor more specific types over "string"
-                if type(oneType["type"]) == list:
-                    # another list???
-                    # TODO make this loop a recursive call
-                    oneType = FindBestTypeForProp(oneType)
-                bestDictProp = oneType
-            prop = bestDictProp
-            if prop["type"] != "string":
+
+            if isinstance(one_type['type'], list):
+                one_type = find_best_type_for_prop(one_type)
+            prop = one_type
+
+            # favor more specific types over 'string'
+            if prop['type'] != 'string':
                 break
 
-        elif oneType != "null":
-            prop["type"] = oneType
+        elif one_type != 'null':
+            prop['type'] = one_type
             break
     return prop
 
 
-def PluralObjNameToSingular(objName, postFix="", postFixUsed=None):
+def plural_obj_name_to_singular(obj_name, post_fix='', post_fix_used=None):
     # if it's two 'ss' on the end then don't remove the last one
-    if objName[-1] == 's' and objName[-2] != 's':
+    if obj_name[-1] == 's' and obj_name[-2] != 's':
         # if container object ends with 's' then trim off the 's'
         # to (hopefully) create the singular version
-        if objName[-3:] == 'ies':
-            oneObjName = objName[:-3].replace('_', '') + "y"
+        if obj_name[-3:] == 'ies':
+            one_obj_name = obj_name[:-3].replace('_', '') + 'y'
         else:
-            oneObjName = objName[:-1].replace('_', '')
+            one_obj_name = obj_name[:-1].replace('_', '')
     else:
-        oneObjName = objName.replace('_', '') + postFix
-        if postFixUsed is not None:
-            postFixUsed.flag = True
+        one_obj_name = obj_name.replace('_', '') + post_fix
+        if post_fix_used is not None:
+            post_fix_used.flag = True
 
-    return oneObjName
-
-
-def AddIfNew(
-        fullObjName, properties, propName, obj,
-        isiObjNames, isiObjList):
-    if fullObjName not in isiObjNames:
-        isiObjList.append((fullObjName,
-            properties, propName, obj))
-        isiObjNames[fullObjName] = (properties, propName)
+    return one_obj_name
 
 
-def IsiArrayPropToSwaggerArrayProp(
-        prop, properties, propName, isiObjName,
-        isiObjList, isiObjNames, objDefs):
+def add_if_new(full_obj_name, properties, prop_name, obj,
+               isi_obj_names, isi_obj_list):
+    if full_obj_name not in isi_obj_names:
+        isi_obj_list.append((full_obj_name, properties, prop_name, obj))
+        isi_obj_names[full_obj_name] = (properties, prop_name)
 
-    if "items" not in prop:
-        if "item" in prop:
-            prop["items"] = prop["item"]
-            del prop["item"]
+
+def isi_to_swagger_array_prop(prop, properties, prop_name, isi_obj_name,
+                              isi_obj_list, isi_obj_names, obj_defs):
+
+    if 'items' not in prop:
+        if 'item' in prop:
+            prop['items'] = prop['item']
+            del prop['item']
         else:
-            print >> sys.stderr, "*** No items: " \
-                    + isiObjName + "_" + propName + " = " \
-                    + str(properties[propName]) + "\n"
+            print('*** No items: {}_{} = {}'.format(
+                isi_obj_name, prop_name, properties[prop_name]))
             # string will kind of work for anything
-            prop["items"] = {"type": "string"}
+            prop['items'] = {'type': 'string'}
 
-    if "type" in prop["items"] and prop["items"]["type"] == "object":
-        itemsObjName = PluralObjNameToSingular(propName,
-                                               postFix="Item")
-        fullObjName = isiObjName + "_" + itemsObjName
-        AddIfNew(fullObjName,
-                properties[propName], "items", prop["items"],
-                isiObjNames, isiObjList)
-        # print "Added object items %s.%s: %s" \
-        #        % (isiObjName, propName, fullObjName)
-    elif "type" in prop["items"] \
-            and type(prop["items"]["type"]) == dict \
-            and "type" in prop["items"]["type"] \
-            and prop["items"]["type"]["type"] == "object":
-        # WTF?
-        itemsObjName = PluralObjNameToSingular(propName,
-                                               postFix="Item")
-        fullObjName = isiObjName + "_" + itemsObjName
-        AddIfNew(fullObjName,
-                properties[propName], "items", prop["items"]["type"],
-                isiObjNames, isiObjList)
-        # print "Added type items: " + fullObjName
-    elif "type" in prop["items"] \
-            and type(prop["items"]["type"]) == list:
-        bestProp = FindBestTypeForProp(prop["items"])
-        if "type" in bestProp and bestProp["type"] == "object":
-            itemsObjName = PluralObjNameToSingular(propName,
-                    postFix="Item")
-            fullObjName = isiObjName + "_" + itemsObjName
-            AddIfNew(fullObjName,
-                    properties[propName], "items", bestProp,
-                    isiObjNames, isiObjList)
+    if 'type' in prop['items'] and prop['items']['type'] == 'object':
+        item_obj_name = plural_obj_name_to_singular(prop_name, post_fix='Item')
+        full_obj_name = isi_obj_name + '_' + item_obj_name
+        add_if_new(
+            full_obj_name, properties[prop_name], 'items',
+            prop['items'], isi_obj_names, isi_obj_list)
+
+    elif ('type' in prop['items'] and
+          isinstance(prop['items']['type'], dict) and
+          'type' in prop['items']['type'] and
+          prop['items']['type']['type'] == 'object'):
+
+        item_obj_name = plural_obj_name_to_singular(prop_name, post_fix='Item')
+        full_obj_name = isi_obj_name + '_' + item_obj_name
+        add_if_new(
+            full_obj_name, properties[prop_name], 'items',
+            prop['items']['type'], isi_obj_names, isi_obj_list)
+
+    elif 'type' in prop['items'] and isinstance(prop['items']['type'], list):
+        best_prop = find_best_type_for_prop(prop['items'])
+        if 'type' in best_prop and best_prop['type'] == 'object':
+            item_obj_name = plural_obj_name_to_singular(
+                prop_name, post_fix='Item')
+            full_obj_name = isi_obj_name + '_' + item_obj_name
+            add_if_new(
+                full_obj_name, properties[prop_name], 'items',
+                best_prop, isi_obj_names, isi_obj_list)
         else:
-            properties[propName]["items"] = bestProp
-    elif "type" in prop["items"] \
-            and prop["items"]["type"] == "array":
-        IsiArrayPropToSwaggerArrayProp(prop["items"],
-                properties[propName], "items", isiObjName,
-                isiObjList, isiObjNames, objDefs)
-    elif "type" not in prop["items"] and "$ref" not in prop["items"]:
-        print >> sys.stderr, "*** Array with no type or $ref: " \
-                + isiObjName + ": " + str(prop) + "\n"
+            properties[prop_name]['items'] = best_prop
+    elif 'type' in prop['items'] and prop['items']['type'] == 'array':
+        isi_to_swagger_array_prop(
+            prop['items'], properties[prop_name], 'items',
+            isi_obj_name, isi_obj_list, isi_obj_names, obj_defs)
+    elif 'type' not in prop['items'] and '$ref' not in prop['items']:
+        print('*** Array with no type or $ref: {}: {}'.format(
+            isi_obj_name, prop))
         # string will kind of work for anything
-        prop["items"] = {"type": "string"}
+        prop['items'] = {'type': 'string'}
 
 
-
-def IsiObjectToSwaggerObjectDef(
-        isiObjName, isiSchema, objDefs, isiObjList, isiObjNames):
-    if "type" not in isiSchema:
+def isi_to_swagger_object_def(isi_obj_name, isi_schema, obj_defs,
+                              isi_obj_list, isi_obj_names):
+    if 'type' not in isi_schema:
         # have seen this for empty responses
-        return "Empty"
+        return 'Empty'
 
-    if type(isiSchema["type"]) == list:
-        for schemaListItem in isiSchema["type"]:
-            if "type" not in schemaListItem:
+    if isinstance(isi_schema['type'], list):
+        for schema_list_item in isi_schema['type']:
+            if 'type' not in schema_list_item:
                 # hack - just return empty object
-                return "Empty"
-            # use the first single object schema (usually the "list" type) is
+                return 'Empty'
+            # use the first single object schema (usually the 'list' type) is
             # used to allow for multiple items to be created with a single
             # call.
-            if schemaListItem["type"] == "object":
-                isiSchema["type"] = "object"
-                isiSchema["properties"] = schemaListItem["properties"]
+            if schema_list_item['type'] == 'object':
+                isi_schema['type'] = 'object'
+                isi_schema['properties'] = schema_list_item['properties']
                 break
 
-    if isiSchema["type"] != "object":
-        raise RuntimeError("IsiSchema is not type 'object': "\
-                + str(isiSchema))
+    if isi_schema['type'] != 'object':
+        raise RuntimeError(
+            "isi_schema is not type 'object': {}".format(isi_schema))
 
     # found a few empty objects that omit the properties field
-    if "properties" not in isiSchema:
-        if "settings" in isiSchema:
+    if 'properties' not in isi_schema:
+        if 'settings' in isi_schema:
             # saw this with /3/cluster/timezone
-            isiSchema["properties"] = isiSchema["settings"]
-            del isiSchema["settings"]
+            isi_schema['properties'] = isi_schema['settings']
+            del isi_schema['settings']
         else:
-            isiSchema["properties"] = {}
+            isi_schema['properties'] = {}
 
-    requiredProps = []
-    for propName in isiSchema["properties"]:
-        prop = isiSchema["properties"][propName]
-        if "type" not in prop:
-            continue # must be a $ref
-        updateProps = False
+    required_props = []
+    for prop_name in isi_schema['properties']:
+        prop = isi_schema['properties'][prop_name]
+        if 'type' not in prop:
+            continue  # must be a $ref
+        update_props = False
         # check if this prop is required
-        if "required" in prop:
-            if  prop["required"] == True:
-                requiredProps.append(propName)
-            del prop["required"]
+        if 'required' in prop:
+            if prop['required']:
+                required_props.append(prop_name)
+            del prop['required']
         # check if there are multiple types for this prop
-        if type(prop["type"]) == list:
+        if isinstance(prop['type'], list):
             # swagger doesn't like lists for types
-            # so use the first type that is not "null"
-            prop = FindBestTypeForProp(prop)
-            updateProps = True
+            # so use the first type that is not 'null'
+            prop = find_best_type_for_prop(prop)
+            update_props = True
 
-        if prop["type"] == "object":
+        if prop['type'] == 'object':
             # save this object for later
-            fullObjName = isiObjName + "_" + propName
-            AddIfNew(fullObjName,
-                    isiSchema["properties"], propName, prop,
-                    isiObjNames, isiObjList)
-            # print "Added " + fullObjName
-        elif type(prop["type"]) == dict \
-                and prop["type"]["type"] == "object":
-            fullObjName = isiObjName + "_" + propName
-            AddIfNew(fullObjName,
-                    isiSchema["properties"], propName, prop["type"],
-                    isiObjNames, isiObjList)
-            # print "Added[%s.%s] = %s" % (isiObjName, propName, fullObjName)
-        elif prop["type"] == "array":
-            IsiArrayPropToSwaggerArrayProp(prop,
-                    isiSchema["properties"], propName, isiObjName,
-                    isiObjList, isiObjNames, objDefs)
-        elif prop["type"] == "string" and "enum" in prop:
-            newEnum = []
-            for item in prop["enum"]:
+            full_obj_name = isi_obj_name + '_' + prop_name
+            add_if_new(
+                full_obj_name, isi_schema['properties'], prop_name,
+                prop, isi_obj_names, isi_obj_list)
+
+        elif (isinstance(prop['type'], dict) and
+              prop['type']['type'] == 'object'):
+            full_obj_name = isi_obj_name + '_' + prop_name
+            add_if_new(
+                full_obj_name, isi_schema['properties'], prop_name,
+                prop['type'], isi_obj_names, isi_obj_list)
+
+        elif prop['type'] == 'array':
+            isi_to_swagger_array_prop(
+                prop, isi_schema['properties'], prop_name,
+                isi_obj_name, isi_obj_list, isi_obj_names, obj_defs)
+        elif prop['type'] == 'string' and 'enum' in prop:
+            new_enum = []
+            for item in prop['enum']:
                 # swagger doesn't know how to interpret '@DEFAULT' values
                 if item[0] != '@':
-                    newEnum.append(item)
-            if len(newEnum) > 0:
-                prop["enum"] = newEnum
+                    new_enum.append(item)
+            if new_enum:
+                prop['enum'] = new_enum
             else:
-                del prop["enum"]
-            updateProps = True
-        elif prop["type"] == "any":
-            prop["type"] = "string"
-            updateProps = True
-        elif prop["type"] == "int":
-            print >> sys.stderr, "*** Invalid prop type in object " \
-                    + isiObjName + " prop " + propName + ": " \
-                    + str(prop) + "\n"
-            prop["type"] = "integer"
-            updateProps = True
-        elif prop["type"] == "bool":
-            print >> sys.stderr, "*** Invalid prop type in object " \
-                    + isiObjName + " prop " + propName + ": " \
-                    + str(prop) + "\n"
-            prop["type"] = "boolean"
-            updateProps = True
+                del prop['enum']
+            update_props = True
+        elif prop['type'] == 'any':
+            prop['type'] = 'string'
+            update_props = True
+        elif prop['type'] == 'int':
+            print('*** Invalid prop type in object {} prop {}: {}'.format(
+                isi_obj_name, prop_name, prop))
+            prop['type'] = 'integer'
+            update_props = True
+        elif prop['type'] == 'bool':
+            print('*** Invalid prop type in object {} prop {}: {}'.format(
+                isi_obj_name, prop_name, prop))
+            prop['type'] = 'boolean'
+            update_props = True
 
-        if updateProps is True:
-            isiSchema["properties"][propName] = prop
-            updateProps = False
+        if update_props is True:
+            isi_schema['properties'][prop_name] = prop
+            update_props = False
 
+    # attach required props
+    if required_props:
+        isi_schema['required'] = required_props
 
-    # attache required props
-    if len(requiredProps) > 0:
-        isiSchema["required"] = requiredProps
-
-    return FindOrAddObjDef(objDefs,
-            isiSchema, isiObjName)
+    return find_or_add_obj_def(obj_defs, isi_schema, isi_obj_name)
 
 
-def BuildUniqueName(moduleName, objName, isiObjNames, swagObjs=None):
+def build_unique_name(module_name, obj_name, isi_obj_names, swag_objs=None):
     # check if there is already an object with this name and if so
-    # use the moduleName to make it unique
-    swagObjName = objName.title().replace("_", "")
-    while swagObjName in isiObjNames:
+    # use the module_name to make it unique
+    swag_obj_name = obj_name.title().replace('_', '')
+    while swag_obj_name in isi_obj_names:
         # check if there is a version number on the module
-        matches = re.search('(.*)(_types_v)(\\d+)', moduleName)
+        matches = re.search('(.*)(_types_v)(\\d+)', module_name)
         if matches is not None:
             version = matches.group(3)
             # try adding the version number to the end
-            swagObjName += "V" + version
-            if swagObjName not in isiObjNames:
+            swag_obj_name += 'V' + version
+            if swag_obj_name not in isi_obj_names:
                 break
         else:
-            version = ""
-        if swagObjs is not None:
+            version = ''
+        if swag_objs is not None:
             # pull out the object whose name matched and update it
-            existingModName, existingObjName = isiObjNames[swagObjName]
-            existingNewName = \
-                    BuildUniqueName(
-                            existingModName, existingObjName, isiObjNames)
-            del isiObjNames[swagObjName]
-            swagObjs[existingNewName] = swagObjs[swagObjName]
-            del swagObjs[swagObjName]
+            existing_mod_name, existing_obj_name = isi_obj_names[swag_obj_name]
+            existing_new_name = build_unique_name(
+                existing_mod_name, existing_obj_name, isi_obj_names)
+            del isi_obj_names[swag_obj_name]
+            swag_objs[existing_new_name] = swag_objs[swag_obj_name]
+            del swag_objs[swag_obj_name]
         # try prepending the module name
-        swagObjNameSpace = moduleName.replace("_types", "").title().replace("_", "")
-        swagObjName = swagObjNameSpace + swagObjName
-        if swagObjName not in isiObjNames:
+        swag_obj_namespace = module_name.replace(
+            '_types', '').title().replace('_', '')
+        swag_obj_name = swag_obj_namespace + swag_obj_name
+        if swag_obj_name not in isi_obj_names:
             break
         else:
             # doesn't seem possible that i would get here, but just in case
-            raise RuntimeError("Unable to build unique name for %s: %s %s." \
-                    % (moduleName, objName, swagObjName))
+            raise RuntimeError(
+                'Unable to build unique name for {}: {} {}.'.format(
+                    module_name, obj_name, swag_obj_name))
 
-    isiObjNames[swagObjName] = (moduleName, objName)
-    return swagObjName
+    isi_obj_names[swag_obj_name] = (module_name, obj_name)
+    return swag_obj_name
 
 
 def main():
     argparser = argparse.ArgumentParser(
-            description="Builds the Swagger data model definitions for the "\
-                    "PAPI using the source docs.")
-    argparser.add_argument("papiDocDir", help="Path to the "\
-            "isilon/lig/isi_platform/api/doc-inc directory.")
-    argparser.add_argument("outputFile", help="Path to the output file.")
+        description=('Builds Swagger data model definitions '
+                     'using the PAPI source docs.'))
+    argparser.add_argument(
+        'papiDocDir',
+        help='Path to the isilon/lib/isi_platform_api/doc-inc directory.')
+    argparser.add_argument('outputFile', help='Path to the output file.')
 
     args = argparser.parse_args()
 
-    # papiDocDir = \
-    #        "/home/apecoraro/git/onefs-adv-dev/isilon/lib/isi_platform_api/doc-inc"
     papiDocDir = os.path.abspath(args.papiDocDir)
     if os.path.exists(papiDocDir) is False:
-        print >> sys.stderr, "Invalid path: " + papiDocDir
+        print('Invalid path: {}'.format(papiDocDir))
         sys.exit(1)
 
     sys.path.append(papiDocDir)
 
     modules = []
-    BuildModuleList(os.listdir(papiDocDir), papiDocDir, modules)
-    # BuildModuleList(["smb_types_v3.py", "auth_types.py"], papiDocDir, modules)
-    # BuildModuleList(["auth_types.py"], papiDocDir, modules)
-    # BuildModuleList(["nfs_types_v1.py", "nfs_types_v2.py"], papiDocDir, modules)
+    build_module_list(os.listdir(papiDocDir), papiDocDir, modules)
 
-    swagObjs = {
-        "Error": {
-            "type": "object",
-            "required": [
-                "code",
-                "message"
-                ],
-            "properties": {
-                "code": {
-                    "type": "integer",
-                    "format": "int32"
+    swag_objs = {
+        'Error': {
+            'type': 'object',
+            'required': [
+                'code',
+                'message'
+            ],
+            'properties': {
+                'code': {
+                    'type': 'integer',
+                    'format': 'int32'
                     },
-                "message": {
-                    "type": "string"
-                    }
+                'message': {
+                    'type': 'string'
+                }
+            }
+        },
+        'Empty': {
+            'type': 'object',
+            'properties': {}
+        },
+        'CreateResponse': {
+            'properties': {
+                'id': {
+                    'description': ('ID of created item that can be used to '
+                                    'refer to item in the collection-item '
+                                    'resource path.'),
+                    'type': 'string'
                 }
             },
-        "Empty": { "type": "object", "properties": { } },
-        "CreateResponse": {
-            "properties": {
-                "id": {
-                    "description": "ID of created item that can be used to refer to item in the collection-item resource path.",
-                    "type": "string"
-                    }
-                },
-            "required": [
-                "id"
-                ],
-            "type": "object"
-            }
+            'required': [
+                'id'
+            ],
+            'type': 'object'
         }
+    }
 
-    isiObjs = []
-    isiObjNames = dict() # list of unique object names (prevent double processing)
+    isi_objs = []
+    # list of unique object names (prevent double processing)
+    isi_obj_names = dict()
     # process top-level objects
-    for moduleFileName in modules:
-        moduleName = os.path.splitext(moduleFileName)[0]
-        module = __import__(moduleName)
-        for objName in dir(module):
-            obj = getattr(module, objName)
-            if type(obj) == dict and "type" in obj and obj["type"] == "object":
+    for module_filename in modules:
+        module_name = os.path.splitext(module_filename)[0]
+        module = __import__(module_name)
+        for obj_name in dir(module):
+            obj = getattr(module, obj_name)
+            if (isinstance(obj, dict) and 'type' in obj and
+                    obj['type'] == 'object'):
                 # see if this object is already defined
-                if FindMatchingObjDef(swagObjs, obj) is None:
-                    swagObjName = BuildUniqueName(moduleName, objName, isiObjNames,
-                            swagObjs)
-                    # print "Adding " + swagObjName
-                    IsiObjectToSwaggerObjectDef(swagObjName, obj, swagObjs,
-                            isiObjs, isiObjNames)
+                if find_matching_obj_def(swag_objs, obj) is None:
+                    swag_obj_name = build_unique_name(
+                        module_name, obj_name, isi_obj_names, swag_objs)
+
+                    isi_to_swagger_object_def(
+                        swag_obj_name, obj, swag_objs, isi_objs, isi_obj_names)
 
     # process objects referenced from inside other objects
-    for objValue in isiObjs:
-        objName = objValue[0]
-        props = objValue[1]
-        propName = objValue[2]
-        obj = objValue[3]
-        # print "HandlingRef: " + objName
-        refObjName = \
-                IsiObjectToSwaggerObjectDef(
-                        objName, obj, swagObjs, isiObjs, isiObjNames)
+    for obj_value in isi_objs:
+        obj_name = obj_value[0]
+        props = obj_value[1]
+        prop_name = obj_value[2]
+        obj = obj_value[3]
+
+        ref_obj_name = isi_to_swagger_object_def(
+            obj_name, obj, swag_objs, isi_objs, isi_obj_names)
         try:
-            propDescription = props[propName]["description"]
+            prop_description = props[prop_name]['description']
         except KeyError:
-            propDescription = ""
-            if "description" in obj:
-                propDescription = obj["description"]
-            elif refObjName != objName:
+            prop_description = ''
+            if 'description' in obj:
+                prop_description = obj['description']
+            elif ref_obj_name != obj_name:
                 # try to get the description from the ref'ed object
-                refObj = swagObjs[refObjName]
-                if "description" in refObj:
-                    propDescription = refObj["description"]
-        props[propName] = {
-                "description" : propDescription,
-                "$ref" : "#/definitions/" + refObjName}
+                ref_obj = swag_objs[ref_obj_name]
+                if 'description' in ref_obj:
+                    prop_description = ref_obj['description']
+
+        props[prop_name] = {
+            'description': prop_description,
+            '$ref': '#/definitions/' + ref_obj_name
+        }
+
+    with open(args.outputFile, 'w') as outputFile:
+        outputFile.write(json.dumps(swag_objs, indent=4, sort_keys=True))
 
 
-    with open(args.outputFile, "w") as outputFile:
-        outputFile.write(json.dumps(swagObjs, indent=4, sort_keys=True))
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
