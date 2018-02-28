@@ -22,7 +22,7 @@ requests.packages.urllib3.disable_warnings()
 
 SWAGGER_PARAM_ISI_PROP_COMMON_FIELDS = [
     'description', 'required', 'type', 'default', 'maximum', 'minimum', 'enum',
-    'items']
+    'items', 'maxLength', 'minLength', 'pattern']
 
 # list of url parameters that need to be url encoded, this hack works for now,
 # but could cause problems if new params are added that are not unique.
@@ -61,8 +61,13 @@ def isi_props_to_swagger_params(isi_props, param_type):
                 print('WARNING: {} not defined for Swagger in prop: {}'.format(
                     field_name, isi_prop))
                 continue
-            if field_name == 'type':
-                if isi_prop[field_name] == 'int':
+            if field_name == 'pattern':
+                # XXX: bkrueger (27 Feb 2018) - Remove after upgrading
+                # Swagger from 2.2 to 2.3
+                # wrap with '/' to conform to Perl regex conventions
+                isi_prop['pattern'] = '/' + isi_prop['pattern'] + '/'
+            if field_name == "type":
+                if isi_prop[field_name] == "int":
                     # HACK fix for bugs in the PAPI
                     print('*** Invalid type in params of type {}: {}'.format(
                         param_type, isi_props))
