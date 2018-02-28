@@ -9,7 +9,7 @@ import unittest
 
 class TestCreateSwaggerConfig(unittest.TestCase):
 
-    def test_ToSwaggerEndPoint(self):
+    def test_to_swagger_end_point(self):
         TEST_URIS = [
             "/an/<end>/<point>/with/<params>",
             "/no/params/in/this/one"
@@ -21,10 +21,10 @@ class TestCreateSwaggerConfig(unittest.TestCase):
         # It replaces <papi-style> URI param markers with {Swagger-style}.
         for i in range(len(TEST_URIS)):
             self.assertEqual(
-                csc.ToSwaggerEndPoint(TEST_URIS[i]),
+                csc.to_swagger_end_point(TEST_URIS[i]),
                 EXPECTED_RESULTS[i])
 
-    def test_AddPathParams(self):
+    def test_add_path_params(self):
         TEST_PARAMS = [
             ('Someparametername', 'string'),
             ('Anotherparam', 'integer')]
@@ -44,12 +44,12 @@ class TestCreateSwaggerConfig(unittest.TestCase):
         ]
         # It appends a param object based on specified param name and type.
         swaggerParams = []
-        csc.AddPathParams(swaggerParams, [TEST_PARAMS[0]])
+        csc.add_path_params(swaggerParams, [TEST_PARAMS[0]])
         self.assertTrue(EXPECTED_RESULTS[0] in swaggerParams)
-        csc.AddPathParams(swaggerParams, [TEST_PARAMS[1]])
+        csc.add_path_params(swaggerParams, [TEST_PARAMS[1]])
         self.assertTrue(EXPECTED_RESULTS[1] in swaggerParams)
 
-    def test_ParsePathParams(self):
+    def test_parse_path_params(self):
         PATHS = [
             '/this/uri/has/a/<parameter>',
             '/this/uri/has/a/<lnn>',
@@ -58,22 +58,20 @@ class TestCreateSwaggerConfig(unittest.TestCase):
         ]
         # It correctly parses string parameters from a URI.
         self.assertEqual(
-            csc.ParsePathParams(PATHS[0]),
+            csc.parse_path_params(PATHS[0]),
             [('Parameter', 'string')])
         # It correctly parses integer parameters from a URI.
         self.assertEqual(
-            csc.ParsePathParams(PATHS[1]),
+            csc.parse_path_params(PATHS[1]),
             [('Lnn', 'integer')])
         # It correctly parses multiple parameters from a URI.
         self.assertEqual(
-            csc.ParsePathParams(PATHS[2]),
+            csc.parse_path_params(PATHS[2]),
             [('Uri', 'string'), ('Lnn', 'integer'), ('Multiple', 'string')])
         # It returns an empty list given a URI with no params.
-        self.assertEqual(
-            csc.ParsePathParams(PATHS[3]),
-            [])
+        self.assertEqual(csc.parse_path_params(PATHS[3]), [])
 
-    def test_IsiPropsToSwaggerParams(self):
+    def test_isi_props_to_swagger_params(self):
         """Pattern is wrapped with forward slashes."""
         isi_props = {
             'licenses_to_include': {
@@ -84,7 +82,7 @@ class TestCreateSwaggerConfig(unittest.TestCase):
                 'type': 'string'
             }
         }
-        actual = csc.IsiPropsToSwaggerParams(isi_props, 'query')
+        actual = csc.isi_props_to_swagger_params(isi_props, 'query')
 
         expected = [{
             'description': 'Licenses to include in activation file.',
