@@ -5,14 +5,11 @@
 import sys
 from setuptools import setup, find_packages
 
-NAME = "{{packageName}}"
+NAME = "{{{projectName}}}"
 VERSION = "{{packageVersion}}"
-LONG_DESCRIPTION = """\
-{{appDescription}}
-"""
-
-{{#apiInfo}}{{#apis}}{{^hasMore}}
-
+{{#apiInfo}}
+{{#apis}}
+{{^hasMore}}
 # To install the library, run the following
 #
 # python setup.py install
@@ -27,12 +24,15 @@ setup(
     version=VERSION,
     description="{{appName}}",
     author_email="{{infoEmail}}",
-    url="{{infoUrl}}",
+    url="{{packageUrl}}",
     keywords=["Swagger", "{{appName}}"],
     install_requires=REQUIRES,
     packages=find_packages(),
     include_package_data=True,
-    long_description=LONG_DESCRIPTION.replace('PKG_NAME', NAME)
+    long_description="""\
+    {{appDescription}}
+    """
 )
-
-{{/hasMore}}{{/apis}}{{/apiInfo}}
+{{/hasMore}}
+{{/apis}}
+{{/apiInfo}}
