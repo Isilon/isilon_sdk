@@ -13,7 +13,7 @@ from datetime import date, datetime
 
 # python 2 and python 3 compatibility library
 from six import PY3, integer_types, iteritems, text_type
-from six.moves.urllib.parse import quote
+from six.moves.urllib.parse import quote, quote_plus
 
 from . import models
 from .configuration import Configuration
@@ -65,6 +65,11 @@ class ApiClient(object):
         self.cookie = cookie
         # Set default User-Agent.
         self.user_agent = '{{#httpUserAgent}}{{{.}}}{{/httpUserAgent}}{{^httpUserAgent}}Swagger-Codegen/{{{packageVersion}}}/python{{/httpUserAgent}}'
+        # This is used for detecting for the special case of a path parameter
+        # that is tagged with x-isi-url-encode-path-param (more details in the
+        # __call_api function).
+        self.quote_plus_tag = "__x-isi-url-encode-path-param__"
+        self.quote_plus_tag_len = len(self.quote_plus_tag)
 
     @property
     def user_agent(self):
@@ -108,9 +113,23 @@ class ApiClient(object):
             path_params = self.parameters_to_tuples(path_params,
                                                     collection_formats)
             for k, v in path_params:
+                v_str = str(v)
+                # Check for the special case of the
+                # x-isi-url-encode-path-param, which indicates that the
+                # parameter should be encoded with quote_plus in order
+                # to encode the '/' character.
+                # check if the first part of v_str matches the tag
+                if v_str[:self.quote_plus_tag_len] == self.quote_plus_tag:
+                    # remove "__x-isi-url-encode-path-param__"
+                    v_str = v_str[self.quote_plus_tag_len:]
+                    # then url-encode with quote_plus
+                    replacement = quote_plus(v_str)
+                else:
+                    replacement = quote(v_str, safe=config.safe_chars_for_path_param)
+
                 # specified safe chars, encode everything
                 resource_path = resource_path.replace(
-                    '{%s}' % k, quote(str(v), safe=config.safe_chars_for_path_param))
+                    '{%s}' % k, replacement)
 
         # query parameters
         if query_params:
@@ -619,6 +638,6 @@ class ApiClient(object):
                 value = data[klass.attribute_map[attr]]
                 kwargs[attr] = self.__deserialize(value, attr_type)
 
-        instance = klass(**kwargs)     
+        instance = klass(**kwargs)
 
         return instance
