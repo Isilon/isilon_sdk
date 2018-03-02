@@ -28,7 +28,8 @@ NON_REQUIRED_PROPS = {
     'StatisticsCurrentStat': ['value'],
     'SummaryClientClientItem': ['node'],
     'SummaryHeatHeatItem': ['event_type', 'lin', 'node'],
-    'SummaryProtocolProtocolItem': ['node']
+    'SummaryProtocolProtocolItem': ['node'],
+    'SummarySystemSystemItem': ['iscsi'],
 }
 
 # list of url parameters that need to be url encoded, this hack works for now,
