@@ -420,7 +420,7 @@ class ApiClient(object):
         if collection_formats is None:
             collection_formats = {}
         for k, v in iteritems(params) if isinstance(params, dict) else params:
-            if k in collection_formats:
+            if k in collection_formats and not isinstance(v, self.PRIMITIVE_TYPES):
                 collection_format = collection_formats[k]
                 if collection_format == 'multi':
                     new_params.extend((k, value) for value in v)
