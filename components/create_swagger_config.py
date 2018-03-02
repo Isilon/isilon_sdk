@@ -24,6 +24,13 @@ SWAGGER_PARAM_ISI_PROP_COMMON_FIELDS = [
     'description', 'required', 'type', 'default', 'maximum', 'minimum', 'enum',
     'items', 'maxLength', 'minLength', 'pattern']
 
+NON_REQUIRED_PROPS = {
+    'StatisticsCurrentStat': ['value'],
+    'SummaryClientClientItem': ['node'],
+    'SummaryHeatHeatItem': ['event_type', 'lin', 'node'],
+    'SummaryProtocolProtocolItem': ['node']
+}
+
 # list of url parameters that need to be url encoded, this hack works for now,
 # but could cause problems if new params are added that are not unique.
 URL_ENCODE_PARAMS = ['NfsAliaseId']
@@ -281,6 +288,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
         else:
             isi_schema['properties'] = {}
 
+    sub_obj_namespace = isi_obj_name_space + isi_obj_name
     required_props = []
     for prop_name in isi_schema['properties']:
         prop = isi_schema['properties'][prop_name]
@@ -302,8 +310,10 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 # fields. So if the type is a multi-type (i.e. list) and
                 # is_response_object is True, then we don't add the field to
                 # the list of required fields.
-                if (not isinstance(prop['type'], list) or
-                        is_response_object is False):
+                if (is_response_object is False or
+                        (not isinstance(prop['type'], list) and
+                         prop_name not in
+                         NON_REQUIRED_PROPS.get(sub_obj_namespace, []))):
                     required_props.append(prop_name)
             del prop['required']
 
@@ -314,7 +324,6 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 find_best_type_for_prop(prop)
 
         if prop['type'] == 'object':
-            sub_obj_namespace = isi_obj_name_space + isi_obj_name
             sub_obj_name = prop_name.title().replace('_', '')
             # store the description in the ref for property object refs
             if 'description' in prop:
@@ -331,7 +340,6 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
 
         elif (isinstance(prop['type'], dict) and
               prop['type']['type'] == 'object'):
-            sub_obj_namespace = isi_obj_name_space + isi_obj_name
             sub_obj_name = prop_name.title().replace('_', '')
             # store the description in the ref for property object refs
             if 'description' in prop:
@@ -394,8 +402,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
         del isi_schema['required']
 
     return find_or_add_obj_def(
-        obj_defs, isi_schema, isi_obj_name_space + isi_obj_name,
-        class_ext_post_fix)
+        obj_defs, isi_schema, sub_obj_namespace, class_ext_post_fix)
 
 
 def get_object_def(obj_name, obj_defs):
@@ -1142,12 +1149,7 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            ('/2/protocols/nfs/aliases', '/2/protocols/nfs/aliases/<AID>'),
-            ('/3/protocols/nfs/netgroup', None),
-            ('/3/cluster/timezone', None),
-            ('/2/cluster/external-ips', None),
-            ('/3/antivirus/servers', '/3/antivirus/servers/<ID+>'),
-            ('/4/protocols/smb/shares', '/4/protocols/smb/shares/<SHARE>')]
+            ('/3/statistics/current', None)]
 
     success_count = 0
     fail_count = 0
