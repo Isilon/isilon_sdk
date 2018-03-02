@@ -1,4 +1,4 @@
-100a101,107
+127a128,134
 > {{#vendorExtensions.x-isi-url-encode-path-param}}
 >         if '{{paramName}}' in params:
 >             # tag this parameter so that it can be url encoded with quote_plus

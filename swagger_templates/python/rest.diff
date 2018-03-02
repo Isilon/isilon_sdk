@@ -1,84 +1,101 @@
-28a29
-> import re
-40a42,48
+16c16
+< from six.moves.urllib.parse import urlencode
+---
+> from six.moves.urllib.parse import urlencode, unquote
+24a25,29
+> try:
 >     import isi.rest
 > except ImportError:
-> 	# This isn't really an error because the library is only used when running
-> 	# on-cluster.
-> 	pass
-> 
-> try:
-45a54,59
-> try:
->     # for python3
->     from urllib.parse import unquote
-> except ImportError:
->     # for python2
->     from urllib import unquote
-138,139d151
+>     # this library is only used when running on-cluster
+>     pass
+144,145d148
 <                 if query_params:
 <                     url += '?' + urlencode(query_params)
-141,143c153,157
+150,154c153,158
 <                     r = self.pool_manager.request(method, url,
-<                                                   body=json.dumps(body),
+<                                                   body=request_body,
+<                                                   preload_content=_preload_content,
+<                                                   timeout=timeout,
 <                                                   headers=headers)
 ---
->                     r = self._submit_requests(method,
->                                               url,
+>                     r = self._submit_requests(method, url,
+>                                               body=request_body,
+>                                               preload_content=_preload_content,
+>                                               timeout=timeout,
 >                                               query_params=query_params,
->                                               headers=headers,
->                                               body=json.dumps(body))
-145,148c159,164
+>                                               headers=headers)
+156,161c160,166
 <                     r = self.pool_manager.request(method, url,
 <                                                   fields=post_params,
 <                                                   encode_multipart=False,
+<                                                   preload_content=_preload_content,
+<                                                   timeout=timeout,
 <                                                   headers=headers)
 ---
->                     r = self._submit_requests(method,
->                                               url,
+>                     r = self._submit_requests(method, url,
+>                                               fields=post_params,
+>                                               encode_multipart=False,
+>                                               preload_content=_preload_content,
+>                                               timeout=timeout,
 >                                               query_params=query_params,
->                                               headers=headers,
->                                               post_params=post_params,
->                                               encode_multipart=False)
-153,156c169,174
+>                                               headers=headers)
+166,171c171,177
 <                     r = self.pool_manager.request(method, url,
 <                                                   fields=post_params,
 <                                                   encode_multipart=True,
+<                                                   preload_content=_preload_content,
+<                                                   timeout=timeout,
 <                                                   headers=headers)
 ---
->                     r = self._submit_requests(method,
->                                               url,
+>                     r = self._submit_requests(method, url,
+>                                               fields=post_params,
+>                                               encode_multipart=True,
+>                                               preload_content=_preload_content,
+>                                               timeout=timeout,
 >                                               query_params=query_params,
->                                               headers=headers,
->                                               post_params=post_params,
->                                               encode_multipart=True)
-159,162c177,181
+>                                               headers=headers)
+177,181c183,188
+<                     r = self.pool_manager.request(method, url,
+<                                                   body=request_body,
+<                                                   preload_content=_preload_content,
+<                                                   timeout=timeout,
+<                                                   headers=headers)
+---
+>                     r = self._submit_requests(method, url,
+>                                               body=request_body,
+>                                               preload_content=_preload_content,
+>                                               timeout=timeout,
+>                                               query_params=query_params,
+>                                               headers=headers)
+189,193c196,201
 <                 r = self.pool_manager.request(method, url,
 <                                               fields=query_params,
+<                                               preload_content=_preload_content,
+<                                               timeout=timeout,
 <                                               headers=headers)
-<         except urllib3.exceptions.SSLError as e:
 ---
->                 r = self._submit_requests(method,
->                                           url,
+>                 r = self._submit_requests(method, url,
+>                                           fields=query_params,
+>                                           preload_content=_preload_content,
+>                                           timeout=timeout,
 >                                           query_params=query_params,
 >                                           headers=headers)
->         except (urllib3.exceptions.SSLError, urllib3.exceptions.HTTPError) as e:
-180a200,270
-> 
->     def _submit_requests(self, method, url, query_params=None, headers=None,
->                          body=None, post_params=None, encode_multipart=None):
+213a222,294
+>     def _submit_requests(self, method, url, body=None, headers=None,
+>                          query_params=None, fields=None, preload_content=None,
+>                          timeout=None, encode_multipart=None):
 >         if url.startswith('papi://PAPI_LOCAL_HOST'):
->             # operating on-cluster.  use isi.rest with papi.sock instead of urllib3
+>             # operating on-cluster. use isi.rest with papi.sock instead of urllib3
 >             # so we can avoid re-authenticating.
 > 
 >             if 'Authorization' in headers:
 >                 del headers['Authorization']
 > 
->             if post_params is not None:
+>             if fields is not None:
 >                 # post parameters should be passed in the message body
->                 body = post_params
+>                 body = fields
 >             elif body is None:
->                 # both body and post_params are none, pass in an empty body
+>                 # both body and fields are none, pass in an empty body
 >                 body = '{}'
 > 
 >             # the body field must be a string
@@ -86,7 +103,7 @@
 >                 body = json.dumps(body)
 > 
 >             url_parts = url.partition('/platform/')[2].split('/')
->             # isi.rest will re-encode the url so decode each part.  this is stupid
+>             # isi.rest will re-encode the url so decode each part. this is stupid
 >             # but needed unless someone knows a way to get send_rest_request() to
 >             # not re-encode the url parts.
 >             for i in range(0, len(url_parts)):
@@ -101,7 +118,7 @@
 >                                                   timeout=120)
 > 
 >             # we only use the headers, status, reason and body of a urllib3
->             # response object.  the response from isi.rest.set_rest_request is:
+>             # response object. the response from isi.rest.set_rest_request is:
 >             # [status, headers subset, body]
 >             reason = 'Response code: ' + str(response[0])
 >             if 'status' in response[1]:
@@ -117,21 +134,23 @@
 >                 if query_params:
 >                     url += '?' + urlencode(query_params)
 >             elif method in ['GET', 'HEAD']:
->                 post_params = query_params
+>                 fields = query_params
 >             if encode_multipart is not None:
 >                 r = self.pool_manager.request(method,
 >                                               url,
 >                                               body=body,
->                                               fields=post_params,
+>                                               fields=fields,
+>                                               preload_content=preload_content,
+>                                               timeout=timeout,
 >                                               headers=headers,
 >                                               encode_multipart=encode_multipart)
 >             else:
 >                 r = self.pool_manager.request(method,
 >                                               url,
 >                                               body=body,
->                                               fields=post_params,
+>                                               fields=fields,
+>                                               preload_content=preload_content,
+>                                               timeout=timeout,
 >                                               headers=headers)
 >         return r
-> 
-> 
 > 

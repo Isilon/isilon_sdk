@@ -1,29 +1,15 @@
-44c44
-<     from urllib.parse import quote
+16c16
+< from six.moves.urllib.parse import quote
 ---
->     from urllib.parse import quote, quote_plus
-47c47,55
-<     from urllib import quote
----
->     from urllib import quote, quote_plus
-> 
-> # special handling of `long` (python2 only)
-> try:
->     # Python 2
->     long
-> except NameError:
->     # Python 3
->     long = int
-84a93,97
+> from six.moves.urllib.parse import quote, quote_plus
+67a68,72
 >         # This is used for detecting for the special case of a path parameter
 >         # that is tagged with x-isi-url-encode-path-param (more details in the
 >         # __call_api function).
 >         self.quote_plus_tag = "__x-isi-url-encode-path-param__"
 >         self.quote_plus_tag_len = len(self.quote_plus_tag)
-120c133,145
-<                 replacement = quote(str(self.to_path_value(v)))
----
->                 v_str = str(self.to_path_value(v))
+110a116,129
+>                 v_str = str(v)
 >                 # Check for the special case of the
 >                 # x-isi-url-encode-path-param, which indicates that the
 >                 # parameter should be encoded with quote_plus in order
@@ -35,24 +21,17 @@
 >                     # then url-encode with quote_plus
 >                     replacement = quote_plus(v_str)
 >                 else:
->                     replacement = quote(v_str)
-183c208
-<         If obj is str, int, float, bool, return directly.
+>                     replacement = quote(v_str, safe=config.safe_chars_for_path_param)
+> 
+113c132
+<                     '{%s}' % k, quote(str(v), safe=config.safe_chars_for_path_param))
 ---
->         If obj is str, int, long, float, bool, return directly.
-193c218
-<         types = (str, int, float, bool, tuple)
+>                     '{%s}' % k, replacement)
+404c423
+<             if k in collection_formats:
 ---
->         types = (str, int, long, float, bool, tuple)
-269c294
-<             if klass in ['int', 'float', 'str', 'bool',
+>             if k in collection_formats and not isinstance(v, self.PRIMITIVE_TYPES):
+622c641
+<         instance = klass(**kwargs)     
 ---
->             if klass in ['int', 'long', 'float', 'str', 'bool',
-276c301
-<         if klass in [int, float, str, bool]:
----
->         if klass in [int, long, float, str, bool]:
-504c529
-<         :return: int, float, str, bool.
----
->         :return: int, long, float, str, bool.
+>         instance = klass(**kwargs)
