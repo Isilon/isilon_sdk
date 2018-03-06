@@ -295,6 +295,63 @@ class TestCreateSwaggerConfig(unittest.TestCase):
         }
         self.assertEqual(isi_schema, expected)
 
+    def test_invalid_sub_properties(self):
+        """Move sub properties under properties."""
+        isi_schema = {
+            'description': 'Get list Tape and Changer devices',
+            'properties': {
+                'devices': {
+                    'media_changers': {
+                        'properties': {
+                            'id': {
+                                'description': 'Unique display id.',
+                                'type': 'string'
+                            }
+                        },
+                        'type': 'array'
+                    },
+                    'tapes': {
+                        'properties': {
+                            'serial': {
+                                'description': 'Serial number',
+                                'type': 'string'
+                            }
+                        },
+                        'type': 'array'}},
+                'resume': {
+                    'description': 'Resume string returned by previous query.',
+                    'type': 'string'
+                },
+                'total': {
+                    'description': 'The number of devices',
+                    'type': 'integer'
+                }
+            },
+            'type': 'object'
+        }
+        csc.isi_schema_to_swagger_object(
+            'Hardware', 'Tapes', isi_schema, {}, 'Extended')
+
+        expected = {
+            'description': 'Get list Tape and Changer devices',
+            'properties': {
+                'devices': {
+                    '$ref': '#/definitions/HardwareTapesDevices',
+                    'description': 'Information of Tape/MC device'
+                },
+                'resume': {
+                    'description': 'Resume string returned by previous query.',
+                    'type': 'string'
+                },
+                'total': {
+                    'description': 'The number of devices',
+                    'type': 'integer'
+                }
+            },
+            'type': 'object'
+        }
+        self.assertEqual(isi_schema, expected)
+
 
 if __name__ == '__main__':
     if __package__ is None:

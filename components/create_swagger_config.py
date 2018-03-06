@@ -339,6 +339,21 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             if 'descriprion' in prop:
                 prop['description'] = prop['descriprion']
                 del prop['descriprion']
+        # Issue #14: Include hardware `devices` fields
+        elif sub_obj_namespace == 'HardwareTapes' and prop_name == 'devices':
+            if 'media_changers' in prop and 'tapes' in prop:
+                prop['type'] = 'object'
+                prop['description'] = 'Information of Tape/MC device'
+                prop['properties'] = {
+                    'media_changers': {
+                        'items': prop['media_changers'].copy()
+                    },
+                    'tapes': {
+                        'items': prop['tapes'].copy()
+                    }
+                }
+                del prop['media_changers']
+                del prop['tapes']
 
         if 'type' not in prop:
             if 'enum' in prop:
@@ -1197,7 +1212,7 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            (u'/3/statistics/operations', None)]
+            (u'/3/hardware/tapes', None)]
 
     success_count = 0
     fail_count = 0
