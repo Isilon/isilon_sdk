@@ -1,0 +1,156 @@
+16c16
+< from six.moves.urllib.parse import urlencode
+---
+> from six.moves.urllib.parse import urlencode, unquote
+24a25,29
+> try:
+>     import isi.rest
+> except ImportError:
+>     # this library is only used when running on-cluster
+>     pass
+144,145d148
+<                 if query_params:
+<                     url += '?' + urlencode(query_params)
+150,154c153,158
+<                     r = self.pool_manager.request(method, url,
+<                                                   body=request_body,
+<                                                   preload_content=_preload_content,
+<                                                   timeout=timeout,
+<                                                   headers=headers)
+---
+>                     r = self._submit_requests(method, url,
+>                                               body=request_body,
+>                                               preload_content=_preload_content,
+>                                               timeout=timeout,
+>                                               query_params=query_params,
+>                                               headers=headers)
+156,161c160,166
+<                     r = self.pool_manager.request(method, url,
+<                                                   fields=post_params,
+<                                                   encode_multipart=False,
+<                                                   preload_content=_preload_content,
+<                                                   timeout=timeout,
+<                                                   headers=headers)
+---
+>                     r = self._submit_requests(method, url,
+>                                               fields=post_params,
+>                                               encode_multipart=False,
+>                                               preload_content=_preload_content,
+>                                               timeout=timeout,
+>                                               query_params=query_params,
+>                                               headers=headers)
+166,171c171,177
+<                     r = self.pool_manager.request(method, url,
+<                                                   fields=post_params,
+<                                                   encode_multipart=True,
+<                                                   preload_content=_preload_content,
+<                                                   timeout=timeout,
+<                                                   headers=headers)
+---
+>                     r = self._submit_requests(method, url,
+>                                               fields=post_params,
+>                                               encode_multipart=True,
+>                                               preload_content=_preload_content,
+>                                               timeout=timeout,
+>                                               query_params=query_params,
+>                                               headers=headers)
+177,181c183,188
+<                     r = self.pool_manager.request(method, url,
+<                                                   body=request_body,
+<                                                   preload_content=_preload_content,
+<                                                   timeout=timeout,
+<                                                   headers=headers)
+---
+>                     r = self._submit_requests(method, url,
+>                                               body=request_body,
+>                                               preload_content=_preload_content,
+>                                               timeout=timeout,
+>                                               query_params=query_params,
+>                                               headers=headers)
+189,193c196,201
+<                 r = self.pool_manager.request(method, url,
+<                                               fields=query_params,
+<                                               preload_content=_preload_content,
+<                                               timeout=timeout,
+<                                               headers=headers)
+---
+>                 r = self._submit_requests(method, url,
+>                                           fields=query_params,
+>                                           preload_content=_preload_content,
+>                                           timeout=timeout,
+>                                           query_params=query_params,
+>                                           headers=headers)
+213a222,294
+>     def _submit_requests(self, method, url, body=None, headers=None,
+>                          query_params=None, fields=None, preload_content=None,
+>                          timeout=None, encode_multipart=None):
+>         if url.startswith('papi://PAPI_LOCAL_HOST'):
+>             # operating on-cluster. use isi.rest with papi.sock instead of urllib3
+>             # so we can avoid re-authenticating.
+> 
+>             if 'Authorization' in headers:
+>                 del headers['Authorization']
+> 
+>             if fields is not None:
+>                 # post parameters should be passed in the message body
+>                 body = fields
+>             elif body is None:
+>                 # both body and fields are none, pass in an empty body
+>                 body = '{}'
+> 
+>             # the body field must be a string
+>             if not isinstance(body, basestring):
+>                 body = json.dumps(body)
+> 
+>             url_parts = url.partition('/platform/')[2].split('/')
+>             # isi.rest will re-encode the url so decode each part. this is stupid
+>             # but needed unless someone knows a way to get send_rest_request() to
+>             # not re-encode the url parts.
+>             for i in range(0, len(url_parts)):
+>                 url_parts[i] = unquote(url_parts[i])
+> 
+>             response = isi.rest.send_rest_request(isi.rest.PAPI_SOCKET_PATH,
+>                                                   method=method,
+>                                                   uri=url_parts,
+>                                                   query_args=dict(query_params),
+>                                                   headers=headers,
+>                                                   body=body,
+>                                                   timeout=120)
+> 
+>             # we only use the headers, status, reason and body of a urllib3
+>             # response object. the response from isi.rest.set_rest_request is:
+>             # [status, headers subset, body]
+>             reason = 'Response code: ' + str(response[0])
+>             if 'status' in response[1]:
+>                 reason = response[1]['status']
+>                 # the contents of the status field are: 'XXX reason_string'
+>                 reason = reason[4:]
+>             r = urllib3.HTTPResponse(headers=response[1],
+>                                      status=response[0],
+>                                      reason=reason,
+>                                      body=response[2])
+>         else:
+>             if method in ['POST', 'PUT', 'PATCH', 'OPTIONS', 'DELETE']:
+>                 if query_params:
+>                     url += '?' + urlencode(query_params)
+>             elif method in ['GET', 'HEAD']:
+>                 fields = query_params
+>             if encode_multipart is not None:
+>                 r = self.pool_manager.request(method,
+>                                               url,
+>                                               body=body,
+>                                               fields=fields,
+>                                               preload_content=preload_content,
+>                                               timeout=timeout,
+>                                               headers=headers,
+>                                               encode_multipart=encode_multipart)
+>             else:
+>                 r = self.pool_manager.request(method,
+>                                               url,
+>                                               body=body,
+>                                               fields=fields,
+>                                               preload_content=preload_content,
+>                                               timeout=timeout,
+>                                               headers=headers)
+>         return r
+> 

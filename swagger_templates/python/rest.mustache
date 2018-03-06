@@ -1,26 +1,9 @@
 # coding: utf-8
 
-"""
-Copyright 2016 SmartBear Software
+{{>partial_header}}
 
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-
-        http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
-
-Credit: this file (rest.py) is modified based on rest.py in Dropbox Python SDK:
-https://www.dropbox.com/developers/core/sdks/python
-"""
 from __future__ import absolute_import
 
-import sys
 import io
 import json
 import ssl
@@ -29,7 +12,8 @@ import logging
 import re
 
 # python 2 and python 3 compatibility library
-from six import iteritems
+from six import PY3
+from six.moves.urllib.parse import urlencode, unquote
 
 from .configuration import Configuration
 
@@ -41,23 +25,8 @@ except ImportError:
 try:
     import isi.rest
 except ImportError:
-	# This isn't really an error because the library is only used when running
-	# on-cluster.
-	pass
-
-try:
-    # for python3
-    from urllib.parse import urlencode
-except ImportError:
-    # for python2
-    from urllib import urlencode
-try:
-    # for python3
-    from urllib.parse import unquote
-except ImportError:
-    # for python2
-    from urllib import unquote
-
+    # this library is only used when running on-cluster
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -85,10 +54,11 @@ class RESTResponse(io.IOBase):
 
 class RESTClientObject(object):
 
-    def __init__(self, pools_size=4):
+    def __init__(self, pools_size=4, maxsize=4):
         # urllib3.PoolManager will pass all kw parameters to connectionpool
         # https://github.com/shazow/urllib3/blob/f9409436f83aeb79fbaf090181cd81b784f1b8ce/urllib3/poolmanager.py#L75
         # https://github.com/shazow/urllib3/blob/f9409436f83aeb79fbaf090181cd81b784f1b8ce/urllib3/connectionpool.py#L680
+        # maxsize is the number of requests to host that are allowed in parallel
         # ca_certs vs cert_file vs key_file
         # http://stackoverflow.com/a/23957365/2985775
 
@@ -111,17 +81,33 @@ class RESTClientObject(object):
         # key file
         key_file = Configuration().key_file
 
+        # proxy
+        proxy = Configuration().proxy
+
         # https pool manager
-        self.pool_manager = urllib3.PoolManager(
-            num_pools=pools_size,
-            cert_reqs=cert_reqs,
-            ca_certs=ca_certs,
-            cert_file=cert_file,
-            key_file=key_file
-        )
+        if proxy:
+            self.pool_manager = urllib3.ProxyManager(
+                num_pools=pools_size,
+                maxsize=maxsize,
+                cert_reqs=cert_reqs,
+                ca_certs=ca_certs,
+                cert_file=cert_file,
+                key_file=key_file,
+                proxy_url=proxy
+            )
+        else:
+            self.pool_manager = urllib3.PoolManager(
+                num_pools=pools_size,
+                maxsize=maxsize,
+                cert_reqs=cert_reqs,
+                ca_certs=ca_certs,
+                cert_file=cert_file,
+                key_file=key_file
+            )
+
 
     def request(self, method, url, query_params=None, headers=None,
-                body=None, post_params=None):
+                body=None, post_params=None, _preload_content=True, _request_timeout=None):
         """
         :param method: http request method
         :param url: http request url
@@ -129,8 +115,12 @@ class RESTClientObject(object):
         :param headers: http request headers
         :param body: request json body, for `application/json`
         :param post_params: request post parameters,
-                            `application/x-www-form-urlencode`
+                            `application/x-www-form-urlencoded`
                             and `multipart/form-data`
+        :param _preload_content: if False, the urllib3.HTTPResponse object will be returned without
+                                 reading/decoding response data. Default is True.
+        :param _request_timeout: timeout setting for this request. If one number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of (connection, read) timeouts.
         """
         method = method.upper()
         assert method in ['GET', 'HEAD', 'DELETE', 'POST', 'PUT', 'PATCH', 'OPTIONS']
@@ -143,75 +133,107 @@ class RESTClientObject(object):
         post_params = post_params or {}
         headers = headers or {}
 
+        timeout = None
+        if _request_timeout:
+            if isinstance(_request_timeout, (int, ) if PY3 else (int, long)):
+                timeout = urllib3.Timeout(total=_request_timeout)
+            elif isinstance(_request_timeout, tuple) and len(_request_timeout) == 2:
+                timeout = urllib3.Timeout(connect=_request_timeout[0], read=_request_timeout[1])
+
         if 'Content-Type' not in headers:
             headers['Content-Type'] = 'application/json'
 
         try:
             # For `POST`, `PUT`, `PATCH`, `OPTIONS`, `DELETE`
             if method in ['POST', 'PUT', 'PATCH', 'OPTIONS', 'DELETE']:
-                if headers['Content-Type'] == 'application/json':
-                    r = self._submit_requests(method,
-                                              url,
+                if re.search('json', headers['Content-Type'], re.IGNORECASE):
+                    request_body = None
+                    if body:
+                        request_body = json.dumps(body)
+                    r = self._submit_requests(method, url,
+                                              body=request_body,
+                                              preload_content=_preload_content,
+                                              timeout=timeout,
                                               query_params=query_params,
-                                              headers=headers,
-                                              body=json.dumps(body))
-                if headers['Content-Type'] == 'application/x-www-form-urlencoded':
-                    r = self._submit_requests(method,
-                                              url,
+                                              headers=headers)
+                elif headers['Content-Type'] == 'application/x-www-form-urlencoded':
+                    r = self._submit_requests(method, url,
+                                              fields=post_params,
+                                              encode_multipart=False,
+                                              preload_content=_preload_content,
+                                              timeout=timeout,
                                               query_params=query_params,
-                                              headers=headers,
-                                              post_params=post_params,
-                                              encode_multipart=False)
-                if headers['Content-Type'] == 'multipart/form-data':
+                                              headers=headers)
+                elif headers['Content-Type'] == 'multipart/form-data':
                     # must del headers['Content-Type'], or the correct Content-Type
                     # which generated by urllib3 will be overwritten.
                     del headers['Content-Type']
-                    r = self._submit_requests(method,
-                                              url,
+                    r = self._submit_requests(method, url,
+                                              fields=post_params,
+                                              encode_multipart=True,
+                                              preload_content=_preload_content,
+                                              timeout=timeout,
                                               query_params=query_params,
-                                              headers=headers,
-                                              post_params=post_params,
-                                              encode_multipart=True)
+                                              headers=headers)
+                # Pass a `string` parameter directly in the body to support
+                # other content types than Json when `body` argument is provided
+                # in serialized form
+                elif isinstance(body, str):
+                    request_body = body
+                    r = self._submit_requests(method, url,
+                                              body=request_body,
+                                              preload_content=_preload_content,
+                                              timeout=timeout,
+                                              query_params=query_params,
+                                              headers=headers)
+                else:
+                    # Cannot generate the request from given parameters
+                    msg = """Cannot prepare a request message for provided arguments.
+                             Please check that your arguments match declared content type."""
+                    raise ApiException(status=0, reason=msg)
             # For `GET`, `HEAD`
             else:
-                r = self._submit_requests(method,
-                                          url,
+                r = self._submit_requests(method, url,
+                                          fields=query_params,
+                                          preload_content=_preload_content,
+                                          timeout=timeout,
                                           query_params=query_params,
                                           headers=headers)
-        except (urllib3.exceptions.SSLError, urllib3.exceptions.HTTPError) as e:
+        except urllib3.exceptions.SSLError as e:
             msg = "{0}\n{1}".format(type(e).__name__, str(e))
             raise ApiException(status=0, reason=msg)
 
-        r = RESTResponse(r)
+        if _preload_content:
+            r = RESTResponse(r)
 
-        # In the python 3, the response.data is bytes.
-        # we need to decode it to string.
-        if sys.version_info > (3,):
-            r.data = r.data.decode('utf8')
+            # In the python 3, the response.data is bytes.
+            # we need to decode it to string.
+            if PY3:
+                r.data = r.data.decode('utf8')
 
-        # log response body
-        logger.debug("response body: %s" % r.data)
+            # log response body
+            logger.debug("response body: %s", r.data)
 
-        if r.status not in range(200, 206):
+        if not 200 <= r.status <= 299:
             raise ApiException(http_resp=r)
 
         return r
 
-
-    def _submit_requests(self, method, url, query_params=None, headers=None,
-                         body=None, post_params=None, encode_multipart=None):
+    def _submit_requests(self, method, url, body=None, headers=None,
+                         query_params=None, fields=None, preload_content=None,
+                         timeout=None, encode_multipart=None):
         if url.startswith('papi://PAPI_LOCAL_HOST'):
-            # operating on-cluster.  use isi.rest with papi.sock instead of urllib3
+            # operating on-cluster. use isi.rest with papi.sock instead of urllib3
             # so we can avoid re-authenticating.
 
             if 'Authorization' in headers:
                 del headers['Authorization']
 
-            if post_params is not None:
+            if fields is not None:
                 # post parameters should be passed in the message body
-                body = post_params
+                body = fields
             elif body is None:
-                # both body and post_params are none, pass in an empty body
+                # both body and fields are none, pass in an empty body
                 body = '{}'
 
             # the body field must be a string
@@ -219,7 +241,7 @@ class RESTClientObject(object):
                 body = json.dumps(body)
 
             url_parts = url.partition('/platform/')[2].split('/')
-            # isi.rest will re-encode the url so decode each part.  this is stupid
+            # isi.rest will re-encode the url so decode each part. this is stupid
             # but needed unless someone knows a way to get send_rest_request() to
             # not re-encode the url parts.
             for i in range(0, len(url_parts)):
@@ -228,13 +250,13 @@ class RESTClientObject(object):
             response = isi.rest.send_rest_request(isi.rest.PAPI_SOCKET_PATH,
                                                   method=method,
                                                   uri=url_parts,
-                                                  query_args=query_params,
+                                                  query_args=dict(query_params),
                                                   headers=headers,
                                                   body=body,
                                                   timeout=120)
 
             # we only use the headers, status, reason and body of a urllib3
-            # response object.  the response from isi.rest.set_rest_request is:
+            # response object. the response from isi.rest.set_rest_request is:
             # [status, headers subset, body]
             reason = 'Response code: ' + str(response[0])
             if 'status' in response[1]:
@@ -250,66 +272,86 @@ class RESTClientObject(object):
                 if query_params:
                     url += '?' + urlencode(query_params)
             elif method in ['GET', 'HEAD']:
-                post_params = query_params
+                fields = query_params
             if encode_multipart is not None:
                 r = self.pool_manager.request(method,
                                               url,
                                               body=body,
-                                              fields=post_params,
+                                              fields=fields,
+                                              preload_content=preload_content,
+                                              timeout=timeout,
                                               headers=headers,
                                               encode_multipart=encode_multipart)
             else:
                 r = self.pool_manager.request(method,
                                               url,
                                               body=body,
-                                              fields=post_params,
+                                              fields=fields,
+                                              preload_content=preload_content,
+                                              timeout=timeout,
                                               headers=headers)
         return r
 
-
-
-    def GET(self, url, headers=None, query_params=None):
+    def GET(self, url, headers=None, query_params=None, _preload_content=True, _request_timeout=None):
         return self.request("GET", url,
                             headers=headers,
+                            _preload_content=_preload_content,
+                            _request_timeout=_request_timeout,
                             query_params=query_params)
 
-    def HEAD(self, url, headers=None, query_params=None):
+    def HEAD(self, url, headers=None, query_params=None, _preload_content=True, _request_timeout=None):
         return self.request("HEAD", url,
                             headers=headers,
+                            _preload_content=_preload_content,
+                            _request_timeout=_request_timeout,
                             query_params=query_params)
 
-    def OPTIONS(self, url, headers=None, query_params=None, post_params=None, body=None):
+    def OPTIONS(self, url, headers=None, query_params=None, post_params=None, body=None, _preload_content=True,
+                _request_timeout=None):
         return self.request("OPTIONS", url,
                             headers=headers,
                             query_params=query_params,
                             post_params=post_params,
+                            _preload_content=_preload_content,
+                            _request_timeout=_request_timeout,
                             body=body)
 
-    def DELETE(self, url, headers=None, query_params=None, body=None):
+    def DELETE(self, url, headers=None, query_params=None, body=None, _preload_content=True, _request_timeout=None):
         return self.request("DELETE", url,
                             headers=headers,
                             query_params=query_params,
+                            _preload_content=_preload_content,
+                            _request_timeout=_request_timeout,
                             body=body)
 
-    def POST(self, url, headers=None, query_params=None, post_params=None, body=None):
+    def POST(self, url, headers=None, query_params=None, post_params=None, body=None, _preload_content=True,
+             _request_timeout=None):
         return self.request("POST", url,
                             headers=headers,
                             query_params=query_params,
                             post_params=post_params,
+                            _preload_content=_preload_content,
+                            _request_timeout=_request_timeout,
                             body=body)
 
-    def PUT(self, url, headers=None, query_params=None, post_params=None, body=None):
+    def PUT(self, url, headers=None, query_params=None, post_params=None, body=None, _preload_content=True,
+            _request_timeout=None):
         return self.request("PUT", url,
                             headers=headers,
                             query_params=query_params,
                             post_params=post_params,
+                            _preload_content=_preload_content,
+                            _request_timeout=_request_timeout,
                             body=body)
 
-    def PATCH(self, url, headers=None, query_params=None, post_params=None, body=None):
+    def PATCH(self, url, headers=None, query_params=None, post_params=None, body=None, _preload_content=True,
+              _request_timeout=None):
         return self.request("PATCH", url,
                             headers=headers,
                             query_params=query_params,
                             post_params=post_params,
+                            _preload_content=_preload_content,
+                            _request_timeout=_request_timeout,
                             body=body)
 
 

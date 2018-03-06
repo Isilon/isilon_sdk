@@ -1,0 +1,8 @@
+127a128,134
+> {{#vendorExtensions.x-isi-url-encode-path-param}}
+>         if '{{paramName}}' in params:
+>             # tag this parameter so that it can be url encoded with quote_plus
+>             # by the api_client code because it contains a '/' character that
+>             # needs to be url encoded.
+>             params['{{paramName}}'] = "__x-isi-url-encode-path-param__{0}".format(params['{{paramName}}'])
+> {{/vendorExtensions.x-isi-url-encode-path-param}}
