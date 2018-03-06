@@ -4,53 +4,57 @@ Basic unit/smoke tests for the create_swagger_config generator.
 Does not assume access to any cluster for the ability to actually generate
 a swagger config.
 """
-
+import copy
 import unittest
 
 class TestCreateSwaggerConfig(unittest.TestCase):
+    """Test class for components/create_swagger_config.py."""
 
     def test_to_swagger_end_point(self):
-        TEST_URIS = [
+        """Convert PAPI endpoints to Swagger endpoints."""
+        test_uris = [
             "/an/<end>/<point>/with/<params>",
             "/no/params/in/this/one"
         ]
-        EXPECTED_RESULTS = [
+        expected_results = [
             "/an/{End}/{Point}/with/{Params}",
             "/no/params/in/this/one"
         ]
         # It replaces <papi-style> URI param markers with {Swagger-style}.
-        for i in range(len(TEST_URIS)):
+        for i, test_uri in enumerate(test_uris):
             self.assertEqual(
-                csc.to_swagger_end_point(TEST_URIS[i]),
-                EXPECTED_RESULTS[i])
+                csc.to_swagger_end_point(test_uri),
+                expected_results[i])
 
     def test_add_path_params(self):
-        TEST_PARAMS = [
+        """Add path parameters."""
+        test_params = [
             ('Someparametername', 'string'),
             ('Anotherparam', 'integer')]
-        EXPECTED_RESULTS = [
+        expected_results = [
             {
-                'name': TEST_PARAMS[0][0],
+                'name': test_params[0][0],
                 'in': 'path',
                 'required': True,
-                'type': TEST_PARAMS[0][1]
+                'type': test_params[0][1]
             },
             {
-                'name': TEST_PARAMS[1][0],
+                'name': test_params[1][0],
                 'in': 'path',
                 'required': True,
-                'type': TEST_PARAMS[1][1]
+                'type': test_params[1][1]
             }
         ]
         # It appends a param object based on specified param name and type.
-        swaggerParams = []
-        csc.add_path_params(swaggerParams, [TEST_PARAMS[0]])
-        self.assertTrue(EXPECTED_RESULTS[0] in swaggerParams)
-        csc.add_path_params(swaggerParams, [TEST_PARAMS[1]])
-        self.assertTrue(EXPECTED_RESULTS[1] in swaggerParams)
+        swagger_params = []
+        csc.add_path_params(swagger_params, [test_params[0]])
+        self.assertTrue(expected_results[0] in swagger_params)
+        csc.add_path_params(swagger_params, [test_params[1]])
+        self.assertTrue(expected_results[1] in swagger_params)
 
     def test_parse_path_params(self):
-        PATHS = [
+        """Parse PAPI path parameters."""
+        paths = [
             '/this/uri/has/a/<parameter>',
             '/this/uri/has/a/<lnn>',
             '/this/<uri>/has/<lnn>/and/<multiple>/parameters',
@@ -58,20 +62,20 @@ class TestCreateSwaggerConfig(unittest.TestCase):
         ]
         # It correctly parses string parameters from a URI.
         self.assertEqual(
-            csc.parse_path_params(PATHS[0]),
+            csc.parse_path_params(paths[0]),
             [('Parameter', 'string')])
         # It correctly parses integer parameters from a URI.
         self.assertEqual(
-            csc.parse_path_params(PATHS[1]),
+            csc.parse_path_params(paths[1]),
             [('Lnn', 'integer')])
         # It correctly parses multiple parameters from a URI.
         self.assertEqual(
-            csc.parse_path_params(PATHS[2]),
+            csc.parse_path_params(paths[2]),
             [('Uri', 'string'), ('Lnn', 'integer'), ('Multiple', 'string')])
         # It returns an empty list given a URI with no params.
-        self.assertEqual(csc.parse_path_params(PATHS[3]), [])
+        self.assertEqual(csc.parse_path_params(paths[3]), [])
 
-    def test_isi_props_to_swagger_params(self):
+    def test_props_to_swagger_params(self):
         """Pattern is wrapped with forward slashes."""
         isi_props = {
             'licenses_to_include': {
@@ -94,6 +98,202 @@ class TestCreateSwaggerConfig(unittest.TestCase):
             'name': 'licenses_to_include'
         }]
         self.assertEqual(actual, expected)
+
+    def test_invalid_required_field(self):
+        """Remove invalid placement of required field."""
+        isi_schema = {
+            'properties': {
+                'health_flags': {
+                    'description': 'The disk pool health status.',
+                    'items': {
+                        'enum': [
+                            'underprovisioned',
+                            'missing_drives',
+                            'devices_down',
+                            'devices_smartfailed',
+                            'waiting_repair'
+                        ],
+                        'required': True,
+                        'type': 'string'
+                    },
+                    'type': 'array'
+                }
+            },
+            'type': 'object'
+        }
+        expected = copy.deepcopy(isi_schema)
+        del expected['properties']['health_flags']['items']['required']
+
+        csc.isi_schema_to_swagger_object(
+            'StoragepoolStatus', 'UnhealthyItem', isi_schema, {},
+            'Extended', is_response_object=True)
+
+        self.assertEqual(isi_schema, expected)
+
+    def test_duplicate_enum(self):
+        """Remove duplicate `delete_child`."""
+        isi_schema = {
+            'type': 'object',
+            'properties': {
+                'flags': {
+                    'enum': [
+                        'successful',
+                        'failed'
+                    ],
+                    'type': 'string',
+                    'description': 'Audit on success or failure.'
+                },
+                'permission': {
+                    'items': {
+                        'enum': [
+                            'traverse', 'delete_child', 'add_file',
+                            'delete_child', 'file_gen_all', 'execute'
+                        ],
+                        'type': 'string',
+                        'description': 'Filesystem access permission.'
+                    },
+                    'required': True,
+                    'type': 'array',
+                    'description': 'Array of filesystem rights governed.'
+                }
+            }
+        }
+        expected = copy.deepcopy(isi_schema)
+        expected['properties']['permission']['items']['enum'] = [
+            'traverse', 'delete_child', 'add_file', 'file_gen_all', 'execute'
+        ]
+        del expected['properties']['permission']['required']
+        expected['required'] = ['permission']
+
+        csc.isi_schema_to_swagger_object(
+            'SmbSettingsGlobalSettings', 'AuditGlobalSaclItem', isi_schema,
+            {}, 'Extended', is_response_object=True)
+
+        self.assertEqual(isi_schema, expected)
+
+    def test_invalid_draft_style(self):
+        """Update required attribute to draft 4 style."""
+        isi_schema = {
+            'properties': {
+                'disconnected_nodes': {
+                    'description': 'Devids not connected to coordinator.',
+                    'items': {
+                        'required': True,
+                        'type': 'integer'
+                    },
+                    'type': 'array'
+                }
+            },
+            'type': 'object'
+        }
+
+        expected = copy.deepcopy(isi_schema)
+        del expected['properties']['disconnected_nodes']['items']['required']
+        expected['required'] = ['disconnected_nodes']
+
+        csc.isi_schema_to_swagger_object(
+            'JobJob', 'Summary', isi_schema, {},
+            'Extended', is_response_object=True)
+
+        self.assertEqual(isi_schema, expected)
+
+    def test_first_misspelling(self):
+        """Correct misspelling of descriprion."""
+        isi_schema = {
+            'type': 'object',
+            'properties': {
+                'errors': {
+                    'descriprion': 'The number of errors.',
+                    'type': 'integer'
+                },
+                'calls': {
+                    'descriprion': 'The number of calls.',
+                    'type': 'integer'
+                },
+                'time': {
+                    'descriprion': 'Total time spent in this method.',
+                    'type': 'number'
+                }
+            }
+        }
+        expected = {
+            'type': 'object',
+            'properties': {
+                'errors': {
+                    'description': 'The number of errors.',
+                    'type': 'integer'
+                },
+                'calls': {
+                    'description': 'The number of calls.',
+                    'type': 'integer'
+                },
+                'time': {
+                    'description': 'Total time spent in this method.',
+                    'type': 'number'
+                }
+            }
+        }
+        csc.isi_schema_to_swagger_object(
+            'DebugStats', 'Stats', isi_schema, {},
+            'Extended', is_response_object=True)
+
+        self.assertEqual(isi_schema, expected)
+
+    def test_second_misspelling(self):
+        """Correct misspelling of descriptoin."""
+        isi_schema = {
+            'properties': {
+                'id': {
+                    'descriptoin': 'The user ID.',
+                    'type': 'string'
+                }
+            },
+            'type': 'object'
+        }
+        expected = {
+            'properties': {
+                'id': {
+                    'description': 'The user ID.',
+                    'type': 'string'
+                }
+            },
+            'type': 'object'
+        }
+        csc.isi_schema_to_swagger_object(
+            'AuthAccess', 'AccessItem', isi_schema, {},
+            'Extended', is_response_object=True)
+
+        self.assertEqual(isi_schema, expected)
+
+    def test_invalid_stat_op_schema(self):
+        """Correct stats operation properties schema."""
+        isi_schema = {
+            'type': 'object',
+            'properties': {
+                'operations': [{
+                    'operation': {
+                        'required': True,
+                        'type': 'string',
+                        'description': 'The name of the operation.'
+                    }
+                }]
+            }
+        }
+        csc.isi_schema_to_swagger_object(
+            'Statistics', 'Operation', isi_schema, {},
+            'Extended', is_response_object=True)
+
+        expected = {
+            'type': 'object',
+            'properties': {
+                'operation': {
+                    'type': 'string',
+                    'description': 'The name of the operation.'
+                }
+            },
+            'required': ['operation']
+        }
+        self.assertEqual(isi_schema, expected)
 
 
 if __name__ == '__main__':

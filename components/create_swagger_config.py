@@ -8,6 +8,7 @@ this config to create language bindings and documentation.
 from __future__ import print_function
 
 import argparse
+from collections import OrderedDict
 import getpass
 import json
 import os
@@ -290,9 +291,55 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             isi_schema['properties'] = {}
 
     sub_obj_namespace = isi_obj_name_space + isi_obj_name
+    # Issue #12: Correct misspellings
+    if sub_obj_namespace == 'DebugStatsUnknown':
+        if 'descriprion' in isi_schema:
+            isi_schema['description'] = isi_schema['descriprion']
+            del isi_schema['descriprion']
+    # Issue 13: Correct properties schema
+    elif sub_obj_namespace == 'StatisticsOperation':
+        if 'operations' in isi_schema['properties']:
+            operations = isi_schema['properties']['operations'][0]['operation']
+            if operations['required']:
+                isi_schema['required'] = True
+            isi_schema['properties']['operation'] = operations.copy()
+            del isi_schema['properties']['operations']
+
     required_props = []
     for prop_name in isi_schema['properties']:
         prop = isi_schema['properties'][prop_name]
+
+        # Issue #8: Remove invalid placement of required field
+        if (sub_obj_namespace == 'StoragepoolStatusUnhealthyItem' and
+                prop_name == 'health_flags'):
+            if 'required' in prop['items']:
+                del prop['items']['required']
+        # Issue #9: Remove duplicate `delete_child`
+        elif ((sub_obj_namespace == (
+                'SmbSettingsGlobalSettingsAuditGlobalSaclItem')
+               or sub_obj_namespace == 'SmbSettingsGlobalAuditGlobalSaclItem')
+              and prop_name == 'permission'):
+            if 'items' in prop and 'enum' in prop['items']:
+                prop['items']['enum'] = (
+                    list(OrderedDict.fromkeys(prop['items']['enum'])))
+        # Issue #10: Update required attribute to draft 4 style
+        elif (sub_obj_namespace.startswith('JobJob') and 'items' in prop and
+              'required' in prop['items']):
+            if prop['items']['required']:
+                if (is_response_object is False or
+                        not isinstance(prop['type'], list)):
+                    required_props.append(prop_name)
+            del prop['items']['required']
+        # Issue #12: Correct misspellings
+        elif sub_obj_namespace == 'AuthAccessAccessItem' and prop_name == 'id':
+            if 'descriptoin' in prop:
+                prop['description'] = prop['descriptoin']
+                del prop['descriptoin']
+        elif sub_obj_namespace.startswith('DebugStats'):
+            if 'descriprion' in prop:
+                prop['description'] = prop['descriprion']
+                del prop['descriprion']
+
         if 'type' not in prop:
             if 'enum' in prop:
                 print(('*** Invalid enum prop with no type in object {} prop '
@@ -1150,7 +1197,7 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            ('/3/statistics/current', None)]
+            (u'/3/statistics/operations', None)]
 
     success_count = 0
     fail_count = 0
