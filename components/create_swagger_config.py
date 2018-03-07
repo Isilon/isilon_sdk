@@ -42,6 +42,7 @@ X_ISI_URL_ENCODE_PATH_PARAM = 'x-isi-url-encode-path-param'
 
 # tracks swagger operations generated from URLs to ensure uniqueness
 GENERATED_OPS = {}
+SWAGGER_DEFS = {}
 
 
 def onefs_short_version(host, port, auth):
@@ -146,8 +147,7 @@ def find_best_type_for_prop(prop):
 
 def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
                               isi_obj_name_space, isi_schema_props,
-                              obj_defs, class_ext_post_fix,
-                              is_response_object):
+                              class_ext_post_fix, is_response_object):
     """Convert isi array property to Swagger array property."""
 
     if 'items' not in prop and 'item' in prop:
@@ -173,8 +173,7 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
             prop_description = ''
 
         obj_ref = isi_schema_to_swagger_object(
-            items_obj_namespace, items_obj_name,
-            prop['items'], obj_defs,
+            items_obj_namespace, items_obj_name, prop['items'],
             class_ext_post_fix, is_response_object)
         isi_schema_props[prop_name]['items'] = {
             'description': prop_description, '$ref': obj_ref}
@@ -195,8 +194,7 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
             items_obj_namespace = isi_obj_name_space + isi_obj_name
         # store the description in the ref for property object refs
         obj_ref = isi_schema_to_swagger_object(
-            items_obj_namespace, items_obj_name,
-            prop['items']['type'], obj_defs,
+            items_obj_namespace, items_obj_name, prop['items']['type'],
             class_ext_post_fix, is_response_object)
         isi_schema_props[prop_name]['items'] = {'$ref': obj_ref}
     elif ('type' in prop['items'] and
@@ -206,7 +204,7 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
     elif ('type' in prop['items'] and prop['items']['type'] == 'array'):
         isi_to_swagger_array_prop(
             prop['items'], 'items', isi_obj_name, isi_obj_name_space,
-            isi_schema_props[prop_name], obj_defs, class_ext_post_fix,
+            isi_schema_props[prop_name], class_ext_post_fix,
             is_response_object)
     elif 'type' in prop['items']:
         if prop['items']['type'] == 'any' or prop['items']['type'] == 'string':
@@ -230,13 +228,13 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
 
 
 def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
-                                 isi_schema, obj_defs, class_ext_post_fix,
+                                 isi_schema, class_ext_post_fix,
                                  is_response_object=False):
     """Convert isi_schema to Swagger object definition."""
 
     # Converts to a single schema with '#ref' for sub-objects
     # which is what Swagger expects. Adds the sub-objects
-    # to the obj_defs list.
+    # to the SWAGGER_DEFS dictionary.
     if 'type' not in isi_schema:
         # have seen this for empty responses
         if 'properties' not in isi_schema and 'settings' not in isi_schema:
@@ -295,7 +293,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
         if 'descriprion' in isi_schema:
             isi_schema['description'] = isi_schema['descriprion']
             del isi_schema['descriprion']
-    # Issue 13: Correct properties schema
+    # Issue #13: Correct properties schema
     elif sub_obj_namespace == 'StatisticsOperation':
         if 'operations' in isi_schema['properties']:
             operations = isi_schema['properties']['operations'][0]['operation']
@@ -401,7 +399,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 prop_description = ''
 
             obj_ref = isi_schema_to_swagger_object(
-                sub_obj_namespace, sub_obj_name, prop, obj_defs,
+                sub_obj_namespace, sub_obj_name, prop,
                 class_ext_post_fix, is_response_object)
             isi_schema['properties'][prop_name] = {
                 'description': prop_description, '$ref': obj_ref}
@@ -417,7 +415,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 prop_description = ''
 
             obj_ref = isi_schema_to_swagger_object(
-                sub_obj_namespace, sub_obj_name, prop['type'], obj_defs,
+                sub_obj_namespace, sub_obj_name, prop['type'],
                 class_ext_post_fix, is_response_object)
             isi_schema['properties'][prop_name] = {
                 'description': prop_description, '$ref': obj_ref}
@@ -425,7 +423,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             isi_to_swagger_array_prop(
                 prop, prop_name, isi_obj_name,
                 isi_obj_name_space, isi_schema['properties'],
-                obj_defs, class_ext_post_fix, is_response_object)
+                class_ext_post_fix, is_response_object)
         # code below is work around for bug in /auth/access/<USER> end point
         elif prop['type'] == 'string' and 'enum' in prop:
             newEnum = []
@@ -470,15 +468,15 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
         del isi_schema['required']
 
     return find_or_add_obj_def(
-        obj_defs, isi_schema, sub_obj_namespace, class_ext_post_fix)
+        isi_schema, sub_obj_namespace, class_ext_post_fix)
 
 
-def get_object_def(obj_name, obj_defs):
+def get_object_def(obj_name):
     """Lookup object definition."""
-    cur_obj = obj_defs[obj_name]
+    cur_obj = SWAGGER_DEFS[obj_name]
     if 'allOf' in cur_obj:
         ref_obj_name = os.path.basename(cur_obj['allOf'][0]['$ref'])
-        ref_obj = get_object_def(ref_obj_name, obj_defs)
+        ref_obj = get_object_def(ref_obj_name)
 
         full_obj_def = {}
         full_obj_def['properties'] = cur_obj['allOf'][-1]['properties'].copy()
@@ -496,15 +494,15 @@ def get_object_def(obj_name, obj_defs):
     return cur_obj
 
 
-def find_or_add_obj_def(obj_defs, new_obj_def, new_obj_name,
+def find_or_add_obj_def(new_obj_def, new_obj_name,
                         class_ext_post_fix):
     """Reuse existing object def if there's a match or add a new one.
 
     Return the 'definitions' path.
     """
     extended_obj_name = new_obj_name
-    for obj_name in obj_defs.keys():
-        existing_obj_def = get_object_def(obj_name, obj_defs)
+    for obj_name in SWAGGER_DEFS.keys():
+        existing_obj_def = get_object_def(obj_name)
         if new_obj_def['properties'] == existing_obj_def['properties']:
             if sorted(new_obj_def.get('required', [])) == \
                     sorted(existing_obj_def.get('required', [])):
@@ -515,7 +513,7 @@ def find_or_add_obj_def(obj_defs, new_obj_def, new_obj_name,
                 extended_obj_name = obj_name
                 break
 
-    if extended_obj_name in obj_defs:
+    if extended_obj_name in SWAGGER_DEFS:
         # TODO at this point the subclass mechanism depends on the data models
         # being generated in the correct order, where base classes are
         # generated before sub classes. This is done by processing the
@@ -524,7 +522,7 @@ def find_or_add_obj_def(obj_defs, new_obj_def, new_obj_name,
         # the same pattern that nfs exports uses is not repeated by the other
         # endpoints.
         # crude/limited subclass generation
-        existing_obj = get_object_def(extended_obj_name, obj_defs)
+        existing_obj = get_object_def(extended_obj_name)
         is_extension = True
         existing_props = existing_obj['properties']
         existing_required = existing_obj.get('required', [])
@@ -536,11 +534,11 @@ def find_or_add_obj_def(obj_defs, new_obj_def, new_obj_name,
             elif new_obj_def['properties'][prop_name] != prop:
                 is_extension = False
                 break
-            if (prop_name in existing_required and
-                    prop_name not in new_obj_def.get('required', [])):
+            elif (prop_name in existing_required and
+                  prop_name not in new_obj_def.get('required', [])):
                 is_extension = False
                 break
-        if is_extension is True:
+        if is_extension:
             extended_obj_def = {
                 'allOf': [{'$ref': '#/definitions/' + extended_obj_name}]
             }
@@ -558,11 +556,11 @@ def find_or_add_obj_def(obj_defs, new_obj_def, new_obj_name,
         else:
             extended_obj_def = new_obj_def
 
-        while new_obj_name in obj_defs:
+        while new_obj_name in SWAGGER_DEFS:
             new_obj_name += class_ext_post_fix
-        obj_defs[new_obj_name] = extended_obj_def
+        SWAGGER_DEFS[new_obj_name] = extended_obj_def
     else:
-        obj_defs[new_obj_name] = new_obj_def
+        SWAGGER_DEFS[new_obj_name] = new_obj_def
     return '#/definitions/' + new_obj_name
 
 
@@ -666,8 +664,7 @@ def to_swagger_end_point(end_point_path):
 
 def create_swagger_operation(isi_api_name, isi_obj_name_space, isi_obj_name,
                              operation, isi_input_args, isi_input_schema,
-                             isi_resp_schema, obj_defs,
-                             input_schema_param_obj_name=None,
+                             isi_resp_schema, input_schema_param_obj_name=None,
                              class_ext_post_fix='Extended'):
     """Create Swagger operation object."""
     swagger_operation = {}
@@ -691,8 +688,7 @@ def create_swagger_operation(isi_api_name, isi_obj_name_space, isi_obj_name,
             input_schema_param_obj_name = isi_obj_name
         obj_ref = isi_schema_to_swagger_object(
             isi_obj_name_space, input_schema_param_obj_name,
-            isi_input_schema, obj_defs,
-            class_ext_post_fix)
+            isi_input_schema, class_ext_post_fix)
         input_schema_param = {}
         input_schema_param['in'] = 'body'
         input_schema_param['name'] = \
@@ -729,8 +725,7 @@ def create_swagger_operation(isi_api_name, isi_obj_name_space, isi_obj_name,
         if response_type == 'object' or isinstance(response_type, list):
             obj_ref = isi_schema_to_swagger_object(
                 isi_resp_obj_name_space, isi_resp_obj_name, isi_resp_schema,
-                obj_defs, class_ext_post_fix,
-                is_response_object=True)
+                class_ext_post_fix, is_response_object=True)
             swagger_200_resp['description'] = isi_input_args['description']
             swagger_200_resp['schema'] = {'$ref': obj_ref}
         else:
@@ -741,7 +736,7 @@ def create_swagger_operation(isi_api_name, isi_obj_name_space, isi_obj_name,
                 isi_to_swagger_array_prop(
                     isi_resp_schema,
                     'items', isi_resp_obj_name, isi_resp_obj_name_space,
-                    isi_resp_schema, obj_defs, class_ext_post_fix,
+                    isi_resp_schema, class_ext_post_fix,
                     is_response_object=True)
                 swagger_200_resp['schema']['items'] = isi_resp_schema['items']
         # add to responses
@@ -784,7 +779,7 @@ def build_path_param(param_name, param_type):
 
 
 def isi_post_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
-                             isi_desc_json, isi_path_params, obj_defs):
+                             isi_desc_json, isi_path_params):
     """Convert isi POST base endpoint description to Swagger path."""
     swagger_path = {}
     isi_post_args = isi_desc_json['POST_args']
@@ -801,7 +796,7 @@ def isi_post_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
     operation = 'create'
     swagger_path['post'] = create_swagger_operation(
         isi_api_name, isi_obj_name_space, one_obj_name, operation,
-        isi_post_args, post_input_schema, post_resp_schema, obj_defs,
+        isi_post_args, post_input_schema, post_resp_schema,
         None, 'CreateParams')
     add_path_params(swagger_path['post']['parameters'], isi_path_params)
 
@@ -809,7 +804,7 @@ def isi_post_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
 
 
 def isi_put_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
-                            isi_desc_json, isi_path_params, obj_defs):
+                            isi_desc_json, isi_path_params):
     """Convert isi PUT base endpoint description to Swagger path."""
     swagger_path = {}
     input_args = isi_desc_json['PUT_args']
@@ -818,28 +813,28 @@ def isi_put_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
     operation = 'update'
     swagger_path['put'] = create_swagger_operation(
         isi_api_name, isi_obj_name_space, isi_obj_name, operation,
-        input_args, input_schema, None, obj_defs)
+        input_args, input_schema, None)
     add_path_params(swagger_path['put']['parameters'], isi_path_params)
 
     return swagger_path
 
 
 def isi_delete_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
-                               isi_desc_json, isi_path_params, obj_defs):
+                               isi_desc_json, isi_path_params):
     """Convert isi DELETE base endpoint description to Swagger path."""
     swagger_path = {}
     input_args = isi_desc_json['DELETE_args']
     operation = 'delete'
     swagger_path['delete'] = create_swagger_operation(
         isi_api_name, isi_obj_name_space, isi_obj_name, operation,
-        input_args, None, None, obj_defs)
+        input_args, None, None)
     add_path_params(swagger_path['delete']['parameters'], isi_path_params)
 
     return swagger_path
 
 
 def isi_get_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
-                            isi_desc_json, isi_path_params, obj_defs):
+                            isi_desc_json, isi_path_params):
     """Convert isi GET base endpoint description to Swagger path."""
     swagger_path = {}
     isi_get_args = isi_desc_json['GET_args']
@@ -851,7 +846,7 @@ def isi_get_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
         operation = 'get'
     swagger_path['get'] = create_swagger_operation(
         isi_api_name, isi_obj_name_space, isi_obj_name, operation,
-        isi_get_args, None, get_resp_schema, obj_defs)
+        isi_get_args, None, get_resp_schema)
     add_path_params(swagger_path['get']['parameters'], isi_path_params)
 
     return swagger_path
@@ -859,7 +854,7 @@ def isi_get_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
 
 def isi_item_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
                              isi_desc_json, single_obj_post_fix,
-                             item_input_type, extra_path_params, obj_defs):
+                             item_input_type, extra_path_params):
     """Convert isi item endpoint description to Swagger path."""
     swagger_path = {}
     # first deal with POST and PUT in order to create the objects that are
@@ -889,7 +884,7 @@ def isi_item_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
         operation = 'update'
         swagger_path['put'] = create_swagger_operation(
             isi_api_name, isi_obj_name_space, one_obj_name, operation,
-            isi_put_args, item_input_schema, None, obj_defs,
+            isi_put_args, item_input_schema, None,
             input_schema_param_obj_name)
         # hack to get operation to insert ById to make the op name make sense
         if one_obj_name[-2:] == 'Id':
@@ -906,7 +901,7 @@ def isi_item_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
         operation = 'delete'
         swagger_path['delete'] = create_swagger_operation(
             isi_api_name, isi_obj_name_space, one_obj_name, operation,
-            isi_delete_args, None, None, obj_defs)
+            isi_delete_args, None, None)
         # hack to get operation to insert ById to make the op name make sense
         if one_obj_name[-2:] == 'Id':
             swagger_path[operation]['operationId'] = \
@@ -926,7 +921,7 @@ def isi_item_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
         # becomes subclass of this response object schema model
         swagger_path['get'] = create_swagger_operation(
             isi_api_name, isi_obj_name_space, isi_obj_name, operation,
-            isi_get_args, None, get_resp_schema, obj_defs)
+            isi_get_args, None, get_resp_schema)
         # hack to force the api function to be 'get<SingleObj>'
         swagger_path['get']['operationId'] = \
             operation + isi_obj_name_space + one_obj_name
@@ -950,7 +945,7 @@ def isi_item_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
         operation = 'create'
         swagger_path['post'] = create_swagger_operation(
             isi_api_name, isi_obj_name_space, one_obj_name, operation,
-            isi_post_args, post_input_schema, post_resp_schema, obj_defs,
+            isi_post_args, post_input_schema, post_resp_schema,
             None, 'CreateParams')
         # hack to get operation to insert ById to make the op name make sense
         if one_obj_name[-2:] == 'Id':
@@ -1152,9 +1147,9 @@ def main():
 
     if args.defs_file:
         with open(args.defs_file, 'r') as def_file:
-            swagger_defs = json.loads(def_file.read())
+            SWAGGER_DEFS.update(json.loads(def_file.read()))
     else:
-        swagger_defs = {
+        SWAGGER_DEFS.update({
             'Error': {
                 'type': 'object',
                 'required': [
@@ -1189,9 +1184,9 @@ def main():
                 ],
                 'type': 'object'
             }
-        }
+        })
 
-    swagger_json['definitions'] = swagger_defs
+    swagger_json['definitions'] = SWAGGER_DEFS
 
     auth = HTTPBasicAuth(args.username, args.password)
     base_url = '/platform'
@@ -1228,7 +1223,6 @@ def main():
 
     success_count = 0
     fail_count = 0
-    object_defs = swagger_json['definitions']
     for base_end_point_path, item_end_point_path in end_point_paths:
         if base_end_point_path is None:
             tmp_base_endpoint_path = to_swagger_end_point(
@@ -1264,7 +1258,7 @@ def main():
                 item_path_url, item_path = isi_item_to_swagger_path(
                     api_name, obj_namespace, obj_name, item_resp_json,
                     singular_obj_postfix, item_input_type,
-                    extra_path_params, object_defs)
+                    extra_path_params)
                 swagger_json['paths'][swagger_path + item_path_url] = item_path
 
                 if 'HEAD_args' in item_resp_json:
@@ -1295,24 +1289,24 @@ def main():
                 if 'POST_args' in base_resp_json:
                     base_path = isi_post_to_swagger_path(
                         api_name, obj_namespace, obj_name, base_resp_json,
-                        base_path_params, object_defs)
+                        base_path_params)
 
                 if 'GET_args' in base_resp_json:
                     get_base_path = isi_get_to_swagger_path(
                         api_name, obj_namespace, obj_name, base_resp_json,
-                        base_path_params, object_defs)
+                        base_path_params)
                     base_path.update(get_base_path)
 
                 if 'PUT_args' in base_resp_json:
                     put_base_path = isi_put_to_swagger_path(
                         api_name, obj_namespace, obj_name, base_resp_json,
-                        base_path_params, object_defs)
+                        base_path_params)
                     base_path.update(put_base_path)
 
                 if 'DELETE_args' in base_resp_json:
                     del_base_path = isi_delete_to_swagger_path(
                         api_name, obj_namespace, obj_name, base_resp_json,
-                        base_path_params, object_defs)
+                        base_path_params)
                     base_path.update(del_base_path)
 
                 if base_path:

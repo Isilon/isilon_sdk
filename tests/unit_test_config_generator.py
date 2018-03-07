@@ -125,7 +125,7 @@ class TestCreateSwaggerConfig(unittest.TestCase):
         del expected['properties']['health_flags']['items']['required']
 
         csc.isi_schema_to_swagger_object(
-            'StoragepoolStatus', 'UnhealthyItem', isi_schema, {},
+            'StoragepoolStatus', 'UnhealthyItem', isi_schema,
             'Extended', is_response_object=True)
 
         self.assertEqual(isi_schema, expected)
@@ -167,7 +167,7 @@ class TestCreateSwaggerConfig(unittest.TestCase):
 
         csc.isi_schema_to_swagger_object(
             'SmbSettingsGlobalSettings', 'AuditGlobalSaclItem', isi_schema,
-            {}, 'Extended', is_response_object=True)
+            'Extended', is_response_object=True)
 
         self.assertEqual(isi_schema, expected)
 
@@ -192,7 +192,7 @@ class TestCreateSwaggerConfig(unittest.TestCase):
         expected['required'] = ['disconnected_nodes']
 
         csc.isi_schema_to_swagger_object(
-            'JobJob', 'Summary', isi_schema, {},
+            'JobJob', 'Summary', isi_schema,
             'Extended', is_response_object=True)
 
         self.assertEqual(isi_schema, expected)
@@ -234,7 +234,7 @@ class TestCreateSwaggerConfig(unittest.TestCase):
             }
         }
         csc.isi_schema_to_swagger_object(
-            'DebugStats', 'Stats', isi_schema, {},
+            'DebugStats', 'Stats', isi_schema,
             'Extended', is_response_object=True)
 
         self.assertEqual(isi_schema, expected)
@@ -260,7 +260,7 @@ class TestCreateSwaggerConfig(unittest.TestCase):
             'type': 'object'
         }
         csc.isi_schema_to_swagger_object(
-            'AuthAccess', 'AccessItem', isi_schema, {},
+            'AuthAccess', 'AccessItem', isi_schema,
             'Extended', is_response_object=True)
 
         self.assertEqual(isi_schema, expected)
@@ -280,7 +280,7 @@ class TestCreateSwaggerConfig(unittest.TestCase):
             }
         }
         csc.isi_schema_to_swagger_object(
-            'Statistics', 'Operation', isi_schema, {},
+            'Statistics', 'Operation', isi_schema,
             'Extended', is_response_object=True)
 
         expected = {
@@ -330,7 +330,7 @@ class TestCreateSwaggerConfig(unittest.TestCase):
             'type': 'object'
         }
         csc.isi_schema_to_swagger_object(
-            'Hardware', 'Tapes', isi_schema, {}, 'Extended')
+            'Hardware', 'Tapes', isi_schema, 'Extended')
 
         expected = {
             'description': 'Get list Tape and Changer devices',
@@ -372,7 +372,7 @@ class TestCreateSwaggerConfig(unittest.TestCase):
         }
         csc.isi_schema_to_swagger_object(
             'EventEventgroupOccurrences', 'Eventgroup-Occurrence',
-            isi_schema, {}, 'Extended')
+            isi_schema, 'Extended')
 
         expected = {
             'properties': {
