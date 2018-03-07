@@ -240,10 +240,10 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
         if 'properties' not in isi_schema and 'settings' not in isi_schema:
             print(('*** Invalid empty schema for object {}. '
                    "Adding 'properties' and 'type'.").format(isi_obj_name))
-            schemaCopy = isi_schema.copy()
+            schema_copy = isi_schema.copy()
             for key in isi_schema.keys():
                 del isi_schema[key]
-            isi_schema['properties'] = schemaCopy
+            isi_schema['properties'] = schema_copy
         else:
             print(("*** Invalid schema for object {}, no 'type' specified. "
                    "Adding 'type': 'object'.").format(isi_obj_name))
@@ -335,6 +335,12 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             if 'descriprion' in prop:
                 prop['description'] = prop['descriprion']
                 del prop['descriprion']
+        elif (sub_obj_namespace.startswith('HealthcheckEvaluation') and
+              prop_name == 'run_status'):
+            if 'desciption' in prop:
+                prop['description'] = prop['desciption']
+                del prop['desciption']
+
         # Issue #14: Include hardware `devices` fields
         elif sub_obj_namespace == 'HardwareTapes' and prop_name == 'devices':
             if 'media_changers' in prop and 'tapes' in prop:
@@ -1217,8 +1223,10 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            (u'/3/event/eventgroup-occurrences',
-             u'/3/event/eventgroup-occurrences/<ID>'),
+            (u'/5/healthcheck/checklists', u'/5/healthcheck/checklists/<ID>'),
+            (u'/5/healthcheck/evaluations', u'/5/healthcheck/evaluations/<ID>'),
+            (u'/5/healthcheck/items', u'/5/healthcheck/items/<ID>'),
+            (u'/5/healthcheck/parameters', u'/5/healthcheck/parameters/<ID>')
         ]
 
     success_count = 0
