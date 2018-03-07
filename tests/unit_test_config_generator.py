@@ -352,6 +352,44 @@ class TestCreateSwaggerConfig(unittest.TestCase):
         }
         self.assertEqual(isi_schema, expected)
 
+    def test_nested_array_schema(self):
+        """Correct nested array schema."""
+        isi_schema = {
+            'properties': {
+                'causes': {
+                    'description': 'List of eventgroup IDs.',
+                    'items': {
+                        'type': {
+                            'description': 'Event Group cause.',
+                            'items': {'type': 'string'},
+                            'type': 'array'
+                        }
+                    },
+                    'type': 'array'
+                },
+            },
+            'type': 'object'
+        }
+        csc.isi_schema_to_swagger_object(
+            'EventEventgroupOccurrences', 'Eventgroup-Occurrence',
+            isi_schema, {}, 'Extended')
+
+        expected = {
+            'properties': {
+                'causes': {
+                    'description': 'List of eventgroup IDs.',
+                    'items': {
+                        'description': 'Event Group cause.',
+                        'items': {'type': 'string'},
+                        'type': 'array'
+                    },
+                    'type': 'array'
+                },
+            },
+            'type': 'object'
+        }
+        self.assertEqual(isi_schema, expected)
+
 
 if __name__ == '__main__':
     if __package__ is None:

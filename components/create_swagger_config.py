@@ -354,6 +354,13 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 }
                 del prop['media_changers']
                 del prop['tapes']
+        # Issue #15: Correct nested array schema
+        elif (sub_obj_namespace == (
+                'EventEventgroupOccurrencesEventgroup-Occurrence') and
+              prop_name == 'causes'):
+            if 'type' in prop['items']:
+                prop['items'] = prop['items']['type'].copy()
+                prop['type'] = 'array'
 
         if 'type' not in prop:
             if 'enum' in prop:
@@ -1217,8 +1224,8 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            (u'/1/auth/mapping/identities',
-             u'/1/auth/mapping/identities/<SOURCE>'),
+            (u'/3/event/eventgroup-occurrences',
+             u'/3/event/eventgroup-occurrences/<ID>'),
         ]
 
     success_count = 0
