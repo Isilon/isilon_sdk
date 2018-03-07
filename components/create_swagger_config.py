@@ -951,6 +951,11 @@ def isi_item_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
         if one_obj_name[-2:] == 'Id':
             swagger_path['post']['operationId'] = \
                 operation + isi_obj_name_space + one_obj_name[:-2] + 'ById'
+        # Issue #11: add the item-id as a url path parameter
+        post_id_param = item_id_param.copy()
+        post_id_param['description'] = isi_post_args['description']
+        swagger_path['post']['parameters'].append(post_id_param)
+
         add_path_params(swagger_path['post']['parameters'], extra_path_params)
 
     return item_id_url, swagger_path
@@ -1104,7 +1109,7 @@ def main():
     swagger_json = {
         'swagger': '2.0',
         'info': {
-            'version': '1.0.0',
+            'version': '0.1.11',
             'title': 'Isilon SDK',
             'description': 'Isilon SDK - Language bindings for the OneFS API',
             'termsOfService': ('https://github.com/emccode/'
@@ -1212,14 +1217,16 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            (u'/3/hardware/tapes', None)]
+            (u'/1/auth/mapping/identities',
+             u'/1/auth/mapping/identities/<SOURCE>'),
+        ]
 
     success_count = 0
     fail_count = 0
     object_defs = swagger_json['definitions']
-    for end_pointTuple in end_point_paths:
-        base_end_point_path = end_pointTuple[0]
-        item_end_point_path = end_pointTuple[1]
+    for end_point_tuple in end_point_paths:
+        base_end_point_path = end_point_tuple[0]
+        item_end_point_path = end_point_tuple[1]
         if base_end_point_path is None:
             tmp_base_endpoint_path = to_swagger_end_point(
                 os.path.dirname(item_end_point_path))
