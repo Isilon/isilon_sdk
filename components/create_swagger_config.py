@@ -58,14 +58,13 @@ def isi_props_to_swagger_params(isi_props, param_type):
     if not isi_props:
         return []
     swagger_parameters = []
-    for isi_prop_name in isi_props:
+    for isi_prop_name, isi_prop in isi_props.iteritems():
         # build a swagger param for each isi property
         swagger_param = {}
         swagger_param['in'] = param_type
         swagger_param['name'] = isi_prop_name
-        isi_prop = isi_props[isi_prop_name]
         # attach common fields
-        for field_name in isi_prop:
+        for field_name in isi_prop.keys():
             if field_name not in SWAGGER_PARAM_ISI_PROP_COMMON_FIELDS:
                 print('WARNING: {} not defined for Swagger in prop: {}'.format(
                     field_name, isi_prop))
@@ -119,28 +118,28 @@ def plural_obj_name_to_singular(obj_name, post_fix='', post_fix_used=None):
 
 def find_best_type_for_prop(prop):
     """Find best type match for property."""
-    multipleTypes = prop['type']
+    multiple_types = prop['type']
     # delete it so that we throw an exception if none of types
     # are non-'null'
     del prop['type']
 
-    for oneType in multipleTypes:
+    for one_type in multiple_types:
         # sometimes the types are base types and sometimes they
         # are sub objects
-        if isinstance(oneType, dict):
-            if oneType['type'] == 'null':
+        if isinstance(one_type, dict):
+            if one_type['type'] == 'null':
                 continue
 
             # favor more specific types over 'string'
-            if isinstance(oneType['type'], list):
-                oneType = find_best_type_for_prop(oneType)
+            if isinstance(one_type['type'], list):
+                one_type = find_best_type_for_prop(one_type)
 
-            prop = oneType
+            prop = one_type
             if prop['type'] != 'string':
                 break
 
-        elif oneType != 'null':
-            prop['type'] = oneType
+        elif one_type != 'null':
+            prop['type'] = one_type
             break
     return prop
 
@@ -306,8 +305,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             del isi_schema['properties']['operations']
 
     required_props = []
-    for prop_name in isi_schema['properties']:
-        prop = isi_schema['properties'][prop_name]
+    for prop_name, prop in isi_schema['properties'].iteritems():
 
         # Issue #8: Remove invalid placement of required field
         if (sub_obj_namespace == 'StoragepoolStatusUnhealthyItem' and
@@ -505,7 +503,7 @@ def find_or_add_obj_def(obj_defs, new_obj_def, new_obj_name,
     Return the 'definitions' path.
     """
     extended_obj_name = new_obj_name
-    for obj_name in obj_defs:
+    for obj_name in obj_defs.keys():
         existing_obj_def = get_object_def(obj_name, obj_defs)
         if new_obj_def['properties'] == existing_obj_def['properties']:
             if sorted(new_obj_def.get('required', [])) == \
@@ -531,11 +529,11 @@ def find_or_add_obj_def(obj_defs, new_obj_def, new_obj_name,
         existing_props = existing_obj['properties']
         existing_required = existing_obj.get('required', [])
 
-        for prop_name, prop_value in existing_props.iteritems():
+        for prop_name, prop in existing_props.iteritems():
             if prop_name not in new_obj_def['properties']:
                 is_extension = False
                 break
-            elif new_obj_def['properties'][prop_name] != prop_value:
+            elif new_obj_def['properties'][prop_name] != prop:
                 is_extension = False
                 break
             if (prop_name in existing_required and
@@ -548,7 +546,7 @@ def find_or_add_obj_def(obj_defs, new_obj_def, new_obj_name,
             }
             unique_props = {}
             unique_required = new_obj_def.get('required', [])
-            for prop_name in new_obj_def['properties']:
+            for prop_name in new_obj_def['properties'].keys():
                 # delete properties that are shared.
                 if prop_name not in existing_props:
                     unique_props[prop_name] = \
@@ -591,7 +589,7 @@ def build_swagger_name(names, start, end, omit_params=False):
         # Special case for 'LNN' which stands for Logical Node Number.
         if name.endswith('ID>') or name == '<LNN>':
             next_name = 'Item'  # default name if we can't find a better name
-            for sub_index in reversed(range(0, index)):
+            for sub_index in reversed(range(index)):
                 prev_name = re.sub(
                     '[^0-9a-zA-Z]+', '', names[sub_index].title())
                 post_fix_used = PostFixUsed()
@@ -612,7 +610,7 @@ def build_isi_api_name(names):
     end_index = 1
     # use the first item or the last instance of <FOO> that is not on the end
     # point URL.
-    for index in reversed(range(0, len(names) - 1)):
+    for index in reversed(range(len(names) - 1)):
         name = names[index]
         if name.startswith('<') and name.endswith('>'):
             end_index = index - 1 if index > 2 else index
@@ -1231,9 +1229,7 @@ def main():
     success_count = 0
     fail_count = 0
     object_defs = swagger_json['definitions']
-    for end_point_tuple in end_point_paths:
-        base_end_point_path = end_point_tuple[0]
-        item_end_point_path = end_point_tuple[1]
+    for base_end_point_path, item_end_point_path in end_point_paths:
         if base_end_point_path is None:
             tmp_base_endpoint_path = to_swagger_end_point(
                 os.path.dirname(item_end_point_path))
