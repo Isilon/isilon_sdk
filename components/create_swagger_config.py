@@ -59,13 +59,13 @@ def isi_props_to_swagger_params(isi_props, param_type):
     if not isi_props:
         return []
     swagger_parameters = []
-    for isi_prop_name, isi_prop in isi_props.iteritems():
+    for isi_prop_name, isi_prop in isi_props.items():
         # build a swagger param for each isi property
         swagger_param = {}
         swagger_param['in'] = param_type
         swagger_param['name'] = isi_prop_name
         # attach common fields
-        for field_name in isi_prop.keys():
+        for field_name in isi_prop:
             if field_name not in SWAGGER_PARAM_ISI_PROP_COMMON_FIELDS:
                 print('WARNING: {} not defined for Swagger in prop: {}'.format(
                     field_name, isi_prop))
@@ -241,7 +241,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             print(('*** Invalid empty schema for object {}. '
                    "Adding 'properties' and 'type'.").format(isi_obj_name))
             schema_copy = isi_schema.copy()
-            for key in isi_schema.keys():
+            for key in isi_schema:
                 del isi_schema[key]
             isi_schema['properties'] = schema_copy
         else:
@@ -303,7 +303,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             del isi_schema['properties']['operations']
 
     required_props = []
-    for prop_name, prop in isi_schema['properties'].iteritems():
+    for prop_name, prop in isi_schema['properties'].items():
 
         # Issue #8: Remove invalid placement of required field
         if (sub_obj_namespace == 'StoragepoolStatusUnhealthyItem' and
@@ -507,7 +507,7 @@ def find_or_add_obj_def(new_obj_def, new_obj_name,
     Return the 'definitions' path.
     """
     extended_obj_name = new_obj_name
-    for obj_name in SWAGGER_DEFS.keys():
+    for obj_name in SWAGGER_DEFS:
         existing_obj_def = get_object_def(obj_name)
         if new_obj_def['properties'] == existing_obj_def['properties']:
             if sorted(new_obj_def.get('required', [])) == \
@@ -533,7 +533,7 @@ def find_or_add_obj_def(new_obj_def, new_obj_name,
         existing_props = existing_obj['properties']
         existing_required = existing_obj.get('required', [])
 
-        for prop_name, prop in existing_props.iteritems():
+        for prop_name, prop in existing_props.items():
             if prop_name not in new_obj_def['properties']:
                 is_extension = False
                 break
@@ -550,7 +550,7 @@ def find_or_add_obj_def(new_obj_def, new_obj_name,
             }
             unique_props = {}
             unique_required = new_obj_def.get('required', [])
-            for prop_name in new_obj_def['properties'].keys():
+            for prop_name in new_obj_def['properties']:
                 # delete properties that are shared.
                 if prop_name not in existing_props:
                     unique_props[prop_name] = \
