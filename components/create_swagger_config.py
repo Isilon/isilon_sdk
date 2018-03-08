@@ -5,12 +5,11 @@ responses from the PAPI handlers on your cluster (specified by cluster name or
 ip address as the first argument to this script).  Swagger tools can now use
 this config to create language bindings and documentation.
 """
-from __future__ import print_function
-
 import argparse
 from collections import OrderedDict
 import getpass
 import json
+import logging as log
 import os
 import re
 import sys
@@ -67,7 +66,7 @@ def isi_props_to_swagger_params(isi_props, param_type):
         # attach common fields
         for field_name in isi_prop:
             if field_name not in SWAGGER_PARAM_ISI_PROP_COMMON_FIELDS:
-                print('WARNING: {} not defined for Swagger in prop: {}'.format(
+                log.warning('{} not defined for Swagger in prop: {}'.format(
                     field_name, isi_prop))
                 continue
             if field_name == 'pattern':
@@ -75,16 +74,16 @@ def isi_props_to_swagger_params(isi_props, param_type):
                 # Swagger from 2.2 to 2.3
                 # wrap with '/' to conform to Perl regex conventions
                 isi_prop['pattern'] = '/' + isi_prop['pattern'] + '/'
-            if field_name == "type":
-                if isi_prop[field_name] == "int":
+            if field_name == 'type':
+                if isi_prop[field_name] == 'int':
                     # HACK fix for bugs in the PAPI
-                    print('*** Invalid type in params of type {}: {}'.format(
-                        param_type, isi_props))
+                    log.warning('Invalid type in params of type {}: {}'.
+                                format(param_type, isi_props))
                     isi_prop[field_name] = 'integer'
                 elif isi_prop[field_name] == 'bool':
                     # HACK fix for bugs in the PAPI
-                    print('*** Invalid type in params of type {}: {}'.format(
-                        param_type, isi_props))
+                    log.warning('Invalid type in params of type {}: {}'.
+                                format(param_type, isi_props))
                     isi_prop[field_name] = 'boolean'
             swagger_param[field_name] = isi_prop[field_name]
         # add the new param to the list of params
@@ -214,12 +213,12 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
             if 'pattern' in prop['items']:
                 prop['items']['pattern'] = '/' + prop['items']['pattern'] + '/'
         elif prop['items']['type'] == 'int':
-            print('*** Invalid prop type in object {} prop {}: {}'.format(
+            log.warning('Invalid prop type in object {} prop {}: {}'.format(
                 isi_obj_name, prop_name, prop))
             prop['items']['type'] = 'integer'
         elif prop['items']['type'] == 'bool':
             # HACK fix for bugs in the PAPI
-            print('*** Invalid prop type in object {} prop {}: {}'.format(
+            log.warning('Invalid prop type in object {} prop {}: {}'.format(
                 isi_obj_name, prop_name, prop))
             prop['items']['type'] = 'boolean'
 
@@ -238,15 +237,16 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
     if 'type' not in isi_schema:
         # have seen this for empty responses
         if 'properties' not in isi_schema and 'settings' not in isi_schema:
-            print(('*** Invalid empty schema for object {}. '
-                   "Adding 'properties' and 'type'.").format(isi_obj_name))
+            log.warning(('Invalid empty schema for object {}. '
+                         "Adding 'properties' and 'type'.").format(
+                             isi_obj_name))
             schema_copy = isi_schema.copy()
             for key in isi_schema:
                 del isi_schema[key]
             isi_schema['properties'] = schema_copy
         else:
-            print(("*** Invalid schema for object {}, no 'type' specified. "
-                   "Adding 'type': 'object'.").format(isi_obj_name))
+            log.warning(("Invalid schema for object {}, no 'type' specified. "
+                         "Adding 'type': 'object'.").format(isi_obj_name))
         isi_schema['type'] = 'object'
 
     if isinstance(isi_schema['type'], list):
@@ -380,8 +380,9 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
 
         if 'type' not in prop:
             if 'enum' in prop:
-                print(('*** Invalid enum prop with no type in object {} prop '
-                       '{}: {}').format(isi_obj_name, prop_name, prop))
+                log.warning(('Invalid enum prop with no type in object {} '
+                             'prop {}: {}').format(
+                                 isi_obj_name, prop_name, prop))
                 prop['type'] = 'string'
             else:
                 continue  # must be a $ref
@@ -449,9 +450,9 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             newEnum = []
             for item in prop['enum']:
                 if not isinstance(item, str) and not isinstance(item, unicode):
-                    print(('*** Invalid prop with multi-type '
-                           'enum in object {} prop {}: {}').format(
-                               isi_obj_name, prop_name, prop))
+                    log.warning(('Invalid prop with multi-type '
+                                 'enum in object {} prop {}: {}').format(
+                                     isi_obj_name, prop_name, prop))
                     # Swagger can't deal with multi-type enums so just
                     # eliminate the enum.
                     newEnum = []
@@ -468,12 +469,12 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             prop['type'] = 'string'
         elif prop['type'] == 'int':
             # HACK fix for bugs in the PAPI
-            print('*** Invalid prop type in object {} prop {}: {}'.format(
+            log.warning('Invalid prop type in object {} prop {}: {}'.format(
                 isi_obj_name, prop_name, prop))
             prop['type'] = 'integer'
         elif prop['type'] == 'bool':
             # HACK fix for bugs in the PAPI
-            print('*** Invalid prop type in object {} prop {}: {}'.format(
+            log.warning('Invalid prop type in object {} prop {}: {}'.format(
                 isi_obj_name, prop_name, prop))
             prop['type'] = 'boolean'
 
@@ -1118,8 +1119,16 @@ def main():
         '-e', '--excludes-file', dest='excludes_file',
         help='Path to file with JSON list of end points to exclude.',
         action='store', default=None)
+    argparser.add_argument(
+        '-l', '--logging', dest='log_level',
+        help='Logging verbosity level', action='store', default='INFO'
+    )
 
     args = argparser.parse_args()
+
+    log.basicConfig(
+        format='%(asctime)s %(levelname)s - %(message)s',
+        datefmt='%I:%M:%S', level=getattr(log, args.log_level.upper()))
 
     if args.username is None:
         args.username = raw_input(
@@ -1262,7 +1271,7 @@ def main():
             api_name, obj_namespace, obj_name, swagger_path)
 
         if item_end_point_path is not None:
-            print('Processing {}'.format(item_end_point_path))
+            log.info('Processing {}'.format(item_end_point_path))
             # next do the item PUT (i.e. update), DELETE, and GET because the
             # GET seems to be a limited version of the base path GET so the
             # subclassing works correct when done in this order
@@ -1285,20 +1294,20 @@ def main():
                 swagger_json['paths'][swagger_path + item_path_url] = item_path
 
                 if 'HEAD_args' in item_resp_json:
-                    print('WARNING: HEAD_args in: {}'.format(
+                    log.warning('HEAD_args in: {}'.format(
                         item_end_point_path))
 
                 success_count += 1
             except (KeyError, TypeError, RuntimeError) as err:
-                print('Caught exception processing: {}'.format(
+                log.error('Caught exception processing: {}'.format(
                     item_end_point_path))
-                print('{}: {}'.format(type(err).__name__, err))
+                log.error('{}: {}'.format(type(err).__name__, err))
                 if args.test:
                     traceback.print_exc(file=sys.stderr)
                 fail_count += 1
 
         if base_end_point_path is not None:
-            print('Processing {}'.format(base_end_point_path))
+            log.info('Processing {}'.format(base_end_point_path))
             url = 'https://{}:{}{}{}'.format(
                 args.host, papi_port, base_url, base_end_point_path)
             resp = requests.get(
@@ -1336,13 +1345,13 @@ def main():
                     swagger_json['paths'][swagger_path] = base_path
 
                 if 'HEAD_args' in base_resp_json:
-                    print('WARNING: HEAD_args in: {}'.format(
+                    log.warning('HEAD_args in: {}'.format(
                         base_end_point_path))
                 success_count += 1
             except (KeyError, TypeError, RuntimeError) as err:
-                print('Caught exception processing: {}'.format(
+                log.error('Caught exception processing: {}'.format(
                     base_end_point_path))
-                print('{}: {}'.format(type(err).__name__, err))
+                log.error('{}: {}'.format(type(err).__name__, err))
                 if args.test:
                     traceback.print_exc(file=sys.stderr)
                 fail_count += 1
@@ -1350,9 +1359,9 @@ def main():
     swagger_json['info']['version'] = onefs_short_version(
         args.host, papi_port, auth)
 
-    print(('End points successfully processed: {}, failed to process: {}, '
-           'excluded: {}.').format(
-               success_count, fail_count, len(exclude_end_points)))
+    log.info(('End points successfully processed: {}, failed to process: {}, '
+              'excluded: {}.').format(
+                  success_count, fail_count, len(exclude_end_points)))
 
     with open(args.output_file, 'w') as output_file:
         output_file.write(json.dumps(
