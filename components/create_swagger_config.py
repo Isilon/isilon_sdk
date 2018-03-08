@@ -301,6 +301,12 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 isi_schema['required'] = True
             isi_schema['properties']['operation'] = operations.copy()
             del isi_schema['properties']['operations']
+    elif (sub_obj_namespace.startswith('StoragepoolNodepool') or
+          sub_obj_namespace.startswith('StoragepoolStoragepool')):
+        if 'health_flags' in isi_schema:
+            isi_schema['properties']['health_flags'] = \
+                isi_schema['health_flags']
+            del isi_schema['health_flags']
 
     required_props = []
     for prop_name, prop in isi_schema['properties'].items():
@@ -551,12 +557,14 @@ def find_or_add_obj_def(new_obj_def, new_obj_name,
             unique_props = {}
             unique_required = new_obj_def.get('required', [])
             for prop_name in new_obj_def['properties']:
-                # delete properties that are shared.
-                if prop_name not in existing_props:
-                    unique_props[prop_name] = \
-                        new_obj_def['properties'][prop_name]
                 if prop_name in existing_required:
                     unique_required.remove(prop_name)
+                # delete properties that are shared and not required
+                if prop_name not in existing_props or (
+                        prop_name in existing_props and
+                        prop_name in unique_required):
+                    unique_props[prop_name] = \
+                        new_obj_def['properties'][prop_name]
             new_obj_def['properties'] = unique_props
             extended_obj_def['allOf'].append(new_obj_def)
         else:
@@ -1223,10 +1231,9 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            (u'/5/healthcheck/checklists', u'/5/healthcheck/checklists/<ID>'),
-            (u'/5/healthcheck/evaluations', u'/5/healthcheck/evaluations/<ID>'),
-            (u'/5/healthcheck/items', u'/5/healthcheck/items/<ID>'),
-            (u'/5/healthcheck/parameters', u'/5/healthcheck/parameters/<ID>')
+            (u'/3/storagepool/nodepools', u'/3/storagepool/nodepools/<NID>'),
+            (u'/3/storagepool/storagepools', None),
+            (None, u'/3/storagepool/suggested-protection/<NID>'),
         ]
 
     success_count = 0

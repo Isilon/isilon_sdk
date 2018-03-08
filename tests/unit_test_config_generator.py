@@ -390,6 +390,73 @@ class TestCreateSwaggerConfig(unittest.TestCase):
         }
         self.assertEqual(isi_schema, expected)
 
+    def test_move_health_flags_property(self):
+        """Move health flags from schema into properties."""
+        isi_schema = {
+            'description': 'Indicates if enabling L3 is possible.',
+            'health_flags': {
+                'description': 'An array of containing health issues.',
+                'items': {
+                    'enum': [
+                        'underprovisioned',
+                        'missing_drives',
+                        'devices_down',
+                        'devices_smartfailed',
+                        'waiting_repair'
+                    ],
+                    'type': 'string'
+                },
+                'type': 'array'
+            },
+            'properties': {
+                'can_enable_l3': {
+                    'description': 'Indicates if enabling L3 is possible.',
+                    'required': True,
+                    'type': 'boolean'
+                },
+                'id': {
+                    'description': 'The system ID given to the node pool.',
+                    'required': True,
+                    'type': 'integer'
+                },
+            },
+            'type': 'object'
+        }
+        csc.isi_schema_to_swagger_object(
+            'Storagepool', 'Nodepool',
+            isi_schema, 'Extended')
+
+        expected = {
+            'description': 'Indicates if enabling L3 is possible.',
+            'properties': {
+                'health_flags': {
+                    'items': {
+                        'enum': [
+                            'underprovisioned',
+                            'missing_drives',
+                            'devices_down',
+                            'devices_smartfailed',
+                            'waiting_repair'
+                        ],
+                        'type': 'string'
+                    },
+                    'type': 'array',
+                    'description': 'An array of containing health issues.'
+                },
+                'can_enable_l3': {
+                    'type': 'boolean',
+                    'description': 'Indicates if enabling L3 is possible.'
+                },
+                'id': {
+                    'type': 'integer',
+                    'description': 'The system ID given to the node pool.'
+                }
+            },
+            'required': ['can_enable_l3', 'id'],
+            'type': 'object',
+        }
+        self.assertEqual(isi_schema, expected)
+
 
 if __name__ == '__main__':
     if __package__ is None:
