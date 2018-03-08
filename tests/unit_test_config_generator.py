@@ -409,11 +409,6 @@ class TestCreateSwaggerConfig(unittest.TestCase):
                 'type': 'array'
             },
             'properties': {
-                'can_enable_l3': {
-                    'description': 'Indicates if enabling L3 is possible.',
-                    'required': True,
-                    'type': 'boolean'
-                },
                 'id': {
                     'description': 'The system ID given to the node pool.',
                     'required': True,
@@ -443,16 +438,12 @@ class TestCreateSwaggerConfig(unittest.TestCase):
                     'type': 'array',
                     'description': 'An array of containing health issues.'
                 },
-                'can_enable_l3': {
-                    'type': 'boolean',
-                    'description': 'Indicates if enabling L3 is possible.'
-                },
                 'id': {
                     'type': 'integer',
                     'description': 'The system ID given to the node pool.'
                 }
             },
-            'required': ['can_enable_l3', 'id'],
+            'required': ['id'],
             'type': 'object',
         }
         self.assertEqual(isi_schema, expected)

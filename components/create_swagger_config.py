@@ -325,7 +325,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 prop['items']['enum'] = (
                     list(OrderedDict.fromkeys(prop['items']['enum'])))
         # Issue #10: Update required attribute to draft 4 style
-        elif (sub_obj_namespace.startswith('JobJob') and 'items' in prop and
+        elif (sub_obj_namespace.startswith('Job') and 'items' in prop and
               'required' in prop['items']):
             if prop['items']['required']:
                 if (is_response_object is False or
@@ -341,12 +341,14 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             if 'descriprion' in prop:
                 prop['description'] = prop['descriprion']
                 del prop['descriprion']
-        elif (sub_obj_namespace.startswith('HealthcheckEvaluation') and
-              prop_name == 'run_status'):
-            if 'desciption' in prop:
+        elif sub_obj_namespace.startswith('HealthcheckEvaluation'):
+            if prop_name == 'run_status' and 'desciption' in prop:
                 prop['description'] = prop['desciption']
                 del prop['desciption']
-
+        elif 'Subnet' in sub_obj_namespace:
+            if prop_name == 'sc_service_name' and 'description:' in prop:
+                prop['description'] = prop['description:']
+                del prop['description:']
         # Issue #14: Include hardware `devices` fields
         elif sub_obj_namespace == 'HardwareTapes' and prop_name == 'devices':
             if 'media_changers' in prop and 'tapes' in prop:
@@ -369,6 +371,12 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             if 'type' in prop['items']:
                 prop['items'] = prop['items']['type'].copy()
                 prop['type'] = 'array'
+        # Remove custom `ignore_case` field
+        elif sub_obj_namespace.startswith('EventAlertCondition'):
+            if 'ignore_case' in prop:
+                del prop['ignore_case']
+            if 'items' in prop and 'ignore_case' in prop['items']:
+                del prop['items']['ignore_case']
 
         if 'type' not in prop:
             if 'enum' in prop:
