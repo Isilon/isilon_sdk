@@ -149,9 +149,13 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
                               class_ext_post_fix, is_response_object):
     """Convert isi array property to Swagger array property."""
 
-    if 'items' not in prop and 'item' in prop:
-        prop['items'] = prop['item']
-        del prop['item']
+    if 'items' not in prop:
+        if 'item' in prop:
+            prop['items'] = prop['item'].copy()
+            del prop['item']
+        else:
+            # XXX: bkrueger (8 Mar 2018) default to string if not defined
+            prop['items'] = {'type': 'string'}
 
     if 'type' in prop['items'] and prop['items']['type'] == 'object':
         items_obj_name = plural_obj_name_to_singular(prop_name.title(),
@@ -241,7 +245,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                          "Adding 'properties' and 'type'.").format(
                              isi_obj_name))
             schema_copy = isi_schema.copy()
-            for key in isi_schema:
+            for key in isi_schema.keys():
                 del isi_schema[key]
             isi_schema['properties'] = schema_copy
         else:
@@ -274,12 +278,14 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                     isi_schema['settings']['type'] == 'object' and
                     'properties' in isi_schema['settings']):
                 # saw this with /3/protocols/nfs/netgroup
-                isi_schema['properties'] = {'settings': isi_schema['settings']}
+                isi_schema['properties'] = {
+                    'settings': isi_schema['settings'].copy()
+                }
             else:
                 # saw this with /3/cluster/timezone
                 isi_schema['properties'] = {
                     'settings': {
-                        'properties': isi_schema['settings'],
+                        'properties': isi_schema['settings'].copy(),
                         'type': 'object'
                     }
                 }
@@ -305,7 +311,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
           sub_obj_namespace.startswith('StoragepoolStoragepool')):
         if 'health_flags' in isi_schema:
             isi_schema['properties']['health_flags'] = \
-                isi_schema['health_flags']
+                isi_schema['health_flags'].copy()
             del isi_schema['health_flags']
 
     required_props = []
@@ -447,7 +453,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 class_ext_post_fix, is_response_object)
         # code below is work around for bug in /auth/access/<USER> end point
         elif prop['type'] == 'string' and 'enum' in prop:
-            newEnum = []
+            new_enum = []
             for item in prop['enum']:
                 if not isinstance(item, str) and not isinstance(item, unicode):
                     log.warning(('Invalid prop with multi-type '
@@ -455,13 +461,13 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                                      isi_obj_name, prop_name, prop))
                     # Swagger can't deal with multi-type enums so just
                     # eliminate the enum.
-                    newEnum = []
+                    new_enum = []
                     break
                 # Swagger doesn't know how to interpret '@DEFAULT' values
                 elif item[0] != '@':
-                    newEnum.append(item)
-            if newEnum:
-                prop['enum'] = newEnum
+                    new_enum.append(item)
+            if new_enum:
+                prop['enum'] = new_enum
             else:
                 del prop['enum']
         elif prop['type'] == 'any':
@@ -1237,8 +1243,15 @@ def main():
             '/1/auth/users/<USER>/member_of',
             '/1/auth/users/<USER>/member_of/<MEMBER_OF>',
             # use /3/auth/users/<USER>/member-of instead
-            '/1/storagepool/suggested_protection/<NID>'
+            '/1/debug/echo/<TOKEN>',
+            '/1/debug/echo/<LNN>/<TOKEN>',
+            '/1/fsa/path',
+            '/1/license/eula',
+            '/1/local/debug/echo/<LNN>/<TOKEN>',
+            '/1/storagepool/suggested_protection/<NID>',
             # use /3/storagepool/suggested-protection/<NID> instead
+            '/3/cluster/email/default-template',
+            '/3/local/cluster/version',
         ]
         if args.excludes_file is not None:
             with open(args.excludes_file, 'r') as excludes_file_in:
@@ -1248,9 +1261,9 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            (u'/3/storagepool/nodepools', u'/3/storagepool/nodepools/<NID>'),
-            (u'/3/storagepool/storagepools', None),
-            (None, u'/3/storagepool/suggested-protection/<NID>'),
+            (u'/3/cluster/config', None),
+            (u'/3/cluster/time', None),
+            (u'/3/cluster/version', None),
         ]
 
     success_count = 0
