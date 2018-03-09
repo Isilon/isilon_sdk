@@ -260,6 +260,8 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
 
     if isinstance(isi_schema['type'], list):
         for schema_list_item in isi_schema['type']:
+            if schema_list_item is None:
+                continue
             if 'type' not in schema_list_item:
                 # hack - just return empty object
                 return '#/definitions/Empty'
@@ -269,8 +271,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             # iterate until it has assigned the properties from the last
             # object in the list.
             if schema_list_item['type'] == 'object':
-                isi_schema['type'] = 'object'
-                isi_schema['properties'] = schema_list_item['properties']
+                isi_schema = schema_list_item
 
     if isi_schema['type'] != 'object':
         raise RuntimeError("isi_schema is not type 'object': {}".format(
@@ -1259,8 +1260,9 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            (u'/3/upgrade/cluster/patch/patches/<ID>', None),
-            (u'/3/upgrade/cluster/patch/patches', None),
+            ('/3/cluster/timezone', None),
+            ('/3/protocols/nfs/netgroup', None),
+            ('/3/upgrade/cluster/patch/abort', None),
         ]
 
     success_count = 0
