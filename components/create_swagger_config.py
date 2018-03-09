@@ -34,7 +34,7 @@ NON_REQUIRED_PROPS = {
 
 # list of url parameters that need to be url encoded, this hack works for now,
 # but could cause problems if new params are added that are not unique.
-URL_ENCODE_PARAMS = ['NfsAliaseId']
+URL_ENCODE_PARAMS = ['NfsAliasId']
 # our extension to swagger which is used to generate code for doing the url
 # encoding of the parameters specified above.
 X_ISI_URL_ENCODE_PATH_PARAM = 'x-isi-url-encode-path-param'
@@ -101,11 +101,13 @@ def plural_obj_name_to_singular(obj_name, post_fix='', post_fix_used=None):
     acronyms = ['Ads', 'Nis']  # list of acronyms that end in 's'
     # if it's two 'ss' on the end then don't remove the last one
     if (obj_name not in acronyms and obj_name[-1] == 's' and
-            obj_name[-2] != 's'):
+            obj_name[-2] != 's' and not obj_name.endswith('tus')):
         # if container object ends with 's' then trim off the 's'
         # to (hopefully) create the singular version
         if obj_name[-3:] == 'ies':
             one_obj_name = obj_name[:-3].replace('_', '') + 'y'
+        elif (obj_name[-4:] == 'ches' or obj_name[-5:] == 'iases'):
+            one_obj_name = obj_name[:-2].replace('_', '')
         else:
             one_obj_name = obj_name[:-1].replace('_', '')
     else:
@@ -151,13 +153,18 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
 
     if 'items' not in prop:
         if 'item' in prop:
-            prop['items'] = prop['item'].copy()
+            prop['items'] = prop['item']
             del prop['item']
         else:
             # XXX: bkrueger (8 Mar 2018) default to string if not defined
             prop['items'] = {'type': 'string'}
 
-    if 'type' in prop['items'] and prop['items']['type'] == 'object':
+    if 'type' not in prop['items'] and prop['items'] == 'string':
+        prop['items'] = {'type': 'string'}
+    elif 'type' not in prop['items'] and prop['items'] == 'integer':
+        prop['items'] = {'type': 'integer'}
+    elif (('type' not in prop['items'] and isinstance(prop['items'], dict)) or
+          ('type' in prop['items'] and prop['items']['type'] == 'object')):
         items_obj_name = plural_obj_name_to_singular(prop_name.title(),
                                                      post_fix='Item')
         if (items_obj_name == isi_obj_name or
@@ -225,9 +232,8 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
             log.warning('Invalid prop type in object %s prop %s: %s',
                         isi_obj_name, prop_name, prop)
             prop['items']['type'] = 'boolean'
-
     elif 'type' not in prop['items'] and '$ref' not in prop['items']:
-        raise RuntimeError('Array with no type or $ref: {}'.format(prop))
+        raise RuntimeError("Array with no type or $ref: {}".format(prop))
 
 
 def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
@@ -277,14 +283,12 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                     isi_schema['settings']['type'] == 'object' and
                     'properties' in isi_schema['settings']):
                 # saw this with /3/protocols/nfs/netgroup
-                isi_schema['properties'] = {
-                    'settings': isi_schema['settings'].copy()
-                }
+                isi_schema['properties'] = {'settings': isi_schema['settings']}
             else:
                 # saw this with /3/cluster/timezone
                 isi_schema['properties'] = {
                     'settings': {
-                        'properties': isi_schema['settings'].copy(),
+                        'properties': isi_schema['settings'],
                         'type': 'object'
                     }
                 }
@@ -304,13 +308,13 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             operations = isi_schema['properties']['operations'][0]['operation']
             if operations['required']:
                 isi_schema['required'] = True
-            isi_schema['properties']['operation'] = operations.copy()
+            isi_schema['properties']['operation'] = operations
             del isi_schema['properties']['operations']
     elif (sub_obj_namespace.startswith('StoragepoolNodepool') or
           sub_obj_namespace.startswith('StoragepoolStoragepool')):
         if 'health_flags' in isi_schema:
             isi_schema['properties']['health_flags'] = \
-                isi_schema['health_flags'].copy()
+                isi_schema['health_flags']
             del isi_schema['health_flags']
 
     required_props = []
@@ -360,12 +364,8 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 prop['type'] = 'object'
                 prop['description'] = 'Information of Tape/MC device'
                 prop['properties'] = {
-                    'media_changers': {
-                        'items': prop['media_changers'].copy()
-                    },
-                    'tapes': {
-                        'items': prop['tapes'].copy()
-                    }
+                    'media_changers': {'items': prop['media_changers']},
+                    'tapes': {'items': prop['tapes']}
                 }
                 del prop['media_changers']
                 del prop['tapes']
@@ -374,7 +374,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 'EventEventgroupOccurrencesEventgroup-Occurrence') and
               prop_name == 'causes'):
             if 'type' in prop['items']:
-                prop['items'] = prop['items']['type'].copy()
+                prop['items'] = prop['items']['type']
                 prop['type'] = 'array'
         # Remove custom `ignore_case` field
         elif sub_obj_namespace.startswith('EventAlertCondition'):
