@@ -383,6 +383,46 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 del prop['ignore_case']
             if 'items' in prop and 'ignore_case' in prop['items']:
                 del prop['items']['ignore_case']
+        elif sub_obj_namespace == 'HistogramStatByBreakout':
+            if prop_name == 'data' and prop['type'] == 'array':
+                if 'properties' in prop:
+                    del prop['properties']
+                    prop['items'] = {
+                        'type': 'array',
+                        'items': {'type': 'integer'}
+                    }
+        elif sub_obj_namespace.startswith('Ndmp'):
+            if prop['type'] == 'array' and 'properties' in prop:
+                prop['items'] = {
+                    'type': 'object',
+                    'properties': prop['properties']
+                }
+                del prop['properties']
+        elif sub_obj_namespace.startswith('SummaryProtocolStatsProtocol'):
+            if 'type' not in prop:
+                prop_copy = prop.copy()
+                for key in prop.keys():
+                    del prop[key]
+                prop['properties'] = prop_copy
+                prop['type'] = 'object'
+            elif prop_name == 'protocol' and prop['type'] == 'array':
+                prop['type'] = 'object'
+                prop['properties'] = {
+                    'name': {'type': 'string'},
+                    'data': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': prop['data'][0]
+                        }
+                    }
+                }
+                del prop['data']
+        elif sub_obj_namespace == 'HardwareFcportsNode':
+            if (prop_name == 'fcports' and prop['type'] == 'array' and
+                    'properties' in prop):
+                prop['items'] = prop['properties']
+                del prop['properties']
 
         if 'type' not in prop:
             if 'enum' in prop:
@@ -454,6 +494,8 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
         elif prop['type'] == 'string' and 'enum' in prop:
             new_enum = []
             for item in prop['enum']:
+                if item is None:
+                    continue
                 if not isinstance(item, str) and not isinstance(item, unicode):
                     log.warning(('Invalid prop with multi-type '
                                  'enum in object %s prop %s: %s'),
@@ -473,15 +515,27 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             # Swagger does not support 'any'
             prop['type'] = 'string'
         elif prop['type'] == 'int':
-            # HACK fix for bugs in the PAPI
+            # HACK fix for bugs in PAPI
             log.warning('Invalid prop type in object %s prop %s: %s',
                         isi_obj_name, prop_name, prop)
             prop['type'] = 'integer'
         elif prop['type'] == 'bool':
-            # HACK fix for bugs in the PAPI
+            # HACK fix for bugs in PAPI
             log.warning('Invalid prop type in object %s prop %s: %s',
                         isi_obj_name, prop_name, prop)
             prop['type'] = 'boolean'
+        elif prop['type'] == 'time':
+            # HACK fix for bugs in PAPI
+            log.warning('Invalid prop type in object %s prop %s: %s',
+                        isi_obj_name, prop_name, prop)
+            prop['type'] = 'integer'
+        elif prop['type'] == 'integer 0 - 10':
+            # HACK fix for bugs in PAPI
+            log.warning('Invalid prop type in object %s prop %s: %s',
+                        isi_obj_name, prop_name, prop)
+            prop['type'] = 'integer'
+            prop['minimum'] = 0
+            prop['maximum'] = 10
 
         if 'pattern' in prop:
             prop['pattern'] = '/' + prop['pattern'] + '/'
@@ -1260,9 +1314,7 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            ('/3/cluster/timezone', None),
-            ('/3/protocols/nfs/netgroup', None),
-            ('/3/upgrade/cluster/patch/abort', None),
+            ('/3/hardware/fcports', None),
         ]
 
     success_count = 0
