@@ -159,6 +159,10 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
             # XXX: bkrueger (8 Mar 2018) default to string if not defined
             prop['items'] = {'type': 'string'}
 
+    # protect against Java array out of bounds exception
+    if ('maxItems' in prop and prop['maxItems'] > 2147483642):
+        del prop['maxItems']
+
     if 'type' not in prop['items'] and prop['items'] == 'string':
         prop['items'] = {'type': 'string'}
     elif 'type' not in prop['items'] and prop['items'] == 'integer':
@@ -1266,6 +1270,8 @@ def main():
                         'description': ('ID of created item that can be used '
                                         'to refer to item in the collection-'
                                         'item resource path.'),
+                        'maxLength': 255,
+                        'minLength': 0,
                         'type': 'string'
                     }
                 },
