@@ -90,7 +90,7 @@ class TestCreateSwaggerConfig(unittest.TestCase):
 
         expected = [{
             'description': 'Licenses to include in activation file.',
-            'pattern': '/.+/',
+            'pattern': '.+',
             'in': 'query',
             'minLength': 1,
             'maxLength': 2500,

@@ -69,11 +69,6 @@ def isi_props_to_swagger_params(isi_props, param_type):
                 log.warning('%s not defined for Swagger in prop: %s',
                             field_name, isi_prop)
                 continue
-            if field_name == 'pattern':
-                # XXX: bkrueger (27 Feb 2018) - Remove after upgrading
-                # Swagger from 2.2 to 2.3
-                # wrap with '/' to conform to Perl regex conventions
-                isi_prop['pattern'] = '/' + isi_prop['pattern'] + '/'
             if field_name == 'type':
                 if isi_prop[field_name] == 'int':
                     # HACK fix for bugs in the PAPI
@@ -225,8 +220,6 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
             # Swagger does not support 'any'
             if prop['items']['type'] == 'any':
                 prop['items']['type'] = 'string'
-            if 'pattern' in prop['items']:
-                prop['items']['pattern'] = '/' + prop['items']['pattern'] + '/'
         elif prop['items']['type'] == 'int':
             log.warning('Invalid prop type in object %s prop %s: %s',
                         isi_obj_name, prop_name, prop)
@@ -540,9 +533,6 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             prop['type'] = 'integer'
             prop['minimum'] = 0
             prop['maximum'] = 10
-
-        if 'pattern' in prop:
-            prop['pattern'] = '/' + prop['pattern'] + '/'
 
     # attach required props
     if required_props:
