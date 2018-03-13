@@ -2,85 +2,46 @@
 < from six.moves.urllib.parse import urlencode
 ---
 > from six.moves.urllib.parse import urlencode, unquote
-24a25,29
+22a23,27
 > try:
 >     import isi.rest
 > except ImportError:
 >     # this library is only used when running on-cluster
 >     pass
-144,145d148
+147,148d151
 <                 if query_params:
 <                     url += '?' + urlencode(query_params)
-150,154c153,158
-<                     r = self.pool_manager.request(method, url,
-<                                                   body=request_body,
-<                                                   preload_content=_preload_content,
-<                                                   timeout=timeout,
-<                                                   headers=headers)
+153c156
+<                     r = self.pool_manager.request(
 ---
->                     r = self._submit_requests(method, url,
->                                               body=request_body,
->                                               preload_content=_preload_content,
->                                               timeout=timeout,
->                                               query_params=query_params,
->                                               headers=headers)
-156,161c160,166
-<                     r = self.pool_manager.request(method, url,
-<                                                   fields=post_params,
-<                                                   encode_multipart=False,
-<                                                   preload_content=_preload_content,
-<                                                   timeout=timeout,
-<                                                   headers=headers)
+>                     r = self._submit_requests(
+157a161
+>                         query_params=query_params,
+160c164
+<                     r = self.pool_manager.request(
 ---
->                     r = self._submit_requests(method, url,
->                                               fields=post_params,
->                                               encode_multipart=False,
->                                               preload_content=_preload_content,
->                                               timeout=timeout,
->                                               query_params=query_params,
->                                               headers=headers)
-166,171c171,177
-<                     r = self.pool_manager.request(method, url,
-<                                                   fields=post_params,
-<                                                   encode_multipart=True,
-<                                                   preload_content=_preload_content,
-<                                                   timeout=timeout,
-<                                                   headers=headers)
+>                     r = self._submit_requests(
+165a170
+>                         query_params=query_params,
+172c177
+<                     r = self.pool_manager.request(
 ---
->                     r = self._submit_requests(method, url,
->                                               fields=post_params,
->                                               encode_multipart=True,
->                                               preload_content=_preload_content,
->                                               timeout=timeout,
->                                               query_params=query_params,
->                                               headers=headers)
-177,181c183,188
-<                     r = self.pool_manager.request(method, url,
-<                                                   body=request_body,
-<                                                   preload_content=_preload_content,
-<                                                   timeout=timeout,
-<                                                   headers=headers)
+>                     r = self._submit_requests(
+177a183
+>                         query_params=query_params,
+184c190
+<                     r = self.pool_manager.request(
 ---
->                     r = self._submit_requests(method, url,
->                                               body=request_body,
->                                               preload_content=_preload_content,
->                                               timeout=timeout,
->                                               query_params=query_params,
->                                               headers=headers)
-189,193c196,201
+>                     r = self._submit_requests(
+188a195
+>                         query_params=query_params,
+198c205
 <                 r = self.pool_manager.request(method, url,
-<                                               fields=query_params,
-<                                               preload_content=_preload_content,
-<                                               timeout=timeout,
-<                                               headers=headers)
 ---
 >                 r = self._submit_requests(method, url,
->                                           fields=query_params,
->                                           preload_content=_preload_content,
->                                           timeout=timeout,
->                                           query_params=query_params,
->                                           headers=headers)
-213a222,294
+201a209
+>                                               query_params=query_params,
+222a231,303
 >     def _submit_requests(self, method, url, body=None, headers=None,
 >                          query_params=None, fields=None, preload_content=None,
 >                          timeout=None, encode_multipart=None):

@@ -1,14 +1,14 @@
-16c16
+15c15
 < from six.moves.urllib.parse import quote
 ---
 > from six.moves.urllib.parse import quote, quote_plus
-67a68,72
+70a71,75
 >         # This is used for detecting for the special case of a path parameter
 >         # that is tagged with x-isi-url-encode-path-param (more details in the
 >         # __call_api function).
 >         self.quote_plus_tag = "__x-isi-url-encode-path-param__"
 >         self.quote_plus_tag_len = len(self.quote_plus_tag)
-110a116,129
+115a121,134
 >                 v_str = str(v)
 >                 # Check for the special case of the
 >                 # x-isi-url-encode-path-param, which indicates that the
@@ -23,15 +23,13 @@
 >                 else:
 >                     replacement = quote(v_str, safe=config.safe_chars_for_path_param)
 > 
-113c132
-<                     '{%s}' % k, quote(str(v), safe=config.safe_chars_for_path_param))
+118,120c137
+<                     '{%s}' % k,
+<                     quote(str(v), safe=config.safe_chars_for_path_param)
+<                 )
 ---
 >                     '{%s}' % k, replacement)
-404c423
+412c429
 <             if k in collection_formats:
 ---
 >             if k in collection_formats and not isinstance(v, self.PRIMITIVE_TYPES):
-622c641
-<         instance = klass(**kwargs)     
----
->         instance = klass(**kwargs)
