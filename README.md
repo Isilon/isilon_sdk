@@ -24,6 +24,7 @@ This repository also includes tools to build PAPI bindings yourself for a large 
 
 | Cluster Version       | Install Instruction         |
 |-----------------------|-----------------------------|
+| OneFS 8.1.0 and later | `pip install isi_sdk_8_1_0` |
 | OneFS 8.0.1 and later | `pip install isi_sdk_8_0_1` |
 | OneFS 8.0 and later   | `pip install isi_sdk_8_0`   |
 | OneFS 7.2 and later   | `pip install isi_sdk_7_2`   |
@@ -34,11 +35,13 @@ Installation will default to using binary distribution wheel (bdist). Source dis
 
 See the generated packages on PyPI for example code:
 
-[isi\_sdk\_8\_0\_1](https://pypi.python.org/pypi/isi-sdk-8-0-1)
+[isi\_sdk\_8\_1\_0](https://pypi.org/pypi/isi-sdk-8-1-0)
 
-[isi\_sdk\_8\_0](https://pypi.python.org/pypi/isi-sdk-8-0)
+[isi\_sdk\_8\_0\_1](https://pypi.org/pypi/isi-sdk-8-0-1)
 
-[isi\_sdk\_7\_2](https://pypi.python.org/pypi/isi-sdk-7-2)
+[isi\_sdk\_8\_0](https://pypi.org/pypi/isi-sdk-8-0)
+
+[isi\_sdk\_7\_2](https://pypi.org/pypi/isi-sdk-7-2)
 
 ### Bindings Documentation
 
@@ -48,5 +51,3 @@ The most up-to-date documentation for the language bindings is included in the r
 
 * For OneFS API reference documents, discussions, and blog posts, refer to the [Isilon SDK Info Hub](https://community.emc.com/docs/DOC-48273).
 * To browse the Isilon InsightIQ statistics API, refer to the [Stat Key Browser](https://github.com/isilon/isilon_stat_browser.git) Github repository.
-
-

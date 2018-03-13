@@ -90,7 +90,7 @@ class TestCreateSwaggerConfig(unittest.TestCase):
 
         expected = [{
             'description': 'Licenses to include in activation file.',
-            'pattern': '/.+/',
+            'pattern': '.+',
             'in': 'query',
             'minLength': 1,
             'maxLength': 2500,
@@ -447,6 +447,60 @@ class TestCreateSwaggerConfig(unittest.TestCase):
             'type': 'object',
         }
         self.assertEqual(isi_schema, expected)
+
+    def test_singularize_status(self):
+        """FirmwareStatus to FirmwareStatusItem."""
+        used = csc.PostFixUsed()
+        singular = csc.plural_obj_name_to_singular(
+            'FirmwareStatus', 'Item', used)
+
+        self.assertEqual(singular, 'FirmwareStatusItem')
+        self.assertTrue(used.flag)
+
+    def test_singularize_patches(self):
+        """PatchPatches to PatchPatch."""
+        used = csc.PostFixUsed()
+        singular = csc.plural_obj_name_to_singular(
+            'PatchPatches', 'Item', used)
+
+        self.assertEqual(singular, 'PatchPatch')
+        self.assertFalse(used.flag)
+
+    def test_singularize_aliases(self):
+        """Aliases to Alias."""
+        used = csc.PostFixUsed()
+        singular = csc.plural_obj_name_to_singular(
+            'Aliases', 'Item', used)
+
+        self.assertEqual(singular, 'Alias')
+        self.assertFalse(used.flag)
+
+    def test_singularize_phases(self):
+        """Phases to Phase."""
+        used = csc.PostFixUsed()
+        singular = csc.plural_obj_name_to_singular(
+            'Phases', 'Item', used)
+
+        self.assertEqual(singular, 'Phase')
+        self.assertFalse(used.flag)
+
+    def test_singularize_licenses(self):
+        """Licenses to License."""
+        used = csc.PostFixUsed()
+        singular = csc.plural_obj_name_to_singular(
+            'Licenses', 'Item', used)
+
+        self.assertEqual(singular, 'License')
+        self.assertFalse(used.flag)
+
+    def test_singularize_run_as_root(self):
+        """Run_As_Root to RunAsRootItem."""
+        used = csc.PostFixUsed()
+        singular = csc.plural_obj_name_to_singular(
+            'Run_As_Root', 'Item', used)
+
+        self.assertEqual(singular, 'RunAsRootItem')
+        self.assertTrue(used.flag)
 
 
 if __name__ == '__main__':
