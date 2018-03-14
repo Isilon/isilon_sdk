@@ -20,7 +20,7 @@ The walkthrough below will guide you through the generation process step by step
 This will automatically generate a swagger config `<output_file>` based on the ?describe responses from the PAPI handlers on your node.  Swagger tools can now use this config to create language bindings and documentation.
 
 ### To generate PAPI bindings for Python or other languages using the swagger config:
-1. Clone the swagger-codegen repo from https://github.com/swagger-api/swagger-codegen.  You can try the latest version of that code, or if you want to use the last version we've tested as of this writing, it is at commit hash 1939ce8e91f9de4a35ba3d90fd99a28f41c5035c.
+1. Clone the swagger-codegen repo from https://github.com/swagger-api/swagger-codegen.  You can try the latest version of that code, or if you want to use the last version we've tested as of this writing, it is the [v2.3.1](https://github.com/swagger-api/swagger-codegen/releases/tag/v2.3.1) release.
 2. Follow the relevant instructions there (in the README.md) to install the codegen java program.  In our case we used "apt-get install maven" to get maven then ran "mvn package" to install codegen.
 3. Copy the `<output_file>` file generated above (or one of the pre-made "example_output.json" files) and "swagger-codegen-config.json" from your isi_sdk root directory to your swagger-codegen root directory.
 4. Run codegen on `<output_file>`.  For example, from your swagger-codegen root directory, use:
