@@ -18,20 +18,21 @@ import urllib3
 urllib3.disable_warnings()
 
 # configure username and password
-PKG_NAME.configuration.username = "YOUR_USERNAME"
-PKG_NAME.configuration.password = "YOUR_PASSWORD"
-PKG_NAME.configuration.verify_ssl = False
+configuration = PKG_NAME.Configuration()
+configuration.username = "YOUR_USERNAME"
+configuration.password = "YOUR_PASSWORD"
+configuration.verify_ssl = False
 
 # configure host
-host = "https://YOUR_CLUSTER_HOSTNAME_OR_NODE_IP_ADDRESS:8080"
-api_client = PKG_NAME.ApiClient(host)
+configuration.host = "https://YOUR_CLUSTER_HOSTNAME_OR_NODE_IP_ADDRESS:8080"
+api_client = PKG_NAME.ApiClient(configuration)
 protocols_api = PKG_NAME.ProtocolsApi(api_client)
 
 # get all exports
 sort = "description"
 limit = 50
 dir = "ASC"
-try: 
+try:
     api_response = protocols_api.list_nfs_exports(sort=sort, limit=limit, dir=dir)
     pprint(api_response)
 except ApiException as e:
