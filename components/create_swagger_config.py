@@ -71,12 +71,10 @@ def isi_props_to_swagger_params(isi_props, param_type):
                 continue
             if field_name == 'type':
                 if isi_prop[field_name] == 'int':
-                    # HACK fix for bugs in the PAPI
                     log.warning('Invalid type in params of type %s: %s',
                                 param_type, isi_props)
                     isi_prop[field_name] = 'integer'
                 elif isi_prop[field_name] == 'bool':
-                    # HACK fix for bugs in the PAPI
                     log.warning('Invalid type in params of type %s: %s',
                                 param_type, isi_props)
                     isi_prop[field_name] = 'boolean'
@@ -147,6 +145,7 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
     """Convert isi array property to Swagger array property."""
 
     if 'items' not in prop:
+        log.warning("Missing 'items' field in '%s' property", prop_name)
         if 'item' in prop:
             prop['items'] = prop['item']
             del prop['item']
@@ -156,16 +155,21 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
 
     # protect against Java array out of bounds exception
     if ('maxItems' in prop and prop['maxItems'] > 2147483642):
+        log.warning("Unreasonable 'maxItems' size of %d", prop['maxItems'])
         del prop['maxItems']
 
     if 'type' not in prop['items'] and prop['items'] == 'string':
         prop['items'] = {'type': 'string'}
+        log.warning("Found 'string' as 'items' object value")
     elif 'type' not in prop['items'] and prop['items'] == 'integer':
         prop['items'] = {'type': 'integer'}
+        log.warning("Found 'integer' as 'items' object value")
     elif (('type' not in prop['items'] and isinstance(prop['items'], dict)) or
           ('type' in prop['items'] and prop['items']['type'] == 'object')):
         items_obj_name = plural_obj_name_to_singular(prop_name.title(),
                                                      post_fix='Item')
+        if 'type' not in prop['items']:
+            log.warning("Missing 'object' type in '%s'", prop_name)
         if (items_obj_name == isi_obj_name or
                 items_obj_name == plural_obj_name_to_singular(isi_obj_name)):
             # HACK don't duplicate the object name if the singular version of
@@ -225,7 +229,6 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
                         isi_obj_name, prop_name, prop)
             prop['items']['type'] = 'integer'
         elif prop['items']['type'] == 'bool':
-            # HACK fix for bugs in the PAPI
             log.warning('Invalid prop type in object %s prop %s: %s',
                         isi_obj_name, prop_name, prop)
             prop['items']['type'] = 'boolean'
@@ -258,6 +261,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
     if isinstance(isi_schema['type'], list):
         for schema_list_item in isi_schema['type']:
             if schema_list_item is None:
+                log.warning("Found null object in JSON schema list")
                 continue
             if 'type' not in schema_list_item:
                 # hack - just return empty object
@@ -276,6 +280,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
 
     # found a few empty objects that omit the properties field
     if 'properties' not in isi_schema:
+        log.warning("Missing 'properties' object")
         if 'settings' in isi_schema:
             if ('type' in isi_schema['settings'] and
                     isi_schema['settings']['type'] == 'object' and
@@ -300,6 +305,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
         if 'descriprion' in isi_schema:
             isi_schema['description'] = isi_schema['descriprion']
             del isi_schema['descriprion']
+            log.warning("Found 'description' misspelled as 'descriprion'")
     # Issue #13: Correct properties schema
     elif sub_obj_namespace == 'StatisticsOperation':
         if 'operations' in isi_schema['properties']:
@@ -308,12 +314,14 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 isi_schema['required'] = True
             isi_schema['properties']['operation'] = operations
             del isi_schema['properties']['operations']
+            log.warning("Replace 'operations' property with 'operation'")
     elif (sub_obj_namespace.startswith('StoragepoolNodepool') or
           sub_obj_namespace.startswith('StoragepoolStoragepool')):
         if 'health_flags' in isi_schema:
             isi_schema['properties']['health_flags'] = \
                 isi_schema['health_flags']
             del isi_schema['health_flags']
+            log.warning("Move 'health_flags' property under 'properties'")
 
     required_props = []
     for prop_name, prop in isi_schema['properties'].items():
@@ -323,6 +331,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 prop_name == 'health_flags'):
             if 'required' in prop['items']:
                 del prop['items']['required']
+                log.warning("Remove 'required' from array items")
         # Issue #9: Remove duplicate `delete_child`
         elif ((sub_obj_namespace == (
                 'SmbSettingsGlobalSettingsAuditGlobalSaclItem')
@@ -331,7 +340,8 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             if 'items' in prop and 'enum' in prop['items']:
                 prop['items']['enum'] = (
                     list(OrderedDict.fromkeys(prop['items']['enum'])))
-        # Issue #10: Update required attribute to draft 4 style
+                log.warning("Remove duplicate 'delete_child' from enum")
+        # Issue #10: Update required field to draft 4 style
         elif (sub_obj_namespace.startswith('Job') and 'items' in prop and
               'required' in prop['items']):
             if prop['items']['required']:
@@ -339,23 +349,28 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                         not isinstance(prop['type'], list)):
                     required_props.append(prop_name)
             del prop['items']['required']
+            log.warning("Update 'required' field to draft 4 style")
         # Issue #12: Correct misspellings
         elif sub_obj_namespace == 'AuthAccessAccessItem' and prop_name == 'id':
             if 'descriptoin' in prop:
                 prop['description'] = prop['descriptoin']
                 del prop['descriptoin']
+                log.warning("Found 'description' misspelled as 'descriptoin'")
         elif sub_obj_namespace.startswith('DebugStats'):
             if 'descriprion' in prop:
                 prop['description'] = prop['descriprion']
                 del prop['descriprion']
+                log.warning("Found 'description' misspelled as 'descriprion'")
         elif sub_obj_namespace.startswith('HealthcheckEvaluation'):
             if prop_name == 'run_status' and 'desciption' in prop:
                 prop['description'] = prop['desciption']
                 del prop['desciption']
+                log.warning("Found 'description' misspelled as 'desciption'")
         elif 'Subnet' in sub_obj_namespace:
             if prop_name == 'sc_service_name' and 'description:' in prop:
                 prop['description'] = prop['description:']
                 del prop['description:']
+                log.warning("Found 'description' misspelled as 'description:'")
         # Issue #14: Include hardware `devices` fields
         elif sub_obj_namespace == 'HardwareTapes' and prop_name == 'devices':
             if 'media_changers' in prop and 'tapes' in prop:
@@ -367,6 +382,8 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 }
                 del prop['media_changers']
                 del prop['tapes']
+                log.warning(("Move 'media_changers' and 'tapes' in 'devices'"
+                             "property to nested 'properties' object"))
         # Issue #15: Correct nested array schema
         elif (sub_obj_namespace == (
                 'EventEventgroupOccurrencesEventgroup-Occurrence') and
@@ -374,12 +391,14 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             if 'type' in prop['items']:
                 prop['items'] = prop['items']['type']
                 prop['type'] = 'array'
+                log.warning("Correct nested array schema in 'causes' property")
         # Remove custom `ignore_case` field
         elif sub_obj_namespace.startswith('EventAlertCondition'):
             if 'ignore_case' in prop:
                 del prop['ignore_case']
             if 'items' in prop and 'ignore_case' in prop['items']:
                 del prop['items']['ignore_case']
+            log.warning("Remove custom 'ignore_case' field")
         elif sub_obj_namespace == 'HistogramStatByBreakout':
             if prop_name == 'data' and prop['type'] == 'array':
                 if 'properties' in prop:
@@ -388,6 +407,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                         'type': 'array',
                         'items': {'type': 'integer'}
                     }
+                    log.warning("Correct 'data' properties array object")
         elif sub_obj_namespace.startswith('Ndmp'):
             if prop['type'] == 'array' and 'properties' in prop:
                 prop['items'] = {
@@ -395,6 +415,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                     'properties': prop['properties']
                 }
                 del prop['properties']
+                log.warning("Move 'properties' into the 'items' object")
         elif sub_obj_namespace.startswith('SummaryProtocolStatsProtocol'):
             if 'type' not in prop:
                 prop_copy = prop.copy()
@@ -402,6 +423,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                     del prop[key]
                 prop['properties'] = prop_copy
                 prop['type'] = 'object'
+                log.warning("Move properties into the 'properties' object")
             elif prop_name == 'protocol' and prop['type'] == 'array':
                 prop['type'] = 'object'
                 prop['properties'] = {
@@ -415,11 +437,13 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                     }
                 }
                 del prop['data']
+                log.warning("Restructure the 'protocol' property object")
         elif sub_obj_namespace == 'HardwareFcportsNode':
             if (prop_name == 'fcports' and prop['type'] == 'array' and
                     'properties' in prop):
                 prop['items'] = prop['properties']
                 del prop['properties']
+                log.warning("Move 'fcports' array properties into 'items'")
 
         if 'type' not in prop:
             if 'enum' in prop:
@@ -444,6 +468,8 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                          prop_name not in
                          NON_REQUIRED_PROPS.get(sub_obj_namespace, []))):
                     required_props.append(prop_name)
+                if prop_name in NON_REQUIRED_PROPS.get(sub_obj_namespace, []):
+                    log.warning("Required property '%s' may be null", prop_name)
             del prop['required']
 
         if isinstance(prop['type'], list):
@@ -512,22 +538,18 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             # Swagger does not support 'any'
             prop['type'] = 'string'
         elif prop['type'] == 'int':
-            # HACK fix for bugs in PAPI
             log.warning('Invalid prop type in object %s prop %s: %s',
                         isi_obj_name, prop_name, prop)
             prop['type'] = 'integer'
         elif prop['type'] == 'bool':
-            # HACK fix for bugs in PAPI
             log.warning('Invalid prop type in object %s prop %s: %s',
                         isi_obj_name, prop_name, prop)
             prop['type'] = 'boolean'
         elif prop['type'] == 'time':
-            # HACK fix for bugs in PAPI
             log.warning('Invalid prop type in object %s prop %s: %s',
                         isi_obj_name, prop_name, prop)
             prop['type'] = 'integer'
         elif prop['type'] == 'integer 0 - 10':
-            # HACK fix for bugs in PAPI
             log.warning('Invalid prop type in object %s prop %s: %s',
                         isi_obj_name, prop_name, prop)
             prop['type'] = 'integer'
@@ -1279,6 +1301,14 @@ def main():
     papi_port = '8080'
     desc_parms = {'describe': '', 'json': ''}
 
+    swagger_json['info']['version'] = onefs_short_version(
+        args.host, papi_port, auth)
+
+    if swagger_json['info']['version'] in ['7.2', '8.0']:
+        id_prop = SWAGGER_DEFS['CreateResponse']['properties']['id']
+        del id_prop['maxLength']
+        del id_prop['minLength']
+
     if args.test is False:
         # these excludes are only valid for 8.0 clusters, 7.2 clusters should
         # specify excluded end points via the excluded_end_points_7_2.json.
@@ -1413,9 +1443,6 @@ def main():
                 if args.test:
                     traceback.print_exc(file=sys.stderr)
                 fail_count += 1
-
-    swagger_json['info']['version'] = onefs_short_version(
-        args.host, papi_port, auth)
 
     log.info(('End points successfully processed: %s, failed to process: %s, '
               'excluded: %s.'),
