@@ -1220,11 +1220,13 @@ def main():
             'application/json'
         ],
         'securityDefinitions': {
-            'basic_auth': {
-                'type': 'basic'
+            'sessionAuth': {
+                'type': 'apiKey',
+                'in': 'header',
+                'name': 'cookie'
             }
         },
-        'security': [{'basic_auth': []}],
+        'security': [{'sessionAuth': []}],
         'paths': {},
         'definitions': {}
     }
