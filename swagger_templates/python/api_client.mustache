@@ -74,7 +74,9 @@ class ApiClient(object):
         # __call_api function).
         self.quote_plus_tag = "__x-isi-url-encode-path-param__"
         self.quote_plus_tag_len = len(self.quote_plus_tag)
+
         self.session_expiration = 0
+        self.inactive_expiration = 0
         self.x_csrf_token = None
 
     def __del__(self):
@@ -533,7 +535,8 @@ class ApiClient(object):
                     )
 
         # check if PAPI session has expired
-        if time.time() > self.session_expiration:
+        now = time.time()
+        if now >= self.session_expiration or now >= self.inactive_expiration:
             url = self.configuration.host + '/session/1/session'
             body = {
                 'username': self.configuration.username,
@@ -546,8 +549,8 @@ class ApiClient(object):
             if response_data.status == 201:
                 cookies = response_data.getheaders()['Set-Cookie']
                 self.cookie = cookies.split(';')[0]
-                timeout = json.loads(response_data.data)['timeout_inactive']
-                self.session_expiration = time.time() + timeout
+                timeout = json.loads(response_data.data)['timeout_absolute']
+                self.session_expiration = now + timeout
 
                 try:
                     # extract X-CSRF token from response cookies
@@ -556,6 +559,9 @@ class ApiClient(object):
                 except IndexError:
                     # this is not an anti-CSRF version of PAPI
                     pass
+
+        # 15 seconds is the default keep alive timeout
+        self.inactive_expiration = now + 15
 
         headers['Cookie'] = self.cookie
         if self.x_csrf_token:
