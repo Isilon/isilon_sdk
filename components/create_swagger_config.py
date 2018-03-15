@@ -155,7 +155,6 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
 
     # protect against Java array out of bounds exception
     if ('maxItems' in prop and prop['maxItems'] > 2147483642):
-        log.warning("Unreasonable 'maxItems' size of %d", prop['maxItems'])
         del prop['maxItems']
 
     if 'type' not in prop['items'] and prop['items'] == 'string':
@@ -1191,13 +1190,8 @@ def main():
         '-t', '--test', dest='test',
         help='Test mode on.', action='store_true', default=False)
     argparser.add_argument(
-        '-e', '--excludes-file', dest='excludes_file',
-        help='Path to file with JSON list of end points to exclude.',
-        action='store', default=None)
-    argparser.add_argument(
         '-l', '--logging', dest='log_level',
-        help='Logging verbosity level', action='store', default='INFO'
-    )
+        help='Logging verbosity level', action='store', default='INFO')
 
     args = argparser.parse_args()
 
@@ -1309,32 +1303,48 @@ def main():
         del id_prop['maxLength']
         del id_prop['minLength']
 
-    if args.test is False:
-        # these excludes are only valid for 8.0 clusters, 7.2 clusters should
-        # specify excluded end points via the excluded_end_points_7_2.json.
-        # This is necessary because 7.2 PAPI does not sort the end points in
-        # the same way that 8.0 does when returning the list of end points. So
-        # the logic in get_endpoint_paths for picking the highest version of a
-        # particular end point does not work for 7.2 clusters.
-        exclude_end_points = [
-            '/1/auth/users/<USER>/change_password',
-            # use /3/auth/users/<USER>/change-password instead
-            '/1/auth/users/<USER>/member_of',
-            '/1/auth/users/<USER>/member_of/<MEMBER_OF>',
-            # use /3/auth/users/<USER>/member-of instead
-            '/1/debug/echo/<TOKEN>',
-            '/1/debug/echo/<LNN>/<TOKEN>',
-            '/1/fsa/path',
-            '/1/license/eula',
-            '/1/local/debug/echo/<LNN>/<TOKEN>',
-            '/1/storagepool/suggested_protection/<NID>',
-            # use /3/storagepool/suggested-protection/<NID> instead
-            '/3/cluster/email/default-template',
-            '/3/local/cluster/version',
-        ]
-        if args.excludes_file is not None:
-            with open(args.excludes_file, 'r') as excludes_file_in:
-                exclude_end_points = json.loads(excludes_file_in.read())
+    if not args.test:
+        if swagger_json['info']['version'][0] == '7':
+            exclude_end_points = [
+                '/1/cluster/external-ips',
+                '/1/debug/echo/<TOKEN>',
+                '/1/event/events',
+                '/1/event/events/<ID>',
+                '/1/fsa/path',
+                '/1/license/eula',
+                '/1/protocols/nfs/aliases',
+                '/1/protocols/nfs/aliases/<AID>',
+                '/1/protocols/nfs/check',
+                '/1/protocols/nfs/exports',
+                '/1/protocols/nfs/exports-summary',
+                '/1/protocols/nfs/exports/<EID>',
+                '/1/protocols/nfs/nlm/locks',
+                '/1/protocols/nfs/nlm/sessions',
+                '/1/protocols/nfs/nlm/sessions/<ID>',
+                '/1/protocols/nfs/nlm/waiters',
+                '/1/protocols/nfs/reload',
+                '/1/protocols/nfs/settings/export',
+                '/1/protocols/nfs/settings/global',
+                '/1/protocols/nfs/settings/zone'
+            ]
+        else:
+            exclude_end_points = [
+                '/1/auth/users/<USER>/change_password',
+                # use /3/auth/users/<USER>/change-password instead
+                '/1/auth/users/<USER>/member_of',
+                '/1/auth/users/<USER>/member_of/<MEMBER_OF>',
+                # use /3/auth/users/<USER>/member-of instead
+                '/1/debug/echo/<TOKEN>',
+                '/1/debug/echo/<LNN>/<TOKEN>',
+                '/1/fsa/path',
+                '/1/license/eula',
+                '/1/local/debug/echo/<LNN>/<TOKEN>',
+                '/1/storagepool/suggested_protection/<NID>',
+                # use /3/storagepool/suggested-protection/<NID> instead
+                '/3/cluster/email/default-template',
+                '/3/local/cluster/version',
+            ]
+
         end_point_paths = get_endpoint_paths(
             args.host, papi_port, base_url, auth, exclude_end_points)
     else:
