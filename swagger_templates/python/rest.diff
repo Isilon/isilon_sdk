@@ -41,7 +41,7 @@
 >                 r = self._submit_requests(method, url,
 201a209
 >                                               query_params=query_params,
-222a231,303
+222a231,306
 >     def _submit_requests(self, method, url, body=None, headers=None,
 >                          query_params=None, fields=None, preload_content=None,
 >                          timeout=None, encode_multipart=None):
@@ -59,6 +59,9 @@
 >                 # both body and fields are none, pass in an empty body
 >                 body = '{}'
 > 
+>             if query_params is not None:
+>                 query_params = dict(query_params)
+> 
 >             # the body field must be a string
 >             if not isinstance(body, basestring):
 >                 body = json.dumps(body)
@@ -73,7 +76,7 @@
 >             response = isi.rest.send_rest_request(isi.rest.PAPI_SOCKET_PATH,
 >                                                   method=method,
 >                                                   uri=url_parts,
->                                                   query_args=dict(query_params),
+>                                                   query_args=query_params,
 >                                                   headers=headers,
 >                                                   body=body,
 >                                                   timeout=120)

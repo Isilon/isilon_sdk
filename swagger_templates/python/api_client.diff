@@ -35,11 +35,17 @@
 <                 )
 ---
 >                     '{%s}' % k, replacement)
-412c434
+136c158,160
+<         self.update_params_for_auth(header_params, query_params, auth_settings)
+---
+>         if not self.configuration.host.startswith('papi://'):
+>             self.update_params_for_auth(
+>                 header_params, query_params, auth_settings)
+412c436
 <             if k in collection_formats:
 ---
 >             if k in collection_formats and not isinstance(v, self.PRIMITIVE_TYPES):
-514a537,570
+514a539,572
 >         # check if PAPI session has expired
 >         now = time.time()
 >         if now >= self.session_expiration or now >= self.inactive_expiration:

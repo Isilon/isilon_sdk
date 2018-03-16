@@ -155,7 +155,9 @@ class ApiClient(object):
                                                     collection_formats)
 
         # auth setting
-        self.update_params_for_auth(header_params, query_params, auth_settings)
+        if not self.configuration.host.startswith('papi://'):
+            self.update_params_for_auth(
+                header_params, query_params, auth_settings)
 
         # body
         if body:

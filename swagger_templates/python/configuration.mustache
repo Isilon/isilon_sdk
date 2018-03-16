@@ -101,14 +101,14 @@ class Configuration(six.with_metaclass(TypeWithDefault, object)):
 
     @host.setter
     def host(self, value):
-        # force https as the protocol
+        # set https as the protocol
         if '://' in value:
-            if value.split('://', 1)[0] == 'http':
-                value = value.replace('http', 'https')
+            if value.split('://')[0] == 'http':
+                value = value.replace('http', 'https', 1)
         else:
             value = 'https://' + value
         # append port if missing
-        if len(value.split(':')) == 2 and 'PAPI_LOCAL_HOST' not in value:
+        if len(value.split(':')) == 2:
             value += ':8080'
         self.__host = value
 
