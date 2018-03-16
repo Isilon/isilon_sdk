@@ -1,7 +1,7 @@
 # Isilon Software Development Kit (isi-sdk)
 Building language bindings using the OpenAPI config generator
 
-This document describes how to use the scripts in the isi-sdk repository to generate your own language bindings for the Isilon OneFS configuration API.  This API is made up of all the URIs underneath https://[cluster]:8080/platform/*, also called the "Platform API" or PAPI".
+This document describes how to use the scripts in the isi-sdk repository to generate your own language bindings for the Isilon OneFS configuration API.  This API is made up of all the URIs underneath `https://[cluster]:8080/platform/*`, also called the "Platform API" or PAPI".
 
 The scripts create a configuration file compatible with the OpenAPI Specification (formerly known as swagger, and we will continue to call the configuration file the "swagger config" here for now).  More info about the OpenAPI Specification [here](https://github.com/OAI/OpenAPI-Specification).
 
@@ -14,8 +14,6 @@ The walkthrough below will guide you through the generation process step by step
 1. Clone this repository.
 2. Find a OneFS cluster, get the IP address.
 3. Run `python components/create_swagger_config.py -i <cluster-ip-address> -o <output_file> --username <username> --password <password>` <br> if you omit --username or --password then it will prompt you
-
-**Note:** An endpoint exclude file must be specified when using a OneFS 7.2 cluster for generation of the bindings. Add `-e excluded_end_points_7_2.json`to the above command. The file excluded_end_points_7_2.json can be found in the root of this repository.
 
 This will automatically generate a swagger config `<output_file>` based on the ?describe responses from the PAPI handlers on your node.  Swagger tools can now use this config to create language bindings and documentation.
 
@@ -37,4 +35,4 @@ If you have a patch for the config generator scripts that improves the generated
 
 ### Custom swagger-codegen templates
 
-In some cases the standard swagger-codegen templates may not be suitable with the OneFS API, necessitating the use of [custom templates](https://github.com/swagger-api/swagger-codegen/wiki/Building-your-own-Templates). Some [Python templates](./swagger_templates/python) for example, have been customized for generation of the Isilon SDK. Customized templates are located in `/swagger_templates/<language>`. This naming convention allows the automated build process to locate and use the appropriate custom templates. If no custom template exists for a language, the default template will be used automatically.
+In some cases the standard [swagger-codegen templates](https://github.com/swagger-api/swagger-codegen/tree/master/modules/swagger-codegen/src/main/resources/python) may not be suitable with the OneFS API, necessitating the use of [custom templates](https://github.com/swagger-api/swagger-codegen/wiki/Building-your-own-Templates). Some [Python templates](./swagger_templates/python) for example, have been customized for generation of the Isilon SDK. Customized templates are located in `/swagger_templates/<language>`. This naming convention allows the automated build process to locate and use the appropriate custom templates. If no custom template exists for a language, the default template will be used automatically.
