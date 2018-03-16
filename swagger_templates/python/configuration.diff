@@ -1,0 +1,18 @@
+98a99,115
+>     def host(self):
+>         return self.__host
+> 
+>     @host.setter
+>     def host(self, value):
+>         # force https as the protocol
+>         if '://' in value:
+>             if value.split('://', 1)[0] == 'http':
+>                 value = value.replace('http', 'https')
+>         else:
+>             value = 'https://' + value
+>         # append port if missing
+>         if len(value.split(':')) == 2 and 'PAPI_LOCAL_HOST' not in value:
+>             value += ':8080'
+>         self.__host = value
+> 
+>     @property
