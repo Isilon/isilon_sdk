@@ -450,7 +450,8 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             if prop_name == 'status' and 'enum' in prop:
                 del prop['enum']
                 log.warning("Remove invalid 'status' enum")
-        elif sub_obj_namespace == 'NetworkDnscache':
+        elif (sub_obj_namespace == 'NetworkDnscache' or
+              sub_obj_namespace == 'NetworkExternal'):
             if prop_name == 'settings' and 'items' in prop:
                 prop = prop['items']
                 log.warning("Property 'settings' is an object, not an array")
