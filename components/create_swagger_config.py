@@ -321,6 +321,14 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 isi_schema['health_flags']
             del isi_schema['health_flags']
             log.warning("Move 'health_flags' property under 'properties'")
+    # Issue #22: Correct naming of interface as interfaces
+    elif (sub_obj_namespace == 'NetworkInterfaces' or
+          sub_obj_namespace == 'PoolsPoolInterfaces'):
+        if 'interface' in isi_schema['properties']:
+            isi_schema['properties']['interfaces'] = \
+                isi_schema['properties']['interface']
+            del isi_schema['properties']['interface']
+            log.warning("Found 'interfaces' misspelled as 'interface'")
 
     required_props = []
     for prop_name, prop in isi_schema['properties'].items():
@@ -443,6 +451,13 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 prop['items'] = prop['properties']
                 del prop['properties']
                 log.warning("Move 'fcports' array properties into 'items'")
+        # Issue #22: Remove invalid status enum
+        elif (sub_obj_namespace == 'NetworkInterface' or
+              sub_obj_namespace == 'PoolsPoolInterfacesInterface'):
+            if prop_name == 'status' and 'enum' in prop:
+                del prop['enum']
+                log.warning("Remove invalid 'status' enum")
+
 
         if 'type' not in prop:
             if 'enum' in prop:
@@ -1352,7 +1367,7 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            ('/3/hardware/fcports', None),
+            ('/3/network/interfaces', None),
         ]
 
     success_count = 0
