@@ -448,6 +448,82 @@ class TestCreateSwaggerConfig(unittest.TestCase):
         }
         self.assertEqual(isi_schema, expected)
 
+    def test_network_interfaces(self):
+        """Correct interface property name and enum."""
+        isi_schema = {
+            'properties': {
+                'interface': {
+                    'items': {
+                        'properties': {
+                            'id': {
+                                'description': 'Unique interface ID.',
+                                'required': True,
+                                'type': 'string'
+                            },
+                            'status': {
+                                'description': 'Status of the interface',
+                                'enum': [
+                                    'up',
+                                    'no_carrier',
+                                    'active',
+                                    'inactive'
+                                ],
+                                'required': True,
+                                'type': 'string'
+                            },
+                            'type': 'object'
+                        },
+                        'type': 'array'
+                    },
+                    'type': ['string', 'null']
+                },
+                'total': {
+                    'description': 'Total number of items available.',
+                    'type': 'integer'
+                }
+            },
+            'type': 'object'
+        }
+        csc.isi_schema_to_swagger_object(
+            'Network', 'Interfaces',
+            isi_schema, 'Extended')
+
+        expected = {
+            'properties': {
+                'interfaces': {
+                    'items': {
+                        'properties': {
+                            'id': {
+                                'description': 'Unique interface ID.',
+                                'required': True,
+                                'type': 'string'
+                            },
+                            'status': {
+                                'description': 'Status of the interface',
+                                'enum': [
+                                    'up',
+                                    'no_carrier',
+                                    'active',
+                                    'inactive'
+                                ],
+                                'required': True,
+                                'type': 'string'
+                            },
+                            'type': 'object'
+                        },
+                        'type': 'array'
+                    },
+                    'type': 'string'
+                },
+                'total': {
+                    'description': 'Total number of items available.',
+                    'type': 'integer'
+                }
+            },
+            'type': 'object'
+        }
+        self.assertEqual(isi_schema, expected)
+
     def test_singularize_status(self):
         """FirmwareStatus to FirmwareStatusItem."""
         used = csc.PostFixUsed()
