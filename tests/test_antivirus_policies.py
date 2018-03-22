@@ -1,66 +1,70 @@
-import isi_sdk
 import urllib3
+
+import isi_sdk_8_0 as isi_sdk
+
 import test_constants
 
 urllib3.disable_warnings()
 
 # configure username and password
-isi_sdk.configuration.username = test_constants.USERNAME
-isi_sdk.configuration.password = test_constants.PASSWORD
-isi_sdk.configuration.verify_ssl = test_constants.VERIFY_SSL
+configuration = isi_sdk.Configuration()
+configuration.username = test_constants.USERNAME
+configuration.password = test_constants.PASSWORD
+configuration.verify_ssl = test_constants.VERIFY_SSL
+configuration.host = test_constants.HOST
 
-# configure host
-host = test_constants.HOST
-apiClient = isi_sdk.ApiClient(host)
-antivirusApi = isi_sdk.AntivirusApi(apiClient)
+# configure client connection
+api_client = isi_sdk.ApiClient(configuration)
+antivirus_api = isi_sdk.AntivirusApi(api_client)
 
 # create a new policy
-newPolicy = isi_sdk.AntivirusPolicy()
-newPolicy.paths = ["/ifs/data"]
-newPolicy.name = "ifs_data"
+new_policy = isi_sdk.AntivirusPolicy()
+new_policy.paths = ["/ifs/data/Isilon_Support"]
+new_policy.name = "ifs_data_support"
 
 # use force because path already exists as policy so would normally fail
-createResp = antivirusApi.create_antivirus_policy(newPolicy)
-print "Created=" + str(createResp.id)
+create_resp = antivirus_api.create_antivirus_policy(new_policy)
+print("Created=" + str(create_resp.id))
 
 # get it by id
-getPolicyResp = antivirusApi.get_antivirus_policy(createResp.id)
+get_policy_resp = antivirus_api.get_antivirus_policy(create_resp.id)
 
 # update it with a PUT
-aPolicy = getPolicyResp.policies[0]
+policy = get_policy_resp.policies[0]
 
-updatePolicy = isi_sdk.AntivirusPolicy()
+update_policy = isi_sdk.AntivirusPolicy()
 
 # toggle the browsable parameter
-updatePolicy.enabled = aPolicy.enabled == False
+update_policy.enabled = policy.enabled == False
 
-antivirusApi.update_antivirus_policy(antivirus_policy_id=aPolicy.id,
-                                     antivirus_policy=updatePolicy)
+antivirus_api.update_antivirus_policy(antivirus_policy_id=policy.id,
+                                      antivirus_policy=update_policy)
 
 
 # get it back and check that it worked
-getPolicyResp = antivirusApi.get_antivirus_policy(aPolicy.id)
+get_policy_resp = antivirus_api.get_antivirus_policy(policy.id)
 
-print "It worked == " \
-        + str(getPolicyResp.policies[0].enabled == updatePolicy.enabled)
+print("It worked == " +
+      str(get_policy_resp.policies[0].enabled == update_policy.enabled))
 
 # get all policies
-antivirusPolicies = antivirusApi.list_antivirus_policies()
-print "Antivirus Policies:\n" + str(antivirusPolicies)
+antivirus_policies = antivirus_api.list_antivirus_policies()
+print("Antivirus Policies:\n" + str(antivirus_policies))
 
 # now delete it
-print "Deleting it."
-antivirusApi.delete_antivirus_policy(antivirus_policy_id=createResp.id)
+print("Deleting it.")
+antivirus_api.delete_antivirus_policy(antivirus_policy_id=create_resp.id)
 
 # verify that it is deleted
 # Note: my Error data model is not correct yet,
-# so get on a non-existent antivirus policy id throws exception. Ideally it would
-# just return an error response
+# so get on a non-existent antivirus policy id throws exception.
+# Ideally it would just return an error response
 try:
-    print "Verifying delete."
-    resp = antivirusApi.get_antivirus_policy(antivirus_policy_id=createResp.id)
-    print "Response should be 404, not: " + str(resp)
+    print("Verifying delete.")
+    resp = antivirus_api.get_antivirus_policy(
+        antivirus_policy_id=create_resp.id)
+    print("Response should be 404, not: " + str(resp))
 except isi_sdk.rest.ApiException:
     pass
 
-print "Done."
+print("Done.")
