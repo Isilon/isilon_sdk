@@ -371,7 +371,7 @@ class TestCreateSwaggerConfig(unittest.TestCase):
             'type': 'object'
         }
         csc.isi_schema_to_swagger_object(
-            'EventEventgroupOccurrences', 'Eventgroup-Occurrence',
+            'EventEventgroupOccurrences', 'Eventgroup',
             isi_schema, 'Extended')
 
         expected = {
