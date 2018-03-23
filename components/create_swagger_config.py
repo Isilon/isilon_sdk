@@ -261,17 +261,11 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
         for schema_list_item in isi_schema['type']:
             if schema_list_item is None:
                 log.warning("Found null object in JSON schema list")
-                continue
-            if 'type' not in schema_list_item:
-                # hack - just return empty object
+            elif 'type' not in schema_list_item:
                 return '#/definitions/Empty'
-            # As of OneFS 8.1.0, the response body schema may be a list where
-            # the first object in the list is the errors object and the second
-            # object in the list is the success object. Thus, this loop will
-            # iterate until it has assigned the properties from the last
-            # object in the list.
-            if schema_list_item['type'] == 'object':
+            elif schema_list_item['type'] == 'object':
                 isi_schema = schema_list_item
+                break
 
     if isi_schema['type'] != 'object':
         raise RuntimeError("isi_schema is not type 'object': {}".format(
@@ -321,6 +315,12 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 isi_schema['health_flags']
             del isi_schema['health_flags']
             log.warning("Move 'health_flags' property under 'properties'")
+    elif sub_obj_namespace == 'EventEventgroupOccurrences':
+        if 'eventgroup-occurrences' in isi_schema['properties']:
+            isi_schema['properties']['eventgroups'] = \
+                isi_schema['properties']['eventgroup-occurrences']
+            del isi_schema['properties']['eventgroup-occurrences']
+            log.warning("Found 'eventgroups' as 'eventgroup-occurrences'")
 
     required_props = []
     for prop_name, prop in isi_schema['properties'].items():
@@ -384,10 +384,8 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 log.warning(("Move 'media_changers' and 'tapes' in 'devices'"
                              "property to nested 'properties' object"))
         # Issue #15: Correct nested array schema
-        elif (sub_obj_namespace == (
-                'EventEventgroupOccurrencesEventgroup-Occurrence') and
-              prop_name == 'causes'):
-            if 'type' in prop['items']:
+        elif sub_obj_namespace == 'EventEventgroupOccurrencesEventgroup':
+            if prop_name == 'causes' and 'items' not in prop['items']:
                 prop['items'] = prop['items']['type']
                 prop['type'] = 'array'
                 log.warning("Correct nested array schema in 'causes' property")
@@ -804,6 +802,16 @@ def create_swagger_operation(isi_api_name, isi_obj_name_space, isi_obj_name,
 
     swagger_operation['parameters'] = swagger_params
 
+    # OneFS 8.1.0 response schemas are a multi-type array
+    if isi_resp_schema is not None and 'type' in isi_resp_schema:
+        if (isinstance(isi_resp_schema['type'], list) and
+                isinstance(isi_resp_schema['type'][0], dict) and
+                'description' in isi_resp_schema['type'][0] and
+                isi_resp_schema['type'][0]['description'] == \
+                "A list of errors that may be returned."):
+            # pop the errors response object off the list
+            isi_resp_schema = isi_resp_schema['type'][1]
+
     # create responses
     swagger_responses = {}
     if isi_resp_schema is not None:
@@ -815,6 +823,7 @@ def create_swagger_operation(isi_api_name, isi_obj_name_space, isi_obj_name,
             # type to be an 'object' so that isi_schema_to_swagger_object
             # can fix.
             response_type = 'object'
+
         # create 200 response
         swagger_200_resp = {}
         # the 'type' of /4/protocols/smb/shares and /3/antivirus/servers is a
@@ -1352,7 +1361,7 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            ('/3/hardware/fcports', None),
+            ('/2/cluster/external-ips', None)
         ]
 
     success_count = 0
