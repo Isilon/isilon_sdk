@@ -251,10 +251,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
         if 'properties' not in isi_schema and 'settings' not in isi_schema:
             log.warning(('Invalid empty schema for object %s. '
                          "Adding 'properties' and 'type'."), isi_obj_name)
-            schema_copy = isi_schema.copy()
-            for key in isi_schema.keys():
-                del isi_schema[key]
-            isi_schema['properties'] = schema_copy
+            isi_schema = {'properties': isi_schema}
         else:
             log.warning(("Invalid schema for object %s, no 'type' specified. "
                          "Adding 'type': 'object'."), isi_obj_name)
@@ -324,6 +321,14 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 isi_schema['properties']['eventgroup-occurrences']
             del isi_schema['properties']['eventgroup-occurrences']
             log.warning("Found 'eventgroups' as 'eventgroup-occurrences'")
+    # Issue #22: Correct naming of interface as interfaces
+    elif (sub_obj_namespace == 'NetworkInterfaces' or
+          sub_obj_namespace == 'PoolsPoolInterfaces'):
+        if 'interface' in isi_schema['properties']:
+            isi_schema['properties']['interfaces'] = \
+                isi_schema['properties']['interface']
+            del isi_schema['properties']['interface']
+            log.warning("Found 'interfaces' misspelled as 'interface'")
 
     required_props = []
     for prop_name, prop in isi_schema['properties'].items():
@@ -418,11 +423,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 log.warning("Move 'properties' into the 'items' object")
         elif sub_obj_namespace.startswith('SummaryProtocolStatsProtocol'):
             if 'type' not in prop:
-                prop_copy = prop.copy()
-                for key in prop.keys():
-                    del prop[key]
-                prop['properties'] = prop_copy
-                prop['type'] = 'object'
+                prop = {'properties': prop, 'type': 'object'}
                 log.warning("Move properties into the 'properties' object")
             elif prop_name == 'protocol' and prop['type'] == 'array':
                 prop['type'] = 'object'
@@ -444,6 +445,17 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 prop['items'] = prop['properties']
                 del prop['properties']
                 log.warning("Move 'fcports' array properties into 'items'")
+        # Issue #22: Remove invalid status enum
+        elif (sub_obj_namespace == 'NetworkInterface' or
+              sub_obj_namespace == 'PoolsPoolInterfacesInterface'):
+            if prop_name == 'status' and 'enum' in prop:
+                del prop['enum']
+                log.warning("Remove invalid 'status' enum")
+        elif (sub_obj_namespace == 'NetworkDnscache' or
+              sub_obj_namespace == 'NetworkExternal'):
+            if prop_name == 'settings' and 'items' in prop:
+                prop = prop['items']
+                log.warning("Property 'settings' is an object, not an array")
 
         if 'type' not in prop:
             if 'enum' in prop:
@@ -1367,6 +1379,7 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
+            ('/3/network/dnscache', None),
             ('/4/protocols/nfs/exports', None)
         ]
 
