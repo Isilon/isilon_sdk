@@ -2,7 +2,6 @@ import json
 import urllib3
 
 import isi_sdk_8_0 as isi_sdk
-from isi_sdk_8_0.rest import ApiException
 
 import test_constants
 
@@ -26,7 +25,7 @@ print("Creating group %s" % new_auth_group.name)
 try:
     create_auth_group_resp = auth_api.create_auth_group(new_auth_group)
     print("Created: %s" % create_auth_group_resp.id)
-except ApiException as err:
+except isi_sdk.rest.ApiException as err:
     if err.status == 409:
         print("Group %s already exists" % new_auth_group.name)
     else:
@@ -64,7 +63,7 @@ auth_groups_api = isi_sdk.AuthGroupsApi(api_client)
 try:
     auth_groups_api.create_group_member(
         group=new_auth_group.name, group_member=group_member)
-except ApiException as err:
+except isi_sdk.rest.ApiException as err:
     body = json.loads(err.body)
     if 'User is already in local group' in body['errors'][0]['message']:
         print('User %s is already in local group' % group_member.name)

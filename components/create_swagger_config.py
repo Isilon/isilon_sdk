@@ -43,6 +43,9 @@ X_ISI_URL_ENCODE_PATH_PARAM = 'x-isi-url-encode-path-param'
 GENERATED_OPS = {}
 SWAGGER_DEFS = {}
 
+MAX_ARRAY_SIZE = 2147483642
+MAX_INTEGER_SIZE = 9223372036854775807
+
 
 def onefs_short_version(host, port, auth):
     """Query a cluster and return the 2 major version digits"""
@@ -154,7 +157,7 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
             prop['items'] = {'type': 'string'}
 
     # protect against Java array out of bounds exception
-    if ('maxItems' in prop and prop['maxItems'] > 2147483642):
+    if ('maxItems' in prop and prop['maxItems'] > MAX_ARRAY_SIZE):
         del prop['maxItems']
 
     if 'type' not in prop['items'] and prop['items'] == 'string':
@@ -552,6 +555,9 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             prop['type'] = 'integer'
             prop['minimum'] = 0
             prop['maximum'] = 10
+        elif prop['type'] == 'integer':
+            if 'maximum' in prop and prop['maximum'] > MAX_INTEGER_SIZE:
+                prop['maximum'] = MAX_INTEGER_SIZE
 
     # attach required props
     if required_props:
@@ -1361,7 +1367,7 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            ('/2/cluster/external-ips', None)
+            ('/4/protocols/nfs/exports', None)
         ]
 
     success_count = 0
