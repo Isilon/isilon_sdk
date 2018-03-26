@@ -335,6 +335,12 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 isi_schema['properties']['status_text']
             del isi_schema['properties']['status_text']
             log.warning("Found 'message' labeled as 'status_text'")
+    elif sub_obj_namespace == 'NdmpLogsNode':
+        if 'logs:' in isi_schema['properties']:
+            isi_schema['properties']['logs'] = \
+                isi_schema['properties']['logs:']
+            del isi_schema['properties']['logs:']
+            log.warning("Found 'logs' misspelled as 'logs:'")
 
     required_props = []
     for prop_name, prop in isi_schema['properties'].items():
