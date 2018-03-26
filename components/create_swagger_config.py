@@ -329,6 +329,12 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 isi_schema['properties']['interface']
             del isi_schema['properties']['interface']
             log.warning("Found 'interfaces' misspelled as 'interface'")
+    elif sub_obj_namespace == 'HardeningStatusStatus':
+        if 'status_text' in isi_schema['properties']:
+            isi_schema['properties']['message'] = \
+                isi_schema['properties']['status_text']
+            del isi_schema['properties']['status_text']
+            log.warning("Found 'message' labeled as 'status_text'")
 
     required_props = []
     for prop_name, prop in isi_schema['properties'].items():
@@ -456,6 +462,10 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             if prop_name == 'settings' and 'items' in prop:
                 prop = prop['items']
                 log.warning("Property 'settings' is an object, not an array")
+        elif sub_obj_namespace == 'HardeningStateState':
+            if prop_name == 'state' and 'Other' not in prop['enum']:
+                prop['enum'].append('Other')
+                log.warning("Hardening state missing 'Other' in enum")
 
         if 'type' not in prop:
             if 'enum' in prop:
