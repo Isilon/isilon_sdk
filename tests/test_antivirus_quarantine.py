@@ -1,46 +1,55 @@
-import isi_sdk
 import urllib3
+
+import isi_sdk_8_0 as isi_sdk
+
 import test_constants
 
 urllib3.disable_warnings()
-# configure username and password
-isi_sdk.configuration.username = test_constants.USERNAME
-isi_sdk.configuration.password = test_constants.PASSWORD
-isi_sdk.configuration.verify_ssl = test_constants.VERIFY_SSL
-
-# configure host
-host = test_constants.HOST
-apiClient = isi_sdk.ApiClient(host)
-antivirusApi = isi_sdk.AntivirusApi(apiClient)
-
-# update quarantine path
-updateQuarantinePathParams = isi_sdk.AntivirusQuarantinePathParams()
-updateQuarantinePathParams.quarantined = True
-
-quarantinePath = "/ifs/README.txt"
-antivirusApi.update_antivirus_quarantine_path(
-        antivirus_quarantine_path=quarantinePath,
-        antivirus_quarantine_path_params=updateQuarantinePathParams)
 
 
-# get it back and check that it worked
-getQuarantinePathResp = \
-        antivirusApi.get_antivirus_quarantine_path(quarantinePath)
-print "It worked == " \
-        + str(getQuarantinePathResp.quarantined
-                == updateQuarantinePathParams.quarantined)
+def main():
+    # configure username and password
+    configuration = isi_sdk.Configuration()
+    configuration.username = test_constants.USERNAME
+    configuration.password = test_constants.PASSWORD
+    configuration.verify_ssl = test_constants.VERIFY_SSL
+    configuration.host = test_constants.HOST
 
-# now unquarantine it
-updateQuarantinePathParams.quarantined = False
-antivirusApi.update_antivirus_quarantine_path(
-        antivirus_quarantine_path=quarantinePath,
-        antivirus_quarantine_path_params=updateQuarantinePathParams)
+    # configure client connection
+    api_client = isi_sdk.ApiClient(configuration)
+    antivirus_api = isi_sdk.AntivirusApi(api_client)
 
-# verify it is no longer quarantined
-getQuarantinePathResp = \
-        antivirusApi.get_antivirus_quarantine_path(quarantinePath)
-print "It worked == " \
-        + str(getQuarantinePathResp.quarantined
-                == updateQuarantinePathParams.quarantined)
+    # update quarantine path
+    update_quarantine_path_params = isi_sdk.AntivirusQuarantinePathParams()
+    update_quarantine_path_params.quarantined = True
 
-print "Done."
+    quarantine_path = "ifs/README.txt"
+    antivirus_api.update_antivirus_quarantine_path(
+        antivirus_quarantine_path=quarantine_path,
+        antivirus_quarantine_path_params=update_quarantine_path_params)
+
+    # get it back and check that it worked
+    get_quarantine_path_resp = \
+        antivirus_api.get_antivirus_quarantine_path(quarantine_path)
+    print("It worked == " +
+          str(get_quarantine_path_resp.quarantined ==
+              update_quarantine_path_params.quarantined))
+
+    # now unquarantine it
+    update_quarantine_path_params.quarantined = False
+    antivirus_api.update_antivirus_quarantine_path(
+        antivirus_quarantine_path=quarantine_path,
+        antivirus_quarantine_path_params=update_quarantine_path_params)
+
+    # verify it is no longer quarantined
+    get_quarantine_path_resp = \
+        antivirus_api.get_antivirus_quarantine_path(quarantine_path)
+    print("It worked == " +
+          str(get_quarantine_path_resp.quarantined ==
+              update_quarantine_path_params.quarantined))
+
+    print("Done.")
+
+
+if __name__ == '__main__':
+    main()

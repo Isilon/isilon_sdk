@@ -1,88 +1,110 @@
-import isi_sdk
+import json
 import urllib3
+
+import isi_sdk_8_0 as isi_sdk
+
 import test_constants
 
 urllib3.disable_warnings()
-# configure username and password
-isi_sdk.configuration.username = test_constants.USERNAME
-isi_sdk.configuration.password = test_constants.PASSWORD
-isi_sdk.configuration.verify_ssl = test_constants.VERIFY_SSL
 
-# configure host
-host = test_constants.HOST
-apiClient = isi_sdk.ApiClient(host)
-authApi = isi_sdk.AuthApi(apiClient)
 
-newAuthGroup = isi_sdk.AuthGroupCreateParams()
-newAuthGroup.name = "alex"
+def main():
+    # configure username and password
+    configuration = isi_sdk.Configuration()
+    configuration.username = test_constants.USERNAME
+    configuration.password = test_constants.PASSWORD
+    configuration.verify_ssl = test_constants.VERIFY_SSL
+    configuration.host = test_constants.HOST
 
-print "Creating group " + newAuthGroup.name
-createAuthGroupResp = authApi.create_auth_group(newAuthGroup)
+    # configure client connection
+    api_client = isi_sdk.ApiClient(configuration)
+    auth_api = isi_sdk.AuthApi(api_client)
 
-print "Created: " + str(createAuthGroupResp)
+    new_auth_group = isi_sdk.AuthGroupCreateParams(name='admins')
 
-authGroups = authApi.list_auth_groups()
+    print("Creating group %s" % new_auth_group.name)
+    try:
+        create_auth_group_resp = auth_api.create_auth_group(new_auth_group)
+        print("Created: %s" % create_auth_group_resp.id)
+    except isi_sdk.rest.ApiException as err:
+        if err.status == 409:
+            print("Group %s already exists" % new_auth_group.name)
+        else:
+            raise err
 
-foundNewGroup = False
-for group in authGroups.groups:
-    if group.name == newAuthGroup.name:
-        foundNewGroup = True
+    auth_groups = auth_api.list_auth_groups()
 
-print "Found it: " + str(foundNewGroup)
+    found_new_group = False
+    for group in auth_groups.groups:
+        if group.name == new_auth_group.name:
+            found_new_group = True
 
-authGroups = authApi.get_auth_group(auth_group_id=newAuthGroup.name)
+    print("Found it: " + str(found_new_group))
 
-foundNewGroup = False
-for group in authGroups.groups:
-    if group.name == newAuthGroup.name:
-        foundNewGroup = True
+    auth_groups = auth_api.get_auth_group(auth_group_id=new_auth_group.name)
 
-print "Found it again: " + str(foundNewGroup)
+    found_new_group = False
+    for group in auth_groups.groups:
+        if group.name == new_auth_group.name:
+            found_new_group = True
 
-updateAuthGroup = isi_sdk.AuthGroup()
-# The only updatable value according to the description is the gid, but when i
-# try to change it, the response is that i need to include a force parameter,
-# but there is no force parameter in the description. Seems like a bug.
-authApi.update_auth_group(auth_group_id=newAuthGroup.name,
-                          auth_group=updateAuthGroup)
+    print("Found it again: " + str(found_new_group))
 
-# try adding a member
-groupMember = isi_sdk.GroupMember()
-groupMember.name = "admin"
-groupMember.type = "user"
+    auth_group = isi_sdk.AuthGroup()
+    # The only updatable value according to the description is the gid, but when i
+    # try to change it, the response is that I need to include a force parameter,
+    # but there is no force parameter in the description. Seems like a bug.
+    auth_api.update_auth_group(auth_group_id=new_auth_group.name,
+                               auth_group=auth_group)
 
-authGroupsApi = isi_sdk.AuthGroupsApi(apiClient)
-authGroupsApi.create_group_member(group=newAuthGroup.name,
-        group_member=groupMember)
+    # try adding a member
+    group_member = isi_sdk.GroupMember(name='admin', type='user')
 
-groupMembers = authGroupsApi.list_group_members(group=newAuthGroup.name)
-foundMember = False
-for member in groupMembers.members:
-    if member.name == groupMember.name:
-        foundMember = True
+    auth_groups_api = isi_sdk.AuthGroupsApi(api_client)
+    try:
+        auth_groups_api.create_group_member(
+            group=new_auth_group.name, group_member=group_member)
+    except isi_sdk.rest.ApiException as err:
+        body = json.loads(err.body)
+        if 'User is already in local group' in body['errors'][0]['message']:
+            print('User %s is already in local group' % group_member.name)
+        else:
+            raise err
+    except ValueError as err:
+        print('Resource ID was not returned in response')
 
-print "Found member: " + str(foundMember)
+    group_members = auth_groups_api.list_group_members(group=new_auth_group.name)
+    found_member = False
+    for member in group_members.members:
+        if member.name == group_member.name:
+            found_member = True
 
-# delete the member
-authGroupsApi.delete_group_member(group=newAuthGroup.name,
-        group_member_id=groupMembers.members[0].id)
+    print("Found member: " + str(found_member))
 
-groupMembers = authGroupsApi.list_group_members(group=newAuthGroup.name)
-foundMember = False
-for member in groupMembers.members:
-    if member.name == groupMember.name:
-        foundMember = True
+    # delete the member
+    auth_groups_api.delete_group_member(
+        group=new_auth_group.name, group_member_id=group_members.members[0].id)
 
-print "Deleted member: " + str(foundMember == False)
+    group_members = auth_groups_api.list_group_members(group=new_auth_group.name)
+    found_member = False
+    for member in group_members.members:
+        if member.name == group_member.name:
+            found_member = True
 
-authApi.delete_auth_group(newAuthGroup.name)
+    print("Deleted member: " + str(found_member == False))
 
-authGroups = authApi.list_auth_groups()
-foundNewGroup = False
-for group in authGroups.groups:
-    if group.name == newAuthGroup.name:
-        foundNewGroup = True
+    auth_api.delete_auth_group(new_auth_group.name)
 
-print "Deleted it: " + str(foundNewGroup == False)
+    auth_groups = auth_api.list_auth_groups()
+    found_new_group = False
+    for group in auth_groups.groups:
+        if group.name == new_auth_group.name:
+            found_new_group = True
 
-print "Done."
+    print("Deleted it: " + str(found_new_group == False))
+
+    print("Done.")
+
+
+if __name__ == '__main__':
+    main()

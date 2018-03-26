@@ -1,26 +1,33 @@
-import isi_sdk
 import urllib3
+
+import isi_sdk_8_1_0 as isi_sdk
+
 import test_constants
 
 urllib3.disable_warnings()
 
-# configure username and password
-isi_sdk.configuration.username = test_constants.USERNAME
-isi_sdk.configuration.password = test_constants.PASSWORD
-isi_sdk.configuration.verify_ssl = test_constants.VERIFY_SSL
 
-# configure host
-host = test_constants.HOST
-apiClient = isi_sdk.ApiClient(host)
-eventApi = isi_sdk.EventApi(apiClient)
+def main():
+    # configure username and password
+    configuration = isi_sdk.Configuration()
+    configuration.username = test_constants.USERNAME
+    configuration.password = test_constants.PASSWORD
+    configuration.verify_ssl = test_constants.VERIFY_SSL
+    configuration.host = test_constants.HOST
 
-resp = eventApi.get_event_eventgroup_occurrences()
-print "It worked."
-# This is broken in 8.0
-#if resp.total > 1 \
-#        and type(resp.eventgroup_occurrences) == list \
-#        and len(resp.eventgroup_occurrences) > 0:
-#    print "It worked."
-#else:
-#    print str(resp)
-#    print "Failed."
+    # configure client connection
+    api_client = isi_sdk.ApiClient(configuration)
+    eventApi = isi_sdk.EventApi(api_client)
+
+    resp = eventApi.get_event_eventgroup_occurrences()
+
+    if (resp.total > 1 and resp.eventgroups and
+            isinstance(resp.eventgroups, list)):
+        print("Received back %d eventgroups." % len(resp.eventgroups))
+    else:
+        print(str(resp))
+        print("Failed.")
+
+
+if __name__ == '__main__':
+    main()

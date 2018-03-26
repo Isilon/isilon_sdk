@@ -1,28 +1,38 @@
-import isi_sdk
 import urllib3
+
+import isi_sdk_8_0 as isi_sdk
+
 import test_constants
 
 urllib3.disable_warnings()
-# configure username and password
-isi_sdk.configuration.username = test_constants.USERNAME
-isi_sdk.configuration.password = test_constants.PASSWORD
-isi_sdk.configuration.verify_ssl = test_constants.VERIFY_SSL
 
-# configure host
-host = test_constants.HOST
-apiClient = isi_sdk.ApiClient(host)
-antivirusApi = isi_sdk.AntivirusApi(apiClient)
 
-settings = antivirusApi.get_antivirus_settings()
-print "Settings=" + str(settings)
+def main():
+    # configure username and password
+    configuration = isi_sdk.Configuration()
+    configuration.username = test_constants.USERNAME
+    configuration.password = test_constants.PASSWORD
+    configuration.verify_ssl = test_constants.VERIFY_SSL
+    configuration.host = test_constants.HOST
 
-settings.settings.repair = not settings.settings.repair
-antivirusApi.update_antivirus_settings(settings.settings)
+    # configure client connection
+    api_client = isi_sdk.ApiClient(configuration)
+    antivirus_api = isi_sdk.AntivirusApi(api_client)
 
-# verify it worked
-updated = antivirusApi.get_antivirus_settings()
+    settings = antivirus_api.get_antivirus_settings()
+    print("Settings=" + str(settings))
 
-print "It worked: " + str(settings.settings.repair
-                            == updated.settings.repair)
+    settings.settings.repair = not settings.settings.repair
+    antivirus_api.update_antivirus_settings(settings.settings)
 
-print "Done."
+    # verify it worked
+    updated = antivirus_api.get_antivirus_settings()
+
+    print("It worked: " +
+          str(settings.settings.repair == updated.settings.repair))
+
+    print("Done.")
+
+
+if __name__ == '__main__':
+    main()
