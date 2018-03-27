@@ -451,6 +451,10 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 }
                 del prop['data']
                 log.warning("Restructure the 'protocol' property object")
+        elif sub_obj_namespace == 'SummaryProtocolStats':
+            if prop_name == 'protocol-stats' and 'items' in prop:
+                prop = prop['items']
+                log.warning("'protocol-stats' is an object, not an array")
         elif sub_obj_namespace == 'HardwareFcportsNode':
             if (prop_name == 'fcports' and prop['type'] == 'array' and
                     'properties' in prop):
