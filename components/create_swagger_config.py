@@ -138,7 +138,15 @@ def find_best_type_for_prop(prop):
 
         elif one_type != 'null':
             prop['type'] = one_type
-            break
+            # prefer arrays first and strings second
+            if one_type == 'array' or (one_type == 'string' and
+                                       'items' not in prop):
+                break
+
+    # multi-types cannot be restricted by a string enum
+    if prop['type'] == 'string' and 'enum' in prop:
+        del prop['enum']
+
     return prop
 
 
@@ -1403,8 +1411,7 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            ('/3/network/dnscache', None),
-            ('/4/protocols/nfs/exports', None)
+            ('/1/worm/domains', None)
         ]
 
     success_count = 0
