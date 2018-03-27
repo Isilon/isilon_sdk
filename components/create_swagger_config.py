@@ -341,6 +341,10 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 isi_schema['properties']['logs:']
             del isi_schema['properties']['logs:']
             log.warning("Found 'logs' misspelled as 'logs:'")
+    elif sub_obj_namespace == 'StatisticsHistoryStat':
+        if 'resolution' not in isi_schema['properties']:
+            isi_schema['properties']['resolution'] = {'type': 'integer'}
+            log.warning("Added missing 'resolution' property")
 
     required_props = []
     for prop_name, prop in isi_schema['properties'].items():
