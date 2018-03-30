@@ -302,6 +302,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             isi_schema['properties'] = {}
 
     sub_obj_namespace = isi_obj_name_space + isi_obj_name
+    props = isi_schema['properties']
     # Issue #12: Correct misspellings
     if sub_obj_namespace == 'DebugStatsUnknown':
         if 'descriprion' in isi_schema:
@@ -310,53 +311,67 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             log.warning("Found 'description' misspelled as 'descriprion'")
     # Issue #13: Correct properties schema
     elif sub_obj_namespace == 'StatisticsOperation':
-        if 'operations' in isi_schema['properties']:
-            operations = isi_schema['properties']['operations'][0]['operation']
+        if 'operations' in props:
+            operations = props['operations'][0]['operation']
             if operations['required']:
                 isi_schema['required'] = True
-            isi_schema['properties']['operation'] = operations
-            del isi_schema['properties']['operations']
+            props['operation'] = operations
+            del props['operations']
             log.warning("Replace 'operations' property with 'operation'")
     elif (sub_obj_namespace.startswith('StoragepoolNodepool') or
           sub_obj_namespace.startswith('StoragepoolStoragepool')):
         if 'health_flags' in isi_schema:
-            isi_schema['properties']['health_flags'] = \
-                isi_schema['health_flags']
+            props['health_flags'] = isi_schema['health_flags']
             del isi_schema['health_flags']
             log.warning("Move 'health_flags' property under 'properties'")
     elif sub_obj_namespace == 'EventEventgroupOccurrences':
-        if 'eventgroup-occurrences' in isi_schema['properties']:
-            isi_schema['properties']['eventgroups'] = \
-                isi_schema['properties']['eventgroup-occurrences']
-            del isi_schema['properties']['eventgroup-occurrences']
+        if 'eventgroup-occurrences' in props:
+            props['eventgroups'] = props['eventgroup-occurrences']
+            del props['eventgroup-occurrences']
             log.warning("Found 'eventgroups' as 'eventgroup-occurrences'")
     # Issue #22: Correct naming of interface as interfaces
     elif (sub_obj_namespace == 'NetworkInterfaces' or
           sub_obj_namespace == 'PoolsPoolInterfaces'):
-        if 'interface' in isi_schema['properties']:
-            isi_schema['properties']['interfaces'] = \
-                isi_schema['properties']['interface']
-            del isi_schema['properties']['interface']
+        if 'interface' in props:
+            props['interfaces'] = props['interface']
+            del props['interface']
             log.warning("Found 'interfaces' misspelled as 'interface'")
     elif sub_obj_namespace == 'HardeningStatusStatus':
-        if 'status_text' in isi_schema['properties']:
-            isi_schema['properties']['message'] = \
-                isi_schema['properties']['status_text']
-            del isi_schema['properties']['status_text']
+        if 'status_text' in props:
+            props['message'] = props['status_text']
+            del props['status_text']
             log.warning("Found 'message' labeled as 'status_text'")
     elif sub_obj_namespace == 'NdmpLogsNode':
-        if 'logs:' in isi_schema['properties']:
-            isi_schema['properties']['logs'] = \
-                isi_schema['properties']['logs:']
-            del isi_schema['properties']['logs:']
+        if 'logs:' in props:
+            props['logs'] = props['logs:']
+            del props['logs:']
             log.warning("Found 'logs' misspelled as 'logs:'")
     elif sub_obj_namespace == 'StatisticsHistoryStat':
-        if 'resolution' not in isi_schema['properties']:
-            isi_schema['properties']['resolution'] = {'type': 'integer'}
+        if 'resolution' not in props:
+            props['resolution'] = {'type': 'integer'}
             log.warning("Added missing 'resolution' property")
+    elif sub_obj_namespace == 'EventCategory':
+        if 'category_name' in props and 'category_description' in props:
+            props['id_name'] = props['category_name']
+            del props['category_name']
+            props['name'] = props['category_description']
+            del props['category_description']
+            props['id']['type'] = 'string'
+            log.warning("Found event category properties mislabeled")
+    elif sub_obj_namespace.startswith('EventEventlist'):
+        if 'event_id' in props:
+            props['event'] = props['event_id']
+            del props['event_id']
+            log.warning("Found 'event' mislabeled as 'event_id'")
+        if (sub_obj_namespace == 'EventEventlistsEventlistItemEvent' or
+                sub_obj_namespace == 'EventEventlistEvent'):
+            if 'lnn' not in props and 'resolve_time' not in props:
+                props['lnn'] = {'type': 'integer'}
+                props['resolve_time'] = {'type': 'integer'}
+                log.warning("Found 'lnn' and 'resolve_time' props missing")
 
     required_props = []
-    for prop_name, prop in isi_schema['properties'].items():
+    for prop_name, prop in props.items():
 
         # Issue #8: Remove invalid placement of required field
         if (sub_obj_namespace == 'StoragepoolStatusUnhealthyItem' and
