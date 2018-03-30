@@ -138,7 +138,8 @@ def find_best_type_for_prop(prop):
 
         elif one_type != 'null':
             prop['type'] = one_type
-            # prefer arrays first and strings second
+            # prefer arrays first and strings second because all properties
+            # with an array type should also have an items field defined
             if one_type == 'array' or (one_type == 'string' and
                                        'items' not in prop):
                 break
