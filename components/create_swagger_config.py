@@ -488,6 +488,10 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             if prop_name == 'state' and 'Other' not in prop['enum']:
                 prop['enum'].append('Other')
                 log.warning("Hardening state missing 'Other' in enum")
+        elif sub_obj_namespace.startswith('EventChannel'):
+            if prop_name == 'type' and 'heartbeat' not in prop['enum']:
+                prop['enum'].append('heartbeat')
+                log.warning("Include missing 'heartbeat' in enum")
 
         if 'type' not in prop:
             if 'enum' in prop:
@@ -1411,7 +1415,7 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            ('/1/worm/domains', None)
+            ('/3/event/channels', None)
         ]
 
     success_count = 0
