@@ -138,7 +138,16 @@ def find_best_type_for_prop(prop):
 
         elif one_type != 'null':
             prop['type'] = one_type
-            break
+            # prefer arrays first and strings second because all properties
+            # with an array type should also have an items field defined
+            if one_type == 'array' or (one_type == 'string' and
+                                       'items' not in prop):
+                break
+
+    # multi-types cannot be restricted by a string enum
+    if prop['type'] == 'string' and 'enum' in prop:
+        del prop['enum']
+
     return prop
 
 
@@ -341,6 +350,10 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 isi_schema['properties']['logs:']
             del isi_schema['properties']['logs:']
             log.warning("Found 'logs' misspelled as 'logs:'")
+    elif sub_obj_namespace == 'StatisticsHistoryStat':
+        if 'resolution' not in isi_schema['properties']:
+            isi_schema['properties']['resolution'] = {'type': 'integer'}
+            log.warning("Added missing 'resolution' property")
 
     required_props = []
     for prop_name, prop in isi_schema['properties'].items():
@@ -451,6 +464,10 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 }
                 del prop['data']
                 log.warning("Restructure the 'protocol' property object")
+        elif sub_obj_namespace == 'SummaryProtocolStats':
+            if prop_name == 'protocol-stats' and 'items' in prop:
+                prop = prop['items']
+                log.warning("'protocol-stats' is an object, not an array")
         elif sub_obj_namespace == 'HardwareFcportsNode':
             if (prop_name == 'fcports' and prop['type'] == 'array' and
                     'properties' in prop):
@@ -472,6 +489,10 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             if prop_name == 'state' and 'Other' not in prop['enum']:
                 prop['enum'].append('Other')
                 log.warning("Hardening state missing 'Other' in enum")
+        elif sub_obj_namespace.startswith('EventChannel'):
+            if prop_name == 'type' and 'heartbeat' not in prop['enum']:
+                prop['enum'].append('heartbeat')
+                log.warning("Include missing 'heartbeat' in enum")
 
         if 'type' not in prop:
             if 'enum' in prop:
@@ -1395,8 +1416,7 @@ def main():
     else:
         exclude_end_points = []
         end_point_paths = [
-            ('/3/network/dnscache', None),
-            ('/4/protocols/nfs/exports', None)
+            ('/3/event/channels', None)
         ]
 
     success_count = 0
