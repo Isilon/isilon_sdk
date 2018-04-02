@@ -359,6 +359,10 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             props['id']['type'] = 'string'
             log.warning("Found event category properties mislabeled")
     elif sub_obj_namespace.startswith('EventEventlist'):
+        if 'eventlist' in props:
+            props['eventlists'] = props['eventlist']
+            del props['eventlist']
+            log.warning("Found 'eventlists' mislabeled as 'eventlist'")
         if 'event_id' in props:
             props['event'] = props['event_id']
             del props['event_id']
@@ -369,9 +373,21 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 props['lnn'] = {'type': 'integer'}
                 props['resolve_time'] = {'type': 'integer'}
                 log.warning("Found 'lnn' and 'resolve_time' props missing")
+    elif sub_obj_namespace == 'EventChannels':
+        if 'alert-conditions' in props:
+            props['channels'] = props['alert-conditions']
+            del props['alert-conditions']
+            log.warning("Found 'channels' mislabeled as 'alert-conditions'")
+    elif sub_obj_namespace == 'EventSettings':
+        if 'settings' not in props and 'maintenance' in props:
+            isi_schema = {
+                'type': 'object',
+                'properties': {'settings': isi_schema}
+            }
+            log.warning("Found missing event 'settings' property")
 
     required_props = []
-    for prop_name, prop in props.items():
+    for prop_name, prop in isi_schema['properties'].items():
 
         # Issue #8: Remove invalid placement of required field
         if (sub_obj_namespace == 'StoragepoolStatusUnhealthyItem' and
