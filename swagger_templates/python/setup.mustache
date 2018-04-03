@@ -35,8 +35,8 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     long_description="""\
-    {{appDescription}}  # noqa: E501
-    """.replace('PKG_NAME', NAME)
+{{appDescription}}
+""".replace('PKG_NAME', NAME.replace('-', '_'))
 )
 {{/hasMore}}
 {{/apis}}
