@@ -7,6 +7,7 @@ this config to create language bindings and documentation.
 """
 import argparse
 from collections import OrderedDict
+from copy import deepcopy
 import getpass
 import json
 import logging as log
@@ -47,13 +48,11 @@ MAX_ARRAY_SIZE = 2147483642
 MAX_INTEGER_SIZE = 9223372036854775807
 
 
-def onefs_short_version(host, port, auth):
-    """Query a cluster and return the 2 major version digits"""
+def onefs_release_version(host, port, auth):
+    """Query a cluster and return the 4 major version digits"""
     url = 'https://{0}:{1}/platform/1/cluster/config'.format(host, port)
     config = requests.get(url, auth=auth, verify=False).json()
-    release = config['onefs_version']['release'].strip('v')
-    short_vers = '.'.join(release.split('.')[:2])
-    return short_vers
+    return config['onefs_version']['release'].strip('v')
 
 
 def isi_props_to_swagger_params(isi_props, param_type):
@@ -162,7 +161,7 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
             prop['items'] = prop['item']
             del prop['item']
         else:
-            # XXX: bkrueger (8 Mar 2018) default to string if not defined
+            # default to string if not defined
             prop['items'] = {'type': 'string'}
 
     # protect against Java array out of bounds exception
@@ -1173,7 +1172,7 @@ def parse_path_params(end_point_path):
 
 
 def get_endpoint_paths(source_node_or_cluster, papi_port, base_url, auth,
-                       exclude_end_points):
+                       exclude_end_points, cached_schemas=None):
     """
     Gets the full list of PAPI URIs reported by source_node_or_cluster using
     the ?describe&list&json query arguments at the root level.
@@ -1181,18 +1180,23 @@ def get_endpoint_paths(source_node_or_cluster, papi_port, base_url, auth,
     (<collection-uri>, <single-item-uri>) and non-collection/static resources
     appear as (<uri>,None).
     """
-    desc_list_parms = {'describe': '', 'json': '', 'list': ''}
-    url = 'https://' + source_node_or_cluster + ':' + papi_port + base_url
-    resp = requests.get(
-        url=url, params=desc_list_parms, auth=auth, verify=False)
-    end_point_list_json = json.loads(resp.text)
+    paths = 'directory'
+    if not cached_schemas:
+        desc_list_parms = {'describe': '', 'json': '', 'list': ''}
+        url = 'https://' + source_node_or_cluster + ':' + papi_port + base_url
+        resp = requests.get(
+            url=url, params=desc_list_parms, auth=auth, verify=False)
+        end_point_list_json = resp.json()[paths]
+        cached_schemas[paths] = end_point_list_json
+    else:
+        end_point_list_json = cached_schemas[paths]
 
     base_end_points = {}
     end_point_paths = []
     ep_index = 0
-    num_endpoints = len(end_point_list_json['directory'])
+    num_endpoints = len(end_point_list_json)
     while ep_index < num_endpoints:
-        current_endpoint = end_point_list_json['directory'][ep_index]
+        current_endpoint = end_point_list_json[ep_index]
         if current_endpoint[2] != '/':
             # skip floating point version numbers
             ep_index += 1
@@ -1200,7 +1204,7 @@ def get_endpoint_paths(source_node_or_cluster, papi_port, base_url, auth,
 
         next_ep_index = ep_index + 1
         while next_ep_index < num_endpoints:
-            next_endpoint = end_point_list_json['directory'][next_ep_index]
+            next_endpoint = end_point_list_json[next_ep_index]
             # strip off the version and compare to see if they are
             # the same.
             if next_endpoint[2:] != current_endpoint[2:]:
@@ -1265,7 +1269,7 @@ def main():
     argparser.add_argument(
         '-i', '--input', dest='host',
         help='IP-address or hostname of the Isilon cluster to use as input.',
-        action='store')
+        action='store', default='localhost')
     argparser.add_argument(
         '-o', '--output', dest='output_file',
         help='Path to the output file.', action='store')
@@ -1287,6 +1291,10 @@ def main():
     argparser.add_argument(
         '-l', '--logging', dest='log_level',
         help='Logging verbosity level', action='store', default='INFO')
+    argparser.add_argument(
+        '-v', '--version', dest='onefs_version',
+        help='OneFS version with 3 dots (e.g. 8.1.0.2)',
+        action='store', default=None)
 
     args = argparser.parse_args()
 
@@ -1294,12 +1302,13 @@ def main():
         format='%(asctime)s %(levelname)s - %(message)s',
         datefmt='%I:%M:%S', level=getattr(log, args.log_level.upper()))
 
-    if args.username is None:
-        args.username = raw_input(
-            'Please provide the username used to access {} via PAPI: '.format(
-                args.host))
-    if args.password is None:
-        args.password = getpass.getpass('Password: ')
+    if not args.onefs_version:
+        if args.username is None:
+            args.username = raw_input(
+                'Please provide username used to access {} via PAPI: '.format(
+                    args.host))
+        if args.password is None:
+            args.password = getpass.getpass('Password: ')
 
     swagger_json = {
         'swagger': '2.0',
@@ -1392,8 +1401,23 @@ def main():
     papi_port = '8080'
     desc_parms = {'describe': '', 'json': ''}
 
-    swagger_json['info']['version'] = onefs_short_version(
-        args.host, papi_port, auth)
+    if not args.onefs_version:
+        release = onefs_release_version(args.host, papi_port, auth)
+    else:
+        if not re.match(r'^\d{,2}.\d.\d.\d{,2}$', args.onefs_version):
+            raise RuntimeError('Invalid ONEFS_VERSION argument: {}'.format(
+                args.onefs_version))
+        release = args.onefs_version
+
+    cached_schemas = {}
+    schemas_dir = os.path.abspath(os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), 'papi_schemas'))
+    schemas_file = os.path.join(schemas_dir, '{}.json'.format(release))
+    if args.onefs_version:
+        with open(schemas_file, 'r') as schemas:
+            cached_schemas = json.loads(schemas.read())
+
+    swagger_json['info']['version'] = '.'.join(release.split('.')[:2])
 
     if swagger_json['info']['version'] in ['7.2', '8.0']:
         id_prop = SWAGGER_DEFS['CreateResponse']['properties']['id']
@@ -1443,11 +1467,12 @@ def main():
             ]
 
         end_point_paths = get_endpoint_paths(
-            args.host, papi_port, base_url, auth, exclude_end_points)
+            args.host, papi_port, base_url, auth, exclude_end_points,
+            cached_schemas)
     else:
         exclude_end_points = []
         end_point_paths = [
-            ('/3/event/channels', None)
+            ('/1/auth/providers/local', None)
         ]
 
     success_count = 0
@@ -1472,12 +1497,17 @@ def main():
             # next do the item PUT (i.e. update), DELETE, and GET because the
             # GET seems to be a limited version of the base path GET so the
             # subclassing works correct when done in this order
-            url = 'https://{}:{}{}{}'.format(
-                args.host, papi_port, base_url, item_end_point_path)
-            resp = requests.get(
-                url=url, params=desc_parms, auth=auth, verify=False)
 
-            item_resp_json = json.loads(resp.text)
+            if not args.onefs_version:
+                url = 'https://{}:{}{}{}'.format(
+                    args.host, papi_port, base_url, item_end_point_path)
+                resp = requests.get(
+                    url=url, params=desc_parms, auth=auth, verify=False)
+                item_resp_json = resp.json()
+                cached_schemas[item_end_point_path] = deepcopy(item_resp_json)
+
+            else:
+                item_resp_json = cached_schemas[item_end_point_path]
 
             singular_obj_postfix, item_input_type = parse_path_params(
                 os.path.basename(item_end_point_path))[0]
@@ -1504,11 +1534,18 @@ def main():
 
         if base_end_point_path is not None:
             log.info('Processing %s', base_end_point_path)
-            url = 'https://{}:{}{}{}'.format(
-                args.host, papi_port, base_url, base_end_point_path)
-            resp = requests.get(
-                url=url, params=desc_parms, auth=auth, verify=False)
-            base_resp_json = json.loads(resp.text)
+
+            if not args.onefs_version:
+                url = 'https://{}:{}{}{}'.format(
+                    args.host, papi_port, base_url, base_end_point_path)
+                resp = requests.get(
+                    url=url, params=desc_parms, auth=auth, verify=False)
+                base_resp_json = resp.json()
+                cached_schemas[base_end_point_path] = deepcopy(base_resp_json)
+
+            else:
+                base_resp_json = cached_schemas[base_end_point_path]
+
             base_path_params = parse_path_params(base_end_point_path)
             base_path = {}
             # start with base path POST because it defines the base
@@ -1554,6 +1591,12 @@ def main():
     log.info(('End points successfully processed: %s, failed to process: %s, '
               'excluded: %s.'),
              success_count, fail_count, len(exclude_end_points))
+
+    if cached_schemas and not args.onefs_version:
+        with open(schemas_file, 'w+') as schemas:
+            schemas.write(json.dumps(
+                cached_schemas, sort_keys=True, indent=4,
+                separators=(',', ': ')))
 
     with open(args.output_file, 'w') as output_file:
         output_file.write(json.dumps(
