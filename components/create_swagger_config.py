@@ -1149,14 +1149,16 @@ def get_endpoint_paths(source_node_or_cluster, papi_port, base_url, auth,
     (<collection-uri>, <single-item-uri>) and non-collection/static resources
     appear as (<uri>,None).
     """
+    paths = 'directory'
     if not cached_schemas:
         desc_list_parms = {'describe': '', 'json': '', 'list': ''}
         url = 'https://' + source_node_or_cluster + ':' + papi_port + base_url
         resp = requests.get(
             url=url, params=desc_list_parms, auth=auth, verify=False)
-        end_point_list_json = resp.json()['directory']
+        end_point_list_json = resp.json()[paths]
+        cached_schemas[paths] = end_point_list_json
     else:
-        end_point_list_json = sorted(cached_schemas.keys())
+        end_point_list_json = cached_schemas[paths]
 
     base_end_points = {}
     end_point_paths = []
@@ -1377,7 +1379,8 @@ def main():
         release = args.onefs_version
 
     cached_schemas = {}
-    schemas_dir = os.path.abspath('papi_schemas')
+    schemas_dir = os.path.abspath(os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), 'papi_schemas'))
     schemas_file = os.path.join(schemas_dir, '{}.json'.format(release))
     if args.onefs_version:
         with open(schemas_file, 'r') as schemas:
@@ -1561,7 +1564,8 @@ def main():
     if cached_schemas and not args.onefs_version:
         with open(schemas_file, 'w+') as schemas:
             schemas.write(json.dumps(
-                cached_schemas, indent=4, separators=(',', ': ')))
+                cached_schemas, sort_keys=True, indent=4,
+                separators=(',', ': ')))
 
     with open(args.output_file, 'w') as output_file:
         output_file.write(json.dumps(
