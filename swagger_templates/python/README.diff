@@ -21,7 +21,7 @@
 < pip install git+https://github.com/{{{gitUserId}}}/{{{gitRepoId}}}.git
 ---
 > pip install {{{packageName}}}
-30,44c44
+30,44d43
 < (you may need to run `pip` with root permission: `sudo pip install git+https://github.com/{{{gitUserId}}}/{{{gitRepoId}}}.git`)
 < 
 < Then import the package:
@@ -37,20 +37,18 @@
 < python setup.py install --user
 < ```
 < (or `sudo python setup.py install` to install the package for all users)
----
-> (you may need to run `pip` with root permission: `sudo pip install {{{packageName}}}`)
-56a57
+56a56
 > from pprint import pprint
-57a59,60
+57a58,59
 > import urllib3
 > 
-60c63,65
+60c62,64
 < from pprint import pprint
 ---
 > 
 > urllib3.disable_warnings()
 > 
-62,64c67,72
+62,64c66,71
 < # Configure HTTP basic authorization: {{{name}}}
 < {{{packageName}}}.configuration.username = 'YOUR_USERNAME'
 < {{{packageName}}}.configuration.password = 'YOUR_PASSWORD'{{/isBasic}}{{#isApiKey}}
@@ -61,23 +59,23 @@
 > configuration.username = 'YOUR_USERNAME'
 > configuration.password = 'YOUR_PASSWORD'
 > configuration.verify_ssl = False{{/isBasic}}{{#isApiKey}}
-73,75c81,82
+73,75c80,81
 < api_instance = {{{packageName}}}.{{{classname}}}()
 < {{#allParams}}{{paramName}} = {{{example}}} # {{{dataType}}} | {{{description}}}{{^required}} (optional){{/required}}{{#defaultValue}} (default to {{{.}}}){{/defaultValue}}
 < {{/allParams}}
 ---
 > api_client = {{{packageName}}}.ApiClient(configuration)
 > api_instance = {{{packageName}}}.ProtocolsApi(api_client)
-76a84,87
+76a83,86
 > # get all exports
 > sort = 'description'
 > limit = 50
 > dir = 'ASC'
-79c90
+79c89
 < {{/summary}}    {{#returnType}}api_response = {{/returnType}}api_instance.{{{operationId}}}({{#allParams}}{{#required}}{{paramName}}{{/required}}{{^required}}{{paramName}}={{paramName}}{{/required}}{{#hasMore}}, {{/hasMore}}{{/allParams}}){{#returnType}}
 ---
 > {{/summary}}    {{#returnType}}api_response = {{/returnType}}api_instance.list_nfs_exports(sort=sort, limit=limit, dir=dir){{#returnType}}
-82c93
+82c92
 <     print("Exception when calling {{classname}}->{{operationId}}: %s\n" % e)
 ---
 >     print("Exception when calling ProtocolsApi->list_nfs_exports: %s\n" % e)
