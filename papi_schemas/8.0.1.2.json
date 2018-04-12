@@ -70706,5 +70706,6 @@
         "/1/zones-summary/<ZONE>",
         "/1/zones/<ZONE>",
         "/3/zones/<ZONE>"
-    ]
+    ],
+    "version": "4"
 }

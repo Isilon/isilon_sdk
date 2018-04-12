@@ -1,0 +1,81 @@
+0a1,14
+> # Python Language Bindings
+> 
+> This repository is part of the Isilon SDK, which is an evolving package of
+> documents and files. This README describes how to install and configure Python
+> language bindings in order to access the OneFS API on an Isilon cluster from a
+> Python script. You can use the OneFS API to automate the configuration,
+> maintenance, and monitoring of your Isilon cluster.
+> 
+> * For OneFS API reference documents, discussions, and blog posts, refer to the
+> [OneFS SDK Info Hub](https://community.emc.com/docs/DOC-48273).
+> * To browse the Isilon InsightIQ statistics API, refer to the
+> [Stat Key Browser](https://github.com/isilon/isilon_stat_browser.git)
+> GitHub repository.
+> 
+25c39
+< If the python package is hosted on Github, you can install directly from Github
+---
+> Install the package from the Python Package Index
+28c42
+< pip install git+https://github.com/{{{gitUserId}}}/{{{gitRepoId}}}.git
+---
+> pip install {{{packageName}}}
+30,44d43
+< (you may need to run `pip` with root permission: `sudo pip install git+https://github.com/{{{gitUserId}}}/{{{gitRepoId}}}.git`)
+< 
+< Then import the package:
+< ```python
+< import {{{packageName}}}
+< ```
+< 
+< ### Setuptools
+< 
+< Install via [Setuptools](http://pypi.python.org/pypi/setuptools).
+< 
+< ```sh
+< python setup.py install --user
+< ```
+< (or `sudo python setup.py install` to install the package for all users)
+56a56
+> from pprint import pprint
+57a58,59
+> import urllib3
+> 
+60c62,64
+< from pprint import pprint
+---
+> 
+> urllib3.disable_warnings()
+> 
+62,64c66,71
+< # Configure HTTP basic authorization: {{{name}}}
+< {{{packageName}}}.configuration.username = 'YOUR_USERNAME'
+< {{{packageName}}}.configuration.password = 'YOUR_PASSWORD'{{/isBasic}}{{#isApiKey}}
+---
+> # configure HTTP basic authorization: {{{name}}}
+> configuration = {{{packageName}}}.Configuration()
+> configuration.host = '{{basePath}}'
+> configuration.username = 'YOUR_USERNAME'
+> configuration.password = 'YOUR_PASSWORD'
+> configuration.verify_ssl = False{{/isBasic}}{{#isApiKey}}
+73,75c80,81
+< api_instance = {{{packageName}}}.{{{classname}}}()
+< {{#allParams}}{{paramName}} = {{{example}}} # {{{dataType}}} | {{{description}}}{{^required}} (optional){{/required}}{{#defaultValue}} (default to {{{.}}}){{/defaultValue}}
+< {{/allParams}}
+---
+> api_client = {{{packageName}}}.ApiClient(configuration)
+> api_instance = {{{packageName}}}.ProtocolsApi(api_client)
+76a83,86
+> # get all exports
+> sort = 'description'
+> limit = 50
+> dir = 'ASC'
+79c89
+< {{/summary}}    {{#returnType}}api_response = {{/returnType}}api_instance.{{{operationId}}}({{#allParams}}{{#required}}{{paramName}}{{/required}}{{^required}}{{paramName}}={{paramName}}{{/required}}{{#hasMore}}, {{/hasMore}}{{/allParams}}){{#returnType}}
+---
+> {{/summary}}    {{#returnType}}api_response = {{/returnType}}api_instance.list_nfs_exports(sort=sort, limit=limit, dir=dir){{#returnType}}
+82c92
+<     print("Exception when calling {{classname}}->{{operationId}}: %s\n" % e)
+---
+>     print("Exception when calling ProtocolsApi->list_nfs_exports: %s\n" % e)
