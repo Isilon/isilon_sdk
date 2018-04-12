@@ -26,7 +26,7 @@ configuration.password = "YOUR_PASSWORD"
 configuration.verify_ssl = False
 
 # configure host
-configuration.host = "https://YOUR_CLUSTER_HOSTNAME_OR_NODE_IP_ADDRESS:8080"
+configuration.host = "https://YOUR_CLUSTER_HOSTNAME_OR_NODE_IP:8080"
 api_client = PKG_NAME.ApiClient(configuration)
 protocols_api = PKG_NAME.ProtocolsApi(api_client)
 

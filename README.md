@@ -7,11 +7,11 @@
 # Isilon Software Development Kit (isi-sdk)
 Language bindings for the OneFS API and tools for building them
 
-This repository is part of the Isilon SDK.  It includes language bindings for easier programmatic access to the OneFS API for cluster configuration (on your cluster this is the REST API made up of all the URIs underneath https://[cluster]:8080/platform/*, also called the "Platform API" or PAPI").
+This repository is part of the Isilon SDK.  It includes language bindings for easier programmatic access to the OneFS API for cluster configuration (on your cluster this is the REST API made up of all the URIs underneath `https://[cluster]:8080/platform/*`, also called the "Platform API" or "PAPI").
 
-You can download the language bindings for Python from the "releases" page of this repo (the link is on the main "code" tab on the bar of links just below the project description).  If you just want to access PAPI more easily from your Python programs, these language bindings may be all you need, and you can follow the instructions and example below to get started.
+You can download the language bindings for Python from the "releases" page of this repo (the link is on the main "code" tab on the bar of links just below the project description). If you just want to access PAPI more easily from your Python programs, these language bindings may be all you need, and you can follow the instructions and example below to get started.
 
-This repository also includes tools to build PAPI bindings yourself for a large range of other programming languages.  For more info see the [readme.dev.md](readme.dev.md) file in this directory.
+This repository also includes tools to build PAPI bindings yourself for a large range of other programming languages. For more info see the [readme.dev.md](readme.dev.md) file in this directory.
 
 ### Installing the pre-built Python PAPI bindings
 
@@ -29,7 +29,7 @@ This repository also includes tools to build PAPI bindings yourself for a large 
 | OneFS 8.0 and later   | `pip install isi_sdk_8_0`   |
 | OneFS 7.2 and later   | `pip install isi_sdk_7_2`   |
 
-Installation will default to using binary distribution wheel (bdist). Source distributions (sdist) are also available on pip begining with v0.1.6 and can be installed with `pip install --no-binary :all: <pkg name> `
+Installation will default to using binary distribution wheel (i.e. bdist). Source distributions (i.e. sdist) are also available on pip beginning with v0.1.6 and can be installed with `pip install --no-binary :all: <pkg name>`
 
 ### Basic Usage
 
@@ -45,7 +45,7 @@ See the generated packages on PyPI for example code:
 
 ### Bindings Documentation
 
-The most up-to-date documentation for the language bindings is included in the root directory of your downloaded release package (or of your own generated bindings if you've generated your own using the instructions at [readme.dev.md](readme.dev.md)).  It is a set of markdown files starting with the README.md in the root directory of the package.
+The most up-to-date documentation for the language bindings is included in the root directory of your downloaded release package (or of your own generated bindings if you've generated your own using the instructions at [readme.dev.md](readme.dev.md)). It is a set of markdown files starting with the README.md in the root directory of the package.
 
 ### Other Isilon SDK and API links:
 

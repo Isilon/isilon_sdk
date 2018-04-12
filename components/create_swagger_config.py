@@ -55,6 +55,16 @@ def onefs_release_version(host, port, auth):
     return config['onefs_version']['release'].strip('v')
 
 
+def onefs_papi_version(host, port, auth):
+    """Query cluster for latest PAPI version."""
+    url = 'https://{0}:{1}/platform/latest'.format(host, port)
+    try:
+        return requests.get(url, auth=auth, verify=False).json()['latest']
+    except KeyError:
+        # latest handler did not exist before API version 3
+        return '2'
+
+
 def isi_props_to_swagger_params(isi_props, param_type):
     """Convert isi properties to Swagger parameters."""
     if not isi_props:
@@ -1172,7 +1182,7 @@ def parse_path_params(end_point_path):
 
 
 def get_endpoint_paths(source_node_or_cluster, papi_port, base_url, auth,
-                       exclude_end_points, cached_schemas=None):
+                       exclude_end_points, cached_schemas):
     """
     Gets the full list of PAPI URIs reported by source_node_or_cluster using
     the ?describe&list&json query arguments at the root level.
@@ -1180,16 +1190,15 @@ def get_endpoint_paths(source_node_or_cluster, papi_port, base_url, auth,
     (<collection-uri>, <single-item-uri>) and non-collection/static resources
     appear as (<uri>,None).
     """
-    paths = 'directory'
-    if not cached_schemas:
+    if 'directory' not in cached_schemas:
         desc_list_parms = {'describe': '', 'json': '', 'list': ''}
         url = 'https://' + source_node_or_cluster + ':' + papi_port + base_url
         resp = requests.get(
             url=url, params=desc_list_parms, auth=auth, verify=False)
-        end_point_list_json = resp.json()[paths]
-        cached_schemas[paths] = end_point_list_json
+        end_point_list_json = resp.json()['directory']
+        cached_schemas['directory'] = end_point_list_json
     else:
-        end_point_list_json = cached_schemas[paths]
+        end_point_list_json = cached_schemas['directory']
 
     base_end_points = {}
     end_point_paths = []
@@ -1312,8 +1321,9 @@ def main():
 
     swagger_json = {
         'swagger': '2.0',
+        'host': 'YOUR_CLUSTER_HOSTNAME_OR_NODE_IP:8080',
         'info': {
-            'version': '0.1.11',
+            'version': '1',
             'title': 'Isilon SDK',
             'description': 'Isilon SDK - Language bindings for the OneFS API',
             'termsOfService': ('https://github.com/emccode/'
@@ -1340,13 +1350,11 @@ def main():
             'application/json'
         ],
         'securityDefinitions': {
-            'sessionAuth': {
-                'type': 'apiKey',
-                'in': 'header',
-                'name': 'cookie'
+            'basicAuth': {
+                'type': 'basic',
             }
         },
-        'security': [{'sessionAuth': []}],
+        'security': [{'basicAuth': []}],
         'paths': {},
         'definitions': {}
     }
@@ -1402,30 +1410,35 @@ def main():
     desc_parms = {'describe': '', 'json': ''}
 
     if not args.onefs_version:
-        release = onefs_release_version(args.host, papi_port, auth)
+        onefs_version = onefs_release_version(args.host, papi_port, auth)
     else:
         if not re.match(r'^\d{,2}.\d.\d.\d{,2}$', args.onefs_version):
             raise RuntimeError('Invalid ONEFS_VERSION argument: {}'.format(
                 args.onefs_version))
-        release = args.onefs_version
+        onefs_version = args.onefs_version
 
     cached_schemas = {}
     schemas_dir = os.path.abspath(os.path.join(
         os.path.dirname(os.path.dirname(__file__)), 'papi_schemas'))
-    schemas_file = os.path.join(schemas_dir, '{}.json'.format(release))
+    schemas_file = os.path.join(schemas_dir, '{}.json'.format(onefs_version))
+
     if args.onefs_version:
         with open(schemas_file, 'r') as schemas:
             cached_schemas = json.loads(schemas.read())
+        papi_version = cached_schemas['version']
+    else:
+        papi_version = onefs_papi_version(args.host, papi_port, auth)
+        cached_schemas['version'] = papi_version
+    swagger_json['info']['version'] = papi_version
 
-    swagger_json['info']['version'] = '.'.join(release.split('.')[:2])
-
-    if swagger_json['info']['version'] in ['7.2', '8.0']:
+    # minLength and maxLength were not required before PAPI version 5
+    if papi_version < '5':
         id_prop = SWAGGER_DEFS['CreateResponse']['properties']['id']
         del id_prop['maxLength']
         del id_prop['minLength']
 
     if not args.test:
-        if swagger_json['info']['version'][0] == '7':
+        if papi_version < '3':
             exclude_end_points = [
                 '/1/cluster/external-ips',
                 '/1/debug/echo/<TOKEN>',
