@@ -1428,6 +1428,9 @@ def main():
         papi_version = cached_schemas['version']
     else:
         papi_version = onefs_papi_version(args.host, papi_port, auth)
+        # invalid backport of handlers caused versioning break
+        if papi_version == '5' and onefs_version[:5] == '8.0.1':
+            papi_version = '4'
         cached_schemas['version'] = papi_version
     swagger_json['info']['version'] = papi_version
 

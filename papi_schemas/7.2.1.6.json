@@ -45383,5 +45383,6 @@
         "/2/protocols/nfs/settings/export",
         "/2/protocols/nfs/settings/global",
         "/2/protocols/nfs/settings/zone"
-    ]
+    ],
+    "version": "2"
 }
