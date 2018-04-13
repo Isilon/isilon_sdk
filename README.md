@@ -45,7 +45,7 @@ See the generated packages on PyPI for example code:
 
 ### Bindings Documentation
 
-The most up-to-date documentation for the language bindings is included in the root directory of your downloaded release package (or of your own generated bindings if you've generated your own using the instructions at [readme.dev.md](readme.dev.md)). It is a set of markdown files starting with the README.md in the root directory of the package.
+The most up-to-date documentation for the language bindings is included in the root directory of your downloaded release package (or of your own generated bindings if you've generated your own using the instructions at [readme.dev.md](readme.dev.md)). It is a set of markdown files starting with the README.md in the root directory of the package. Otherwise, the documentation for the Python language bindings can be found in the [isilon_sdk_python](https://github.com/Isilon/isilon_sdk_python) repository where the branch names are associated with the OneFS release that the bindings were built against.
 
 ### Other Isilon SDK and API links:
 
