@@ -111,7 +111,7 @@ def plural_obj_name_to_singular(obj_name, post_fix='', post_fix_used=None):
         # to (hopefully) create the singular version
         if obj_name[-3:] == 'ies':
             one_obj_name = obj_name[:-3].replace('_', '') + 'y'
-        elif (obj_name[-4:] == 'ches' or obj_name[-5:] == 'iases'):
+        elif obj_name[-4:] == 'ches' or obj_name[-5:] == 'iases':
             one_obj_name = obj_name[:-2].replace('_', '')
         else:
             one_obj_name = obj_name[:-1].replace('_', '')
@@ -175,7 +175,7 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
             prop['items'] = {'type': 'string'}
 
     # protect against Java array out of bounds exception
-    if ('maxItems' in prop and prop['maxItems'] > MAX_ARRAY_SIZE):
+    if 'maxItems' in prop and prop['maxItems'] > MAX_ARRAY_SIZE:
         del prop['maxItems']
 
     if 'type' not in prop['items'] and prop['items'] == 'string':
@@ -234,7 +234,7 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
           isinstance(prop['items']['type'], list)):
         prop['items'] = find_best_type_for_prop(prop['items'])
         isi_schema_props[prop_name]['items'] = prop['items']
-    elif ('type' in prop['items'] and prop['items']['type'] == 'array'):
+    elif 'type' in prop['items'] and prop['items']['type'] == 'array':
         isi_to_swagger_array_prop(
             prop['items'], 'items', isi_obj_name, isi_obj_name_space,
             isi_schema_props[prop_name], class_ext_post_fix,
@@ -394,6 +394,16 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 'properties': {'settings': isi_schema}
             }
             log.warning("Found missing event 'settings' property")
+    elif (sub_obj_namespace.startswith('SmbShares') or
+          sub_obj_namespace.startswith('NfsExports')):
+        if 'resume' in props and 'total' in props and 'digest' not in props:
+            props['digest'] = {'type': 'string'}
+            log.warning("Found missing 'digest' property")
+    elif sub_obj_namespace == 'NfsCheck':
+        if 'messages' in props:
+            props['message'] = props['messages']
+            del props['messages']
+            log.warning("Found 'mesage' mislabeled as 'messages'")
 
     required_props = []
     for prop_name, prop in isi_schema['properties'].items():
