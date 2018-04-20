@@ -543,6 +543,14 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             if prop_name == 'type' and 'heartbeat' not in prop['enum']:
                 prop['enum'].append('heartbeat')
                 log.warning("Include missing 'heartbeat' in enum")
+        elif sub_obj_namespace == 'SmbLogLevelFiltersFilter':
+            if prop_name == 'level' and 'enum' in prop:
+                del prop['enum']
+                log.warning("Removing enum with duplicate values")
+        elif 'FileMatchingPattern' in sub_obj_namespace:
+            if prop_name == 'operator' and 'enum' in prop:
+                del prop['enum']
+                log.warning("Removing enum with special characters")
 
         if 'type' not in prop:
             if 'enum' in prop:
