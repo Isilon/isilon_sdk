@@ -1,0 +1,314 @@
+{
+    "Error": {
+        "type": "object",
+        "required": [
+            "code",
+            "message"
+        ],
+        "properties": {
+            "code": {
+                "type": "integer",
+                "format": "int32"
+            },
+            "message": {
+                "type": "string"
+            }
+        }
+    },
+    "Empty": {
+        "type": "object",
+        "properties": {}
+    },
+    "CreateResponse": {
+        "properties": {
+            "id": {
+                "description": "ID of created item that can be used to refer to item in the collection-item resource path.",
+                "maxLength": 255,
+                "minLength": 0,
+                "type": "string"
+            }
+        },
+        "required": [
+            "id"
+        ],
+        "type": "object"
+    },
+    "NamespaceAccessPoints": {
+        "properties": {
+            "namespaces": {
+                "items": {
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "path": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "minItems": 0,
+                "type": "array"
+            },
+            "versions": {
+                "items": {
+                    "type": "string"
+                },
+                "minItems": 0,
+                "type": "array"
+            }
+        },
+        "type": "object"
+    },
+    "NamespaceObject": {
+        "properties": {
+            "name": {
+                "description": "Specifies the name of the object.",
+                "type": "string"
+            },
+            "size": {
+                "description": "Specifies the size of the object in bytes.",
+                "type": "integer"
+            },
+            "block_size": {
+                "description": "Specifies the block size of the object.",
+                "type": "integer"
+            },
+            "blocks": {
+                "description": "Specifies the number of blocks that compose the object.",
+                "type": "integer"
+            },
+            "last_modified": {
+                "description": "Specifies the time when the object data was last modified in HTTP date/time format.",
+                "type": "string"
+            },
+            "create_time": {
+                "description": "Specifies the date when the object data was created in HTTP date/time format.",
+                "type": "string"
+            },
+            "access_time": {
+                "description": "Specifies the date when the object was last accessed in HTTP date/time format.",
+                "type": "string"
+            },
+            "change_time": {
+                "description": "Specifies the date when the object was last changed (including data and metadata changes) in HTTP date/time format.",
+                "type": "string"
+            },
+            "type": {
+                "description": "Specifies the object type, which can be one of the following values: container, object, pipe, character_device, block_device, symbolic_link, socket, or whiteout_file.",
+                "type": "string"
+            },
+            "mtime_val": {
+                "description": "Specifies the time when the object data was last modified in UNIX Epoch format.",
+                "type": "integer"
+            },
+            "btime_val": {
+                "description": "Specifies the time when the object data was created in UNIX Epoch format.",
+                "type": "integer"
+            },
+            "atime_val": {
+                "description": "Specifies the time when the object was last accessed in UNIX Epoch format.",
+                "type": "integer"
+            },
+            "ctime_val": {
+                "description": "Specifies the time when the object was last changed (including data and metadata changes) in UNIX Epoch format.",
+                "type": "integer"
+            },
+            "owner": {
+                "description": "Specifies the user name for the owner of the object.",
+                "type": "string"
+            },
+            "group": {
+                "description": "Specifies the group name for the owner of the object.",
+                "type": "string"
+            },
+            "uid": {
+                "description": "Specifies the UID for the owner.",
+                "type": "integer"
+            },
+            "gid": {
+                "description": "Specifies the GID for the owner.",
+                "type": "integer"
+            },
+            "mode": {
+                "description": "Specifies the UNIX mode octal number.",
+                "type": "string"
+            },
+            "id": {
+                "description": "Specifies the object ID, which is also the INODE number.",
+                "type": "integer"
+            },
+            "nlink": {
+                "description": "Specifies the number of hard links to the object.",
+                "type": "integer"
+            },
+            "is_hidden": {
+                "description": "Specifies whether the file is hidden or not.",
+                "type": "boolean"
+            },
+            "stub": {
+                "type": "boolean"
+            }
+        },
+        "type": "object"
+    },
+    "NamespaceObjects": {
+        "properties": {
+            "children": {
+                "items": {
+                    "$ref": "#/definitions/NamespaceObject"
+                },
+                "minItems": 0,
+                "type": "array"
+            },
+            "resume": {"type": "string"}
+        },
+        "type": "object"
+    },
+    "NamespaceAccessPoint": {
+        "properties": {
+            "acl": {
+                "description": "Provides the JSON array of access rights.",
+                "items": {
+                    "$ref": "#/definitions/AclObject"
+                },
+                "minItems": 0,
+                "type": "array"
+            },
+            "authoritative": {
+                "description": "If the directory has access rights set, then this field is returned as acl. If the directory has POSIX permissions set, then this field is returned as mode.",
+                "type": "string"
+            },
+            "mode": {
+                "description": "Provides the POSIX mode.",
+                "type": "string"
+            },
+            "group": {
+                "$ref": "#/definitions/MemberObject",
+                "description": "Provides the JSON object for the group persona of the owner."
+            },
+            "owner": {
+                "$ref": "#/definitions/MemberObject",
+                "description": "Provides the JSON object for the owner persona."
+            }
+        },
+        "type": "object"
+    },
+    "AclObject": {
+        "properties": {
+            "trustee": {
+                "$ref": "#/definitions/MemberObject"
+            },
+            "accesstype": {
+                "type": "string"
+            },
+            "accessrights": {
+                "items": {
+                    "type": "string"
+                },
+                "minItems": 0,
+                "type": "array"
+            },
+            "op": {
+                "type": "string"
+            },
+            "inherit_flags": {
+                "items": {
+                    "type": "boolean"
+                },
+                "minItems": 0,
+                "type": "array"
+            }
+        },
+        "type": "object"
+    },
+    "MemberObject": {
+        "properties": {
+            "name": {
+                "type": "string"
+            },
+            "type": {
+                "type": "string"
+            },
+            "id": {
+                "type": "string"
+            }
+        },
+        "type": "object"
+    },
+    "ObjectMetadata": {
+        "properties": {
+            "action": {
+                "type": "string"
+            },
+            "attrs": {
+                "items": {
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "value": {
+                            "type": "string"
+                        },
+                        "namespace": {
+                            "type": "string"
+                        },
+                        "op": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "type": "array"
+            }
+        },
+        "type": "object"
+    },
+    "ObjectMetadataList": {
+        "properties": {
+            "attrs": {
+                "items": {
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "value": {
+                            "type": "string"
+                        },
+                        "namespace": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "type": "array"
+            }
+        },
+        "type": "object"
+    },
+    "CopyErrors": {
+        "properties": {
+            "copy_errors": {
+                "items": {
+                    "properties": {
+                        "source": {
+                            "type": "string"
+                        },
+                        "target": {
+                            "type": "string"
+                        },
+                        "error_src": {
+                            "type": "string"
+                        },
+                        "message": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "type": "array"
+            }
+        },
+        "type": "object"
+    }
+}

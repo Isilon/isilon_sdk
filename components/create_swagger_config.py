@@ -1377,48 +1377,18 @@ def main():
         'definitions': {}
     }
 
+    schemas_dir = os.path.abspath(os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), 'papi_schemas'))
+    defs_file = os.path.join(schemas_dir, 'definitions.json')
+    namespace_file = os.path.join(schemas_dir, 'namespace.json')
+
     if args.defs_file:
-        with open(args.defs_file, 'r') as def_file:
-            SWAGGER_DEFS.update(json.loads(def_file.read()))
-    else:
-        SWAGGER_DEFS.update({
-            'Error': {
-                'type': 'object',
-                'required': [
-                    'code',
-                    'message'
-                ],
-                'properties': {
-                    'code': {
-                        'type': 'integer',
-                        'format': 'int32'
-                    },
-                    'message': {
-                        'type': 'string'
-                    }
-                }
-            },
-            'Empty': {
-                'type': 'object',
-                'properties': {}
-            },
-            'CreateResponse': {
-                'properties': {
-                    'id': {
-                        'description': ('ID of created item that can be used '
-                                        'to refer to item in the collection-'
-                                        'item resource path.'),
-                        'maxLength': 255,
-                        'minLength': 0,
-                        'type': 'string'
-                    }
-                },
-                'required': [
-                    'id'
-                ],
-                'type': 'object'
-            }
-        })
+        defs_file = args.defs_file
+
+    with open(defs_file, 'r') as def_file:
+        SWAGGER_DEFS.update(json.loads(def_file.read()))
+    with open(namespace_file, 'r') as namespace_paths:
+        swagger_json['paths'] = json.loads(namespace_paths.read())
 
     swagger_json['definitions'] = SWAGGER_DEFS
 
@@ -1436,8 +1406,6 @@ def main():
         onefs_version = args.onefs_version
 
     cached_schemas = {}
-    schemas_dir = os.path.abspath(os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), 'papi_schemas'))
     schemas_file = os.path.join(schemas_dir, '{}.json'.format(onefs_version))
 
     if args.onefs_version:

@@ -1,0 +1,943 @@
+{
+    "/namespace": {
+        "get": {
+            "description": "List namespace access points.",
+            "operationId": "listAccessPoints",
+            "parameters": [
+                {
+                    "description": "Protocol versions that are supported for the current namespace access server.",
+                    "in": "query",
+                    "name": "versions",
+                    "type": "string"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "List namespace access points.",
+                    "schema": {
+                        "$ref": "#/definitions/NamespaceAccessPoints"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        }
+    },
+    "/namespace/{AccessPoint}": {
+        "put": {
+            "description": "Create access point.",
+            "operationId": "createAccessPoint",
+            "parameters": [
+                {
+                    "description": "Access point path.",
+                    "in": "path",
+                    "name": "AccessPoint",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "in": "body",
+                    "name": "AccessPointPath",
+                    "required": true,
+                    "schema": {
+                        "properties": {
+                            "path": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Created access point."
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "delete": {
+            "description": "Delete access point.",
+            "operationId": "deleteAccessPoint",
+            "parameters": [
+                {
+                    "description": "Access point path.",
+                    "in": "path",
+                    "name": "AccessPoint",
+                    "required": true,
+                    "type": "string"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Deleted access point."
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        }
+    },
+    "/namespace/{AccessPointAcl}": {
+        "get": {
+            "description": "Get access point ACL.",
+            "operationId": "getAccessPointAcl",
+            "parameters": [
+                {
+                    "description": "Access point path.",
+                    "in": "path",
+                    "name": "AccessPointAcl",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Show access control lists.",
+                    "in": "query",
+                    "name": "acl",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Indicates that the operation is on the access point instead of the store path.",
+                    "in": "query",
+                    "name": "nsaccess",
+                    "required": true,
+                    "type": "boolean"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Get access point ACL.",
+                    "schema": {
+                        "$ref": "#/definitions/NamespaceAccessPoint"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "put": {
+            "description": "Set access point ACL.",
+            "operationId": "setAccessPointAcl",
+            "parameters": [
+                {
+                    "description": "Access point path.",
+                    "in": "path",
+                    "name": "AccessPointAcl",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Update access control lists.",
+                    "in": "query",
+                    "name": "acl",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Indicates that the operation is on the access point instead of the store path.",
+                    "in": "query",
+                    "name": "nsaccess",
+                    "required": true,
+                    "type": "boolean"
+                },
+                {
+                    "in": "body",
+                    "name": "AccessPointAclBody",
+                    "required": true,
+                    "schema": {
+                        "$ref": "#/definitions/NamespaceAccessPoint"
+                    }
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Set access point ACL.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        }
+    },
+    "/namespace/{DirectoryPath}": {
+        "get": {
+            "description": "List directory objects.",
+            "operationId": "listDirectoryObjects",
+            "parameters": [
+                {
+                    "description": "Directory path.",
+                    "in": "path",
+                    "name": "DirectoryPath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies which object attributes are displayed.",
+                    "in": "query",
+                    "name": "detail",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the maximum number of objects to send to the client.",
+                    "in": "query",
+                    "name": "limit",
+                    "type": "integer"
+                },
+                {
+                    "description": "Specifies a token to return in the JSON result to indicate when there is a next page.",
+                    "in": "query",
+                    "name": "resume",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies one or more attributes to sort on the directory entries.",
+                    "in": "query",
+                    "name": "sort",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the sort direction. This value can be either ascending (ASC) or descending (DESC).",
+                    "in": "query",
+                    "name": "dir",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the object type to return, which can be one of the following values: container, object, pipe, character_device, block_device, symbolic_link, socket, or whiteout_file.",
+                    "in": "query",
+                    "name": "type",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies if hidden objects are returned.",
+                    "in": "query",
+                    "name": "hidden",
+                    "type": "boolean"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "List directory objects.",
+                    "schema": {
+                        "$ref": "#/definitions/NamespaceObjects"
+                    }
+                },
+                "headers": {
+                    "x-isi-ifs-missing-attr": {
+                        "type": "string"
+                    },
+                    "x-isi-ifs-access-control": {
+                        "type": "string"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "head": {
+            "description": "Get attribute information for directory.",
+            "operationId": "getDirectoryAttributes",
+            "parameters": [
+                {
+                    "description": "Directory path.",
+                    "in": "path",
+                    "name": "DirectoryPath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Returns only files that were modified since the specified time. If no files were modified since this time, a 304 message is returned.",
+                    "in": "header",
+                    "name": "If-Modified-Since",
+                    "type": "string"
+                },
+                {
+                    "description": "Returns only files that were not modified since the specified time. If there are no unmodified files since this time, a 412 message is returned to indicate that the precondition failed.",
+                    "in": "header",
+                    "name": "If-Unmodified-Since",
+                    "type": "string"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Get attribute information for directory.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    },
+                    "headers": {
+                        "x-isi-ifs-access-control": {
+                            "type": "string"
+                        },
+                        "x-isi-ifs-spec-version": {
+                            "type": "string"
+                        },
+                        "x-isi-ifs-missing-attr": {
+                            "type": "string"
+                        },
+                        "x-isi-ifs-target-type": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "put": {
+            "description": "Create directory.",
+            "operationId": "createDirectory",
+            "parameters": [
+                {
+                    "description": "Directory path.",
+                    "in": "path",
+                    "name": "DirectoryPath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the resource type.",
+                    "in": "header",
+                    "name": "x-isi-ifs-target-type",
+                    "required": true,
+                    "default": "container",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies a pre-defined ACL value or POSIX mode with a string in octal string format.",
+                    "in": "header",
+                    "name": "x-isi-ifs-access-control",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies a pre-defined ACL value or POSIX mode with a string.",
+                    "in": "header",
+                    "name": "x-isi-ifs-node-pool-name",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the OneFS node pool name.",
+                    "in": "query",
+                    "name": "recursive",
+                    "type": "boolean"
+                },
+                {
+                    "description": "Deletes and replaces the existing user attributes and ACLs of the directory with user-specified attributes and ACLS from the header, when set to true.",
+                    "in": "query",
+                    "name": "overwrite",
+                    "type": "boolean"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Create directory.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "post": {
+            "description": "Move directory.",
+            "operationId": "moveDirectory",
+            "parameters": [
+                {
+                    "description": "Directory path.",
+                    "in": "path",
+                    "name": "DirectoryPath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the full path for the destination directory.",
+                    "in": "header",
+                    "name": "x-isi-ifs-set-location",
+                    "required": true,
+                    "type": "string"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Move directory.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "delete": {
+            "description": "Delete directory.",
+            "operationId": "deleteDirectory",
+            "parameters": [
+                {
+                    "description": "Directory path.",
+                    "in": "path",
+                    "name": "DirectoryPath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Deletes directories recursively, when set to true.",
+                    "in": "query",
+                    "name": "recursive",
+                    "type": "boolean"
+                }
+            ],
+            "responses": {
+                "204": {
+                    "description": "Deleted directory."
+                },
+                "default": {
+                    "description": "Unexpected error",
+                    "schema": {
+                        "$ref": "#/definitions/Error"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        }
+    },
+    "/namespace/{DirectoryMetadataPath}": {
+        "get": {
+            "description": "List metadata on a directory.",
+            "operationId": "listDirectoryMetadata",
+            "parameters": [
+                {
+                    "description": "Directory metadata path.",
+                    "in": "path",
+                    "name": "DirectoryMetadataPath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Show directory metadata.",
+                    "in": "query",
+                    "name": "metadata",
+                    "required": true,
+                    "type": "string"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "List directory metadata.",
+                    "schema": {
+                        "$ref": "#/definitions/ObjectMetadataList"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "put": {
+            "description": "Set metadata on a directory.",
+            "operationId": "setDirectoryMetadata",
+            "parameters": [
+                {
+                    "description": "Directory metadata path.",
+                    "in": "path",
+                    "name": "DirectoryMetadataPath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Set directory metadata.",
+                    "in": "query",
+                    "name": "metadata",
+                    "required": true,
+                    "schema": {
+                        "default": "",
+                        "type": "string"
+                    }
+                },
+                {
+                    "in": "body",
+                    "name": "DirectoryMetadata",
+                    "required": true,
+                    "schema": {
+                        "$ref": "#/definitions/ObjectMetadata"
+                    }
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Set metadata on directory.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        }
+    },
+    "/namespace/{DirectoryCopyDestination}": {
+        "put": {
+            "description": "Copy directory.",
+            "operationId": "copyDirectory",
+            "parameters": [
+                {
+                    "description": "Directory copy destination.",
+                    "in": "path",
+                    "name": "DirectoryCopyDestination",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the full path to the source directory.",
+                    "in": "header",
+                    "name": "x-isi-ifs-copy-source",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Deletes and replaces the existing user attributes and ACLs of the directory with user-specified attributes and ACLS from the header, when set to true.",
+                    "in": "query",
+                    "name": "overwrite",
+                    "type": "boolean"
+                },
+                {
+                    "description": "Specifies if the contents of a directory should be merged with an existing directory with the same name.",
+                    "in": "query",
+                    "name": "merge",
+                    "type": "boolean"
+                },
+                {
+                    "description": "Specifies whether to continue the copy operation on remaining objects when there is a conflict or error.",
+                    "in": "query",
+                    "name": "continue",
+                    "type": "boolean"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Copied directory.",
+                    "schema": {
+                        "$ref": "#/definitions/CopyErrors"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        }
+    },
+    "/namespace/{FilePath}": {
+        "get": {
+            "description": "Get file objects.",
+            "operationId": "getFileObject",
+            "parameters": [
+                {
+                    "description": "File path.",
+                    "in": "path",
+                    "name": "FilePath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Returns the specified range bytes of an object. ",
+                    "in": "header",
+                    "name": "Range",
+                    "type": "string"
+                },
+                {
+                    "description": "Returns only files that were modified since the specified time. If no files were modified since this time, a 304 message is returned.",
+                    "in": "header",
+                    "name": "If-Modified-Since",
+                    "type": "string"
+                },
+                {
+                    "description": "Returns only files that were not modified since the specified time. If there are no unmodified files since this time, a 412 message is returned to indicate that the precondition failed.",
+                    "in": "header",
+                    "name": "If-Unmodified-Since",
+                    "type": "string"
+                },
+                {
+                    "description": "Show object metadata.",
+                    "in": "query",
+                    "name": "metadata",
+                    "type": "string"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Get file objects.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
+                },
+                "headers": {
+                    "x-isi-ifs-missing-attr": {
+                        "type": "string"
+                    },
+                    "x-isi-ifs-access-control": {
+                        "type": "string"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "head": {
+            "description": "Get attribute information for file.",
+            "operationId": "getFileAttributes",
+            "parameters": [
+                {
+                    "description": "File path.",
+                    "in": "path",
+                    "name": "FilePath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Returns only files that were modified since the specified time. If no files were modified since this time, a 304 message is returned.",
+                    "in": "header",
+                    "name": "If-Modified-Since",
+                    "type": "string"
+                },
+                {
+                    "description": "Returns only files that were not modified since the specified time. If there are no unmodified files since this time, a 412 message is returned to indicate that the precondition failed.",
+                    "in": "header",
+                    "name": "If-Unmodified-Since",
+                    "type": "string"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Get attribute information for file.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    },
+                    "headers": {
+                        "x-isi-ifs-access-control": {
+                            "type": "string"
+                        },
+                        "x-isi-ifs-missing-attr": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "put": {
+            "description": "Create file object.",
+            "operationId": "createFile",
+            "parameters": [
+                {
+                    "description": "File path.",
+                    "in": "path",
+                    "name": "FilePath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the resource type.",
+                    "in": "header",
+                    "name": "x-isi-ifs-target-type",
+                    "required": true,
+                    "default": "object",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies a pre-defined ACL value or POSIX mode with a string in octal string format.",
+                    "in": "header",
+                    "name": "x-isi-ifs-access-control",
+                    "type": "string"
+                },
+                {
+                    "description": "Deletes and replaces the existing user attributes and ACLs of the directory with user-specified attributes and ACLS from the header, when set to true.",
+                    "in": "query",
+                    "name": "overwrite",
+                    "type": "boolean"
+                },
+                {
+                    "in": "body",
+                    "name": "FileContents",
+                    "required": true
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Created file object.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "post": {
+            "description": "Move file.",
+            "operationId": "moveFile",
+            "parameters": [
+                {
+                    "description": "File path.",
+                    "in": "path",
+                    "name": "FilePath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the full path for the destination file. ",
+                    "in": "header",
+                    "name": "x-isi-ifs-set-location",
+                    "required": true,
+                    "type": "string"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Moved file.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "delete": {
+            "description": "Delete file.",
+            "operationId": "deleteFile",
+            "parameters": [
+                {
+                    "description": "File path.",
+                    "in": "path",
+                    "name": "FilePath",
+                    "required": true,
+                    "type": "string"
+                }
+            ],
+            "responses": {
+                "204": {
+                    "description": "Deleted file."
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        }
+    },
+    "/namespace/{FileCopyDestination}": {
+        "put": {
+            "description": "Copy file.",
+            "operationId": "copyFile",
+            "parameters": [
+                {
+                    "description": "File copy destination.",
+                    "in": "path",
+                    "name": "FileCopyDestination",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the full path to the source file.",
+                    "in": "header",
+                    "name": "x-isi-ifs-copy-source",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "You must set this parameter to true in order to clone a file.",
+                    "in": "query",
+                    "name": "clone",
+                    "type": "boolean"
+                },
+                {
+                    "description": "Specifies a snapshot name to clone the file from.",
+                    "in": "query",
+                    "name": "snapshot",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies if an existing file should be overwritten by a new file with the same name.",
+                    "in": "query",
+                    "name": "overwrite",
+                    "type": "boolean"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Copied file.",
+                    "schema": {
+                        "$ref": "#/definitions/CopyErrors"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        }
+    },
+    "/namespace/{FileMetadataPath}": {
+        "get": {
+            "description": "List metadata on a file.",
+            "operationId": "listFileMetadata",
+            "parameters": [
+                {
+                    "description": "File metadata path.",
+                    "in": "path",
+                    "name": "FileMetadataPath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Show file metadata.",
+                    "in": "query",
+                    "name": "metadata",
+                    "required": true,
+                    "type": "string"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "List file metadata.",
+                    "schema": {
+                        "$ref": "#/definitions/ObjectMetadataList"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "put": {
+            "description": "Set metadata on a file.",
+            "operationId": "setFileMetadata",
+            "parameters": [
+                {
+                    "description": "File metadata path.",
+                    "in": "path",
+                    "name": "FileMetadataPath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Set file metadata.",
+                    "in": "query",
+                    "name": "metadata",
+                    "required": true,
+                    "schema": {
+                        "default": "",
+                        "type": "string"
+                    }
+                },
+                {
+                    "in": "body",
+                    "name": "FileMetadata",
+                    "required": true,
+                    "schema": {
+                        "$ref": "#/definitions/ObjectMetadata"
+                    }
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Set metadata on file.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        }
+    },
+    "/namespace/{ObjectAcl}": {
+        "get": {
+            "description": "Get object ACL.",
+            "operationId": "getObjectAcl",
+            "parameters": [
+                {
+                    "description": "Object path.",
+                    "in": "path",
+                    "name": "ObjectAcl",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Show access control lists.",
+                    "in": "query",
+                    "name": "acl",
+                    "required": true,
+                    "type": "string"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Get object ACL.",
+                    "schema": {
+                        "$ref": "#/definitions/NamespaceAccessPoint"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "put": {
+            "description": "Set object ACL.",
+            "operationId": "setObjectAcl",
+            "parameters": [
+                {
+                    "description": "Object path.",
+                    "in": "path",
+                    "name": "ObjectAcl",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Update access control lists.",
+                    "in": "query",
+                    "name": "acl",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "in": "body",
+                    "name": "ObjectAclBody",
+                    "required": true,
+                    "schema": {
+                        "$ref": "#/definitions/NamespaceAccessPoint"
+                    }
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Set object ACL.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        }
+    }
+}
