@@ -1,14 +1,14 @@
 {
     "/namespace": {
         "get": {
-            "description": "List namespace access points.",
+            "description": "Retrieves the namespace access points available for the authenticated user.",
             "operationId": "listAccessPoints",
             "parameters": [
                 {
                     "description": "Protocol versions that are supported for the current namespace access server.",
                     "in": "query",
                     "name": "versions",
-                    "type": "string"
+                    "type": "boolean"
                 }
             ],
             "responses": {
@@ -24,35 +24,34 @@
             ]
         }
     },
-    "/namespace/{AccessPoint}": {
+    "/namespace/{AccessPointName}": {
         "put": {
-            "description": "Create access point.",
+            "description": "Creates a namespace access point in the file system. Only root users can create or change namespace access points.",
             "operationId": "createAccessPoint",
             "parameters": [
                 {
-                    "description": "Access point path.",
+                    "description": "Access point name.",
                     "in": "path",
-                    "name": "AccessPoint",
+                    "name": "AccessPointName",
                     "required": true,
                     "type": "string"
                 },
                 {
+                    "description": "Access point parameters model.",
                     "in": "body",
-                    "name": "AccessPointPath",
+                    "name": "AccessPoint",
                     "required": true,
                     "schema": {
-                        "properties": {
-                            "path": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
+                        "$ref": "#/definitions/AccessPointCreateParams"
                     }
                 }
             ],
             "responses": {
                 "200": {
-                    "description": "Created access point."
+                    "description": "Created access point.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
                 }
             },
             "tags": [
@@ -60,20 +59,23 @@
             ]
         },
         "delete": {
-            "description": "Delete access point.",
+            "description": "Deletes a namespace access point. Only root users can delete namespace access points.",
             "operationId": "deleteAccessPoint",
             "parameters": [
                 {
-                    "description": "Access point path.",
+                    "description": "Access point name.",
                     "in": "path",
-                    "name": "AccessPoint",
+                    "name": "AccessPointName",
                     "required": true,
                     "type": "string"
                 }
             ],
             "responses": {
                 "200": {
-                    "description": "Deleted access point."
+                    "description": "Deleted access point.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
                 }
             },
             "tags": [
@@ -81,15 +83,15 @@
             ]
         }
     },
-    "/namespace/{AccessPointAcl}": {
+    "/namespace/{NamespacePath}": {
         "get": {
-            "description": "Get access point ACL.",
-            "operationId": "getAccessPointAcl",
+            "description": "Retrieves the access control list for a namespace object.",
+            "operationId": "getNamespaceAcl",
             "parameters": [
                 {
-                    "description": "Access point path.",
+                    "description": "Namespace path relative to /.",
                     "in": "path",
-                    "name": "AccessPointAcl",
+                    "name": "NamespacePath",
                     "required": true,
                     "type": "string"
                 },
@@ -98,21 +100,20 @@
                     "in": "query",
                     "name": "acl",
                     "required": true,
-                    "type": "string"
+                    "type": "boolean"
                 },
                 {
                     "description": "Indicates that the operation is on the access point instead of the store path.",
                     "in": "query",
                     "name": "nsaccess",
-                    "required": true,
                     "type": "boolean"
                 }
             ],
             "responses": {
                 "200": {
-                    "description": "Get access point ACL.",
+                    "description": "Get namespace ACL.",
                     "schema": {
-                        "$ref": "#/definitions/NamespaceAccessPoint"
+                        "$ref": "#/definitions/NamespaceAcl"
                     }
                 }
             },
@@ -121,13 +122,13 @@
             ]
         },
         "put": {
-            "description": "Set access point ACL.",
-            "operationId": "setAccessPointAcl",
+            "description": "Sets the access control list for a namespace.",
+            "operationId": "setNamespaceAcl",
             "parameters": [
                 {
-                    "description": "Access point path.",
+                    "description": "Namespace path relative to /.",
                     "in": "path",
-                    "name": "AccessPointAcl",
+                    "name": "NamespacePath",
                     "required": true,
                     "type": "string"
                 },
@@ -136,27 +137,27 @@
                     "in": "query",
                     "name": "acl",
                     "required": true,
-                    "type": "string"
+                    "type": "boolean"
                 },
                 {
                     "description": "Indicates that the operation is on the access point instead of the store path.",
                     "in": "query",
                     "name": "nsaccess",
-                    "required": true,
                     "type": "boolean"
                 },
                 {
+                    "description": "Namespace ACL parameters model.",
                     "in": "body",
-                    "name": "AccessPointAclBody",
+                    "name": "NamespaceAcl",
                     "required": true,
                     "schema": {
-                        "$ref": "#/definitions/NamespaceAccessPoint"
+                        "$ref": "#/definitions/NamespaceAcl"
                     }
                 }
             ],
             "responses": {
                 "200": {
-                    "description": "Set access point ACL.",
+                    "description": "Set namespace ACL.",
                     "schema": {
                         "$ref": "#/definitions/Empty"
                     }
@@ -169,11 +170,11 @@
     },
     "/namespace/{DirectoryPath}": {
         "get": {
-            "description": "List directory objects.",
-            "operationId": "listDirectoryObjects",
+            "description": "Retrieves a list of files and subdirectories from a directory.",
+            "operationId": "getDirectoryContents",
             "parameters": [
                 {
-                    "description": "Directory path.",
+                    "description": "Directory path relative to /.",
                     "in": "path",
                     "name": "DirectoryPath",
                     "required": true,
@@ -243,11 +244,11 @@
             ]
         },
         "head": {
-            "description": "Get attribute information for directory.",
+            "description": "Retrieves the attribute information for a specified directory without transferring the contents of the directory.",
             "operationId": "getDirectoryAttributes",
             "parameters": [
                 {
-                    "description": "Directory path.",
+                    "description": "Directory path relative to /.",
                     "in": "path",
                     "name": "DirectoryPath",
                     "required": true,
@@ -293,11 +294,11 @@
             ]
         },
         "put": {
-            "description": "Create directory.",
+            "description": "Creates a directory with a specified path.",
             "operationId": "createDirectory",
             "parameters": [
                 {
-                    "description": "Directory path.",
+                    "description": "Directory path relative to /.",
                     "in": "path",
                     "name": "DirectoryPath",
                     "required": true,
@@ -312,6 +313,7 @@
                     "type": "string"
                 },
                 {
+                    "default": "0700",
                     "description": "Specifies a pre-defined ACL value or POSIX mode with a string in octal string format.",
                     "in": "header",
                     "name": "x-isi-ifs-access-control",
@@ -349,11 +351,11 @@
             ]
         },
         "post": {
-            "description": "Move directory.",
+            "description": "Moves a directory from an existing source to a new destination path.",
             "operationId": "moveDirectory",
             "parameters": [
                 {
-                    "description": "Directory path.",
+                    "description": "Directory path relative to /.",
                     "in": "path",
                     "name": "DirectoryPath",
                     "required": true,
@@ -380,11 +382,11 @@
             ]
         },
         "delete": {
-            "description": "Delete directory.",
+            "description": "Deletes the directory at the specified path.",
             "operationId": "deleteDirectory",
             "parameters": [
                 {
-                    "description": "Directory path.",
+                    "description": "Directory path relative to /.",
                     "in": "path",
                     "name": "DirectoryPath",
                     "required": true,
@@ -399,12 +401,9 @@
             ],
             "responses": {
                 "204": {
-                    "description": "Deleted directory."
-                },
-                "default": {
-                    "description": "Unexpected error",
+                    "description": "Deleted directory.",
                     "schema": {
-                        "$ref": "#/definitions/Error"
+                        "$ref": "#/definitions/Empty"
                     }
                 }
             },
@@ -415,11 +414,11 @@
     },
     "/namespace/{DirectoryMetadataPath}": {
         "get": {
-            "description": "List metadata on a directory.",
-            "operationId": "listDirectoryMetadata",
+            "description": "Retrieves the attribute information for a specified directory with the metadata query argument.",
+            "operationId": "getDirectoryMetadata",
             "parameters": [
                 {
-                    "description": "Directory metadata path.",
+                    "description": "Directory path relative to /.",
                     "in": "path",
                     "name": "DirectoryMetadataPath",
                     "required": true,
@@ -430,14 +429,14 @@
                     "in": "query",
                     "name": "metadata",
                     "required": true,
-                    "type": "string"
+                    "type": "boolean"
                 }
             ],
             "responses": {
                 "200": {
-                    "description": "List directory metadata.",
+                    "description": "Get directory metadata.",
                     "schema": {
-                        "$ref": "#/definitions/ObjectMetadataList"
+                        "$ref": "#/definitions/NamespaceMetadataList"
                     }
                 }
             },
@@ -446,11 +445,11 @@
             ]
         },
         "put": {
-            "description": "Set metadata on a directory.",
+            "description": "Sets attributes on a specified directory with the metadata query argument.",
             "operationId": "setDirectoryMetadata",
             "parameters": [
                 {
-                    "description": "Directory metadata path.",
+                    "description": "Directory path relative to /.",
                     "in": "path",
                     "name": "DirectoryMetadataPath",
                     "required": true,
@@ -461,17 +460,15 @@
                     "in": "query",
                     "name": "metadata",
                     "required": true,
-                    "schema": {
-                        "default": "",
-                        "type": "string"
-                    }
+                    "type": "boolean"
                 },
                 {
+                    "description": "Directory metadata parameters model.",
                     "in": "body",
                     "name": "DirectoryMetadata",
                     "required": true,
                     "schema": {
-                        "$ref": "#/definitions/ObjectMetadata"
+                        "$ref": "#/definitions/NamespaceMetadata"
                     }
                 }
             ],
@@ -490,11 +487,11 @@
     },
     "/namespace/{DirectoryCopyDestination}": {
         "put": {
-            "description": "Copy directory.",
+            "description": "Recursively copies a directory to a specified destination path. Symbolic links are copied as regular files.",
             "operationId": "copyDirectory",
             "parameters": [
                 {
-                    "description": "Directory copy destination.",
+                    "description": "Directory copy destination relative to /.",
                     "in": "path",
                     "name": "DirectoryCopyDestination",
                     "required": true,
@@ -541,11 +538,11 @@
     },
     "/namespace/{FilePath}": {
         "get": {
-            "description": "Get file objects.",
-            "operationId": "getFileObject",
+            "description": "Retrieves the contents of a file from a specified path.",
+            "operationId": "getFileContents",
             "parameters": [
                 {
-                    "description": "File path.",
+                    "description": "File path relative to /.",
                     "in": "path",
                     "name": "FilePath",
                     "required": true,
@@ -567,12 +564,6 @@
                     "description": "Returns only files that were not modified since the specified time. If there are no unmodified files since this time, a 412 message is returned to indicate that the precondition failed.",
                     "in": "header",
                     "name": "If-Unmodified-Since",
-                    "type": "string"
-                },
-                {
-                    "description": "Show object metadata.",
-                    "in": "query",
-                    "name": "metadata",
                     "type": "string"
                 }
             ],
@@ -597,11 +588,11 @@
             ]
         },
         "head": {
-            "description": "Get attribute information for file.",
+            "description": "Retrieves the attribute information for a specified file.",
             "operationId": "getFileAttributes",
             "parameters": [
                 {
-                    "description": "File path.",
+                    "description": "File path relative to /.",
                     "in": "path",
                     "name": "FilePath",
                     "required": true,
@@ -641,11 +632,11 @@
             ]
         },
         "put": {
-            "description": "Create file object.",
+            "description": "Creates a file object with a given path.",
             "operationId": "createFile",
             "parameters": [
                 {
-                    "description": "File path.",
+                    "description": "File path relative to /.",
                     "in": "path",
                     "name": "FilePath",
                     "required": true,
@@ -660,9 +651,23 @@
                     "type": "string"
                 },
                 {
+                    "default": "0600",
                     "description": "Specifies a pre-defined ACL value or POSIX mode with a string in octal string format.",
                     "in": "header",
                     "name": "x-isi-ifs-access-control",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the content encoding that was applied to the object content, so that decoding can be applied when retrieving the content.",
+                    "in": "header",
+                    "name": "Content-Encoding",
+                    "type": "string"
+                },
+                {
+                    "default": "binary/octet-stream",
+                    "description": "Specifies a standard MIME-type description of the content format.",
+                    "in": "header",
+                    "name": "Content-Type",
                     "type": "string"
                 },
                 {
@@ -672,6 +677,7 @@
                     "type": "boolean"
                 },
                 {
+                    "description": "The contents of the file object.",
                     "in": "body",
                     "name": "FileContents",
                     "required": true
@@ -690,11 +696,11 @@
             ]
         },
         "post": {
-            "description": "Move file.",
+            "description": "Moves a file to a destination path that does not yet exist.",
             "operationId": "moveFile",
             "parameters": [
                 {
-                    "description": "File path.",
+                    "description": "File path relative to /.",
                     "in": "path",
                     "name": "FilePath",
                     "required": true,
@@ -721,11 +727,11 @@
             ]
         },
         "delete": {
-            "description": "Delete file.",
+            "description": "Deletes the specified file.",
             "operationId": "deleteFile",
             "parameters": [
                 {
-                    "description": "File path.",
+                    "description": "File path relative to /.",
                     "in": "path",
                     "name": "FilePath",
                     "required": true,
@@ -734,7 +740,10 @@
             ],
             "responses": {
                 "204": {
-                    "description": "Deleted file."
+                    "description": "Deleted file.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
                 }
             },
             "tags": [
@@ -744,11 +753,11 @@
     },
     "/namespace/{FileCopyDestination}": {
         "put": {
-            "description": "Copy file.",
+            "description": "Copies a file to the specified destination path.",
             "operationId": "copyFile",
             "parameters": [
                 {
-                    "description": "File copy destination.",
+                    "description": "File copy destination relative to /.",
                     "in": "path",
                     "name": "FileCopyDestination",
                     "required": true,
@@ -795,11 +804,11 @@
     },
     "/namespace/{FileMetadataPath}": {
         "get": {
-            "description": "List metadata on a file.",
-            "operationId": "listFileMetadata",
+            "description": "Retrieves the attribute information for a specified file with the metadata query argument.",
+            "operationId": "getFileMetadata",
             "parameters": [
                 {
-                    "description": "File metadata path.",
+                    "description": "File path relative to /.",
                     "in": "path",
                     "name": "FileMetadataPath",
                     "required": true,
@@ -810,14 +819,14 @@
                     "in": "query",
                     "name": "metadata",
                     "required": true,
-                    "type": "string"
+                    "type": "boolean"
                 }
             ],
             "responses": {
                 "200": {
-                    "description": "List file metadata.",
+                    "description": "Get file metadata.",
                     "schema": {
-                        "$ref": "#/definitions/ObjectMetadataList"
+                        "$ref": "#/definitions/NamespaceMetadataList"
                     }
                 }
             },
@@ -826,11 +835,11 @@
             ]
         },
         "put": {
-            "description": "Set metadata on a file.",
+            "description": "Sets attributes on a specified file with the metadata query argument through the JSON body.",
             "operationId": "setFileMetadata",
             "parameters": [
                 {
-                    "description": "File metadata path.",
+                    "description": "File path relative to /.",
                     "in": "path",
                     "name": "FileMetadataPath",
                     "required": true,
@@ -841,17 +850,15 @@
                     "in": "query",
                     "name": "metadata",
                     "required": true,
-                    "schema": {
-                        "default": "",
-                        "type": "string"
-                    }
+                    "type": "boolean"
                 },
                 {
+                    "description": "File metadata parameters model.",
                     "in": "body",
                     "name": "FileMetadata",
                     "required": true,
                     "schema": {
-                        "$ref": "#/definitions/ObjectMetadata"
+                        "$ref": "#/definitions/NamespaceMetadata"
                     }
                 }
             ],
@@ -868,31 +875,91 @@
             ]
         }
     },
-    "/namespace/{ObjectAcl}": {
-        "get": {
-            "description": "Get object ACL.",
-            "operationId": "getObjectAcl",
+    "/namespace/{QueryPath}": {
+        "post": {
+            "description": "Query objects by system-defined and user-defined attributes in a directory.",
+            "operationId": "queryDirectory",
             "parameters": [
                 {
-                    "description": "Object path.",
+                    "description": "Directory path relative to /.",
                     "in": "path",
-                    "name": "ObjectAcl",
+                    "name": "QueryPath",
                     "required": true,
                     "type": "string"
                 },
                 {
-                    "description": "Show access control lists.",
+                    "description": "Enable directory query.",
                     "in": "query",
-                    "name": "acl",
+                    "name": "query",
                     "required": true,
+                    "type": "boolean"
+                },
+                {
+                    "description": "Specifies the maximum number of objects to send to the client. You can set the value to a negative number to retrieve all objects.",
+                    "in": "query",
+                    "name": "limit",
+                    "type": "integer"
+                },
+                {
+                    "description": "Specifies which object attributes are displayed. If the detail parameter is excluded, only the name of the object is returned.",
+                    "in": "query",
+                    "name": "detail",
                     "type": "string"
+                },
+                {
+                    "description": "Specifies the maximum directory level depth to search for objects.",
+                    "in": "query",
+                    "name": "max-depth",
+                    "type": "integer"
+                },
+                {
+                    "description": "Directory query parameters model.",
+                    "in": "body",
+                    "name": "DirectoryQuery",
+                    "required": true,
+                    "schema": {
+                        "$ref": "#/definitions/DirectoryQuery"
+                    }
                 }
             ],
             "responses": {
                 "200": {
-                    "description": "Get object ACL.",
+                    "description": "Directory query results.",
                     "schema": {
-                        "$ref": "#/definitions/NamespaceAccessPoint"
+                        "$ref": "#/definitions/NamespaceObjects"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        }
+    },
+    "/namespace/{WormFilePath}": {
+        "get": {
+            "description": "Retrieves the WORM retention date and committed state of the file.",
+            "operationId": "getWormProperties",
+            "parameters": [
+                {
+                    "description": "Write once read many file path relative to /.",
+                    "in": "path",
+                    "name": "WormFilePath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "View WORM properties",
+                    "in": "query",
+                    "name": "worm",
+                    "required": true,
+                    "type": "boolean"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "WORM file properties.",
+                    "schema": {
+                        "$ref": "#/definitions/WormProperties"
                     }
                 }
             },
@@ -901,35 +968,36 @@
             ]
         },
         "put": {
-            "description": "Set object ACL.",
-            "operationId": "setObjectAcl",
+            "description": "Sets the retention period and commits a file in a SmartLock directory.",
+            "operationId": "setWormProperties",
             "parameters": [
                 {
-                    "description": "Object path.",
+                    "description": "Write once read many file path relative to /.",
                     "in": "path",
-                    "name": "ObjectAcl",
+                    "name": "WormFilePath",
                     "required": true,
                     "type": "string"
                 },
                 {
-                    "description": "Update access control lists.",
+                    "description": "View WORM properties",
                     "in": "query",
-                    "name": "acl",
+                    "name": "worm",
                     "required": true,
-                    "type": "string"
+                    "type": "boolean"
                 },
                 {
+                    "description": "WORM parameters model.",
                     "in": "body",
-                    "name": "ObjectAclBody",
+                    "name": "WormProperties",
                     "required": true,
                     "schema": {
-                        "$ref": "#/definitions/NamespaceAccessPoint"
+                        "$ref": "#/definitions/WormCreateParams"
                     }
                 }
             ],
             "responses": {
                 "200": {
-                    "description": "Set object ACL.",
+                    "description": "WORM file properties.",
                     "schema": {
                         "$ref": "#/definitions/Empty"
                     }

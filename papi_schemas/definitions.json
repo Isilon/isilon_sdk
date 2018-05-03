@@ -33,6 +33,18 @@
         ],
         "type": "object"
     },
+    "AccessPointCreateParams": {
+        "properties": {
+            "path": {
+                "description": "Absolute file system path of access point.",
+                "type": "string"
+            }
+        },
+        "required": [
+            "path"
+        ],
+        "type": "object"
+    },
     "NamespaceAccessPoints": {
         "properties": {
             "namespaces": {
@@ -161,11 +173,13 @@
                 "minItems": 0,
                 "type": "array"
             },
-            "resume": {"type": "string"}
+            "resume": {
+                "type": "string"
+            }
         },
         "type": "object"
     },
-    "NamespaceAccessPoint": {
+    "NamespaceAcl": {
         "properties": {
             "acl": {
                 "description": "Provides the JSON array of access rights.",
@@ -236,7 +250,7 @@
         },
         "type": "object"
     },
-    "ObjectMetadata": {
+    "NamespaceMetadata": {
         "properties": {
             "action": {
                 "type": "string"
@@ -264,7 +278,7 @@
         },
         "type": "object"
     },
-    "ObjectMetadataList": {
+    "NamespaceMetadataList": {
         "properties": {
             "attrs": {
                 "items": {
@@ -307,6 +321,97 @@
                     "type": "object"
                 },
                 "type": "array"
+            }
+        },
+        "type": "object"
+    },
+    "DirectoryQuery": {
+        "properties": {
+            "result": {
+                "items": {
+                    "type": "string"
+                },
+                "type": "array"
+            },
+            "scope": {
+                "properties": {
+                    "logic": {
+                        "type": "string"
+                    },
+                    "conditions": {
+                        "items": {
+                            "properties": {
+                                "operator": {
+                                    "type": "string"
+                                },
+                                "attr": {
+                                    "type": "string"
+                                },
+                                "value": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "type": "object"
+    },
+    "WormProperties": {
+        "properties": {
+            "worm_committed": {
+                "description": "Indicates whether the file was committed to the WORM state.",
+                "type": "boolean"
+            },
+            "worm_retention_date": {
+                "description": "Provides the retention expiration date in Coordinated Universal Time (such as UTC/GMT).",
+                "type": "string"
+            },
+            "worm_retention_date_val": {
+                "description": "Provides the retention expiration date in seconds from UNIX Epoch or UTC.",
+                "type": "integer"
+            },
+            "worm_override_retention_date": {
+                "description": "Provides the override retention date that is set on the SmartLock directory where the file resides.",
+                "type": "string"
+            },
+            "worm_override_retention_date_val": {
+                "description": "Provides the override retention date in seconds from UNIX Epoch or UTC.",
+                "type": "integer"
+            },
+            "autocommit_delay": {
+                "description": "Autocommit delay.",
+                "type": "integer"
+            },
+            "domain_id": {
+                "description": "WORM domain ID.",
+                "type": "integer"
+            },
+            "domain_path": {
+                "description": "WORM domain path.",
+                "type": "string"
+            },
+            "worm_ctime": {
+                "description": "WORM change time.",
+                "type": "integer"
+            }
+        },
+        "type": "object"
+    },
+    "WormCreateParams": {
+        "properties": {
+            "worm_retention_date": {
+                "description": "Specifies the retention expiration date string in Coordinated Universal Time (UTC/GMT).",
+                "type": "string"
+            },
+            "commit_to_worm": {
+                "default": false,
+                "description": "Specifies whether to commit the file to a WORM state after the retention date is set.",
+                "type": "boolean"
             }
         },
         "type": "object"
