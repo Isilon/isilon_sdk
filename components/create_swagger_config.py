@@ -394,6 +394,11 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 'properties': {'settings': isi_schema}
             }
             log.warning("Found missing event 'settings' property")
+    elif sub_obj_namespace == 'SmbShares' and 'settings' in props:
+        props['shares'] = {
+            'items': props['settings'], 'minItems': 0, 'type': 'array'}
+        del props['settings']
+        log.warning("Found 'shares' mislabeled as 'settings'")
     elif (sub_obj_namespace.startswith('SmbShares') or
           sub_obj_namespace.startswith('NfsExports')):
         if 'resume' in props and 'total' in props and 'digest' not in props:
@@ -404,6 +409,11 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             props['message'] = props['messages']
             del props['messages']
             log.warning("Found 'mesage' mislabeled as 'messages'")
+    elif sub_obj_namespace.startswith('SmbLogLevelFilters'):
+        if 'resume' in props and 'total' in props:
+            del props['resume']
+            del props['total']
+            log.warning("Removing invalid 'resume' and 'total' properties")
 
     required_props = []
     for prop_name, prop in isi_schema['properties'].items():
@@ -551,6 +561,10 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             if prop_name == 'operator' and 'enum' in prop:
                 del prop['enum']
                 log.warning("Removing enum with special characters")
+        elif sub_obj_namespace.startswith('SnmpSettings'):
+            if prop_name == 'system_contact' and 'pattern' in prop:
+                prop['pattern'] = prop['pattern'].replace('{2,4}', '{2,7}')
+                log.warning("Modified restrictive regex pattern")
 
         if 'type' not in prop:
             if 'enum' in prop:
@@ -915,7 +929,7 @@ def create_swagger_operation(isi_api_name, isi_obj_name_space, isi_obj_name,
 
     swagger_operation['parameters'] = swagger_params
 
-    # OneFS 8.1.0 response schemas are a multi-type array
+    # OneFS 8.1.x response schemas are a multi-type array
     if isi_resp_schema is not None and 'type' in isi_resp_schema:
         if (isinstance(isi_resp_schema['type'], list) and
                 isinstance(isi_resp_schema['type'][0], dict) and
@@ -1586,6 +1600,10 @@ def main():
             # creation object model
             try:
                 if 'POST_args' in base_resp_json:
+                    if base_end_point_path == '/3/protocols/ntp/servers':
+                        base_resp_json['POST_output_schema'] = {}
+                        log.warning("Removed invalid POST response schema")
+
                     base_path = isi_post_to_swagger_path(
                         api_name, obj_namespace, obj_name, base_resp_json,
                         base_path_params)
