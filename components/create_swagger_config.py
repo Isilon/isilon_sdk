@@ -324,7 +324,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             else:
                 continue  # must be a $ref
         if 'required' in prop:
-            if prop['required'] is True:
+            if prop['required']:
                 # Often the PAPI will have a required field whose value can be
                 # either a real value, such as a string, or it can be a null,
                 # which Swagger can not deal with. This is only problematic
@@ -342,12 +342,13 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 if prop_name in NON_REQUIRED_PROPS.get(sub_obj_namespace, []):
                     log.warning("Required property '%s' may be null", prop_name)
             del prop['required']
-
         if isinstance(prop['type'], list):
             # swagger doesn't like lists for types
             # so use the first type that is not 'null'
             prop = isi_schema['properties'][prop_name] = \
                 find_best_type_for_prop(prop)
+            if 'required' in prop:
+                del prop['required']
 
         if prop['type'] == 'object':
             sub_obj_name = prop_name.title().replace('_', '')
