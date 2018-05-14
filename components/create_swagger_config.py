@@ -311,261 +311,11 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             isi_schema['properties'] = {}
 
     sub_obj_namespace = isi_obj_name_space + isi_obj_name
-    props = isi_schema['properties']
-    # Issue #12: Correct misspellings
-    if sub_obj_namespace == 'DebugStatsUnknown':
-        if 'descriprion' in isi_schema:
-            isi_schema['description'] = isi_schema['descriprion']
-            del isi_schema['descriprion']
-            log.warning("Found 'description' misspelled as 'descriprion'")
-    # Issue #13: Correct properties schema
-    elif sub_obj_namespace == 'StatisticsOperation':
-        if 'operations' in props:
-            operations = props['operations'][0]['operation']
-            if operations['required']:
-                isi_schema['required'] = True
-            props['operation'] = operations
-            del props['operations']
-            log.warning("Replace 'operations' property with 'operation'")
-    elif (sub_obj_namespace.startswith('StoragepoolNodepool') or
-          sub_obj_namespace.startswith('StoragepoolStoragepool')):
-        if 'health_flags' in isi_schema:
-            props['health_flags'] = isi_schema['health_flags']
-            del isi_schema['health_flags']
-            log.warning("Move 'health_flags' property under 'properties'")
-    elif sub_obj_namespace == 'EventEventgroupOccurrences':
-        if 'eventgroup-occurrences' in props:
-            props['eventgroups'] = props['eventgroup-occurrences']
-            del props['eventgroup-occurrences']
-            log.warning("Found 'eventgroups' as 'eventgroup-occurrences'")
-    # Issue #22: Correct naming of interface as interfaces
-    elif (sub_obj_namespace == 'NetworkInterfaces' or
-          sub_obj_namespace == 'PoolsPoolInterfaces'):
-        if 'interface' in props:
-            props['interfaces'] = props['interface']
-            del props['interface']
-            log.warning("Found 'interfaces' misspelled as 'interface'")
-    elif sub_obj_namespace == 'HardeningStatusStatus':
-        if 'status_text' in props:
-            props['message'] = props['status_text']
-            del props['status_text']
-            log.warning("Found 'message' labeled as 'status_text'")
-    elif sub_obj_namespace == 'NdmpLogsNode':
-        if 'logs:' in props:
-            props['logs'] = props['logs:']
-            del props['logs:']
-            log.warning("Found 'logs' misspelled as 'logs:'")
-    elif sub_obj_namespace == 'StatisticsHistoryStat':
-        if 'resolution' not in props:
-            props['resolution'] = {'type': 'integer'}
-            log.warning("Added missing 'resolution' property")
-    elif sub_obj_namespace == 'EventCategory':
-        if 'category_name' in props and 'category_description' in props:
-            props['id_name'] = props['category_name']
-            del props['category_name']
-            props['name'] = props['category_description']
-            del props['category_description']
-            props['id']['type'] = 'string'
-            log.warning("Found event category properties mislabeled")
-    elif sub_obj_namespace.startswith('EventEventlist'):
-        if 'eventlist' in props:
-            props['eventlists'] = props['eventlist']
-            del props['eventlist']
-            log.warning("Found 'eventlists' mislabeled as 'eventlist'")
-        if 'event_id' in props:
-            props['event'] = props['event_id']
-            del props['event_id']
-            log.warning("Found 'event' mislabeled as 'event_id'")
-        if (sub_obj_namespace == 'EventEventlistsEventlistItemEvent' or
-                sub_obj_namespace == 'EventEventlistEvent'):
-            if 'lnn' not in props and 'resolve_time' not in props:
-                props['lnn'] = {'type': 'integer'}
-                props['resolve_time'] = {'type': 'integer'}
-                log.warning("Found 'lnn' and 'resolve_time' props missing")
-    elif sub_obj_namespace == 'EventChannels':
-        if 'alert-conditions' in props:
-            props['channels'] = props['alert-conditions']
-            del props['alert-conditions']
-            log.warning("Found 'channels' mislabeled as 'alert-conditions'")
-    elif sub_obj_namespace == 'EventSettings':
-        if 'settings' not in props and 'maintenance' in props:
-            isi_schema = {
-                'type': 'object',
-                'properties': {'settings': isi_schema}
-            }
-            log.warning("Found missing event 'settings' property")
-    elif sub_obj_namespace == 'SmbShares' and 'settings' in props:
-        props['shares'] = {
-            'items': props['settings'], 'minItems': 0, 'type': 'array'}
-        del props['settings']
-        log.warning("Found 'shares' mislabeled as 'settings'")
-    elif (sub_obj_namespace.startswith('SmbShares') or
-          sub_obj_namespace.startswith('NfsExports')):
-        if 'resume' in props and 'total' in props and 'digest' not in props:
-            props['digest'] = {'type': 'string'}
-            log.warning("Found missing 'digest' property")
-    elif sub_obj_namespace == 'NfsCheck':
-        if 'messages' in props:
-            props['message'] = props['messages']
-            del props['messages']
-            log.warning("Found 'mesage' mislabeled as 'messages'")
-    elif sub_obj_namespace.startswith('SmbLogLevelFilters'):
-        if 'resume' in props and 'total' in props:
-            del props['resume']
-            del props['total']
-            log.warning("Removing invalid 'resume' and 'total' properties")
-
     required_props = []
+    resolve_schema_issues(
+        sub_obj_namespace, isi_schema, required_props, is_response_object)
+
     for prop_name, prop in isi_schema['properties'].items():
-
-        # Issue #8: Remove invalid placement of required field
-        if (sub_obj_namespace == 'StoragepoolStatusUnhealthyItem' and
-                prop_name == 'health_flags'):
-            if 'required' in prop['items']:
-                del prop['items']['required']
-                log.warning("Remove 'required' from array items")
-        # Issue #9: Remove duplicate `delete_child`
-        elif ((sub_obj_namespace == (
-                'SmbSettingsGlobalSettingsAuditGlobalSaclItem')
-               or sub_obj_namespace == 'SmbSettingsGlobalAuditGlobalSaclItem')
-              and prop_name == 'permission'):
-            if 'items' in prop and 'enum' in prop['items']:
-                prop['items']['enum'] = (
-                    list(OrderedDict.fromkeys(prop['items']['enum'])))
-                log.warning("Remove duplicate 'delete_child' from enum")
-        # Issue #10: Update required field to draft 4 style
-        elif (sub_obj_namespace.startswith('Job') and 'items' in prop and
-              'required' in prop['items']):
-            if prop['items']['required']:
-                if (is_response_object is False or
-                        not isinstance(prop['type'], list)):
-                    required_props.append(prop_name)
-            del prop['items']['required']
-            log.warning("Update 'required' field to draft 4 style")
-        # Issue #12: Correct misspellings
-        elif sub_obj_namespace == 'AuthAccessAccessItem' and prop_name == 'id':
-            if 'descriptoin' in prop:
-                prop['description'] = prop['descriptoin']
-                del prop['descriptoin']
-                log.warning("Found 'description' misspelled as 'descriptoin'")
-        elif sub_obj_namespace.startswith('DebugStats'):
-            if 'descriprion' in prop:
-                prop['description'] = prop['descriprion']
-                del prop['descriprion']
-                log.warning("Found 'description' misspelled as 'descriprion'")
-        elif sub_obj_namespace.startswith('HealthcheckEvaluation'):
-            if prop_name == 'run_status' and 'desciption' in prop:
-                prop['description'] = prop['desciption']
-                del prop['desciption']
-                log.warning("Found 'description' misspelled as 'desciption'")
-        elif 'Subnet' in sub_obj_namespace:
-            if prop_name == 'sc_service_name' and 'description:' in prop:
-                prop['description'] = prop['description:']
-                del prop['description:']
-                log.warning("Found 'description' misspelled as 'description:'")
-        # Issue #14: Include hardware `devices` fields
-        elif sub_obj_namespace == 'HardwareTapes' and prop_name == 'devices':
-            if 'media_changers' in prop and 'tapes' in prop:
-                prop['type'] = 'object'
-                prop['description'] = 'Information of Tape/MC device'
-                prop['properties'] = {
-                    'media_changers': {'items': prop['media_changers']},
-                    'tapes': {'items': prop['tapes']}
-                }
-                del prop['media_changers']
-                del prop['tapes']
-                log.warning(("Move 'media_changers' and 'tapes' in 'devices'"
-                             "property to nested 'properties' object"))
-        # Issue #15: Correct nested array schema
-        elif sub_obj_namespace == 'EventEventgroupOccurrencesEventgroup':
-            if prop_name == 'causes' and 'items' not in prop['items']:
-                prop['items'] = prop['items']['type']
-                prop['type'] = 'array'
-                log.warning("Correct nested array schema in 'causes' property")
-        # Remove custom `ignore_case` field
-        elif sub_obj_namespace.startswith('EventAlertCondition'):
-            if 'ignore_case' in prop:
-                del prop['ignore_case']
-            if 'items' in prop and 'ignore_case' in prop['items']:
-                del prop['items']['ignore_case']
-            log.warning("Remove custom 'ignore_case' field")
-        elif sub_obj_namespace == 'HistogramStatByBreakout':
-            if prop_name == 'data' and prop['type'] == 'array':
-                if 'properties' in prop:
-                    del prop['properties']
-                    prop['items'] = {
-                        'type': 'array',
-                        'items': {'type': 'integer'}
-                    }
-                    log.warning("Correct 'data' properties array object")
-        elif sub_obj_namespace.startswith('Ndmp'):
-            if prop['type'] == 'array' and 'properties' in prop:
-                prop['items'] = {
-                    'type': 'object',
-                    'properties': prop['properties']
-                }
-                del prop['properties']
-                log.warning("Move 'properties' into the 'items' object")
-        elif sub_obj_namespace.startswith('SummaryProtocolStatsProtocol'):
-            if 'type' not in prop:
-                prop = {'properties': prop, 'type': 'object'}
-                log.warning("Move properties into the 'properties' object")
-            elif prop_name == 'protocol' and prop['type'] == 'array':
-                prop['type'] = 'object'
-                prop['properties'] = {
-                    'name': {'type': 'string'},
-                    'data': {
-                        'type': 'array',
-                        'items': {
-                            'type': 'object',
-                            'properties': prop['data'][0]
-                        }
-                    }
-                }
-                del prop['data']
-                log.warning("Restructure the 'protocol' property object")
-        elif sub_obj_namespace == 'SummaryProtocolStats':
-            if prop_name == 'protocol-stats' and 'items' in prop:
-                prop = prop['items']
-                log.warning("'protocol-stats' is an object, not an array")
-        elif sub_obj_namespace == 'HardwareFcportsNode':
-            if (prop_name == 'fcports' and prop['type'] == 'array' and
-                    'properties' in prop):
-                prop['items'] = prop['properties']
-                del prop['properties']
-                log.warning("Move 'fcports' array properties into 'items'")
-        # Issue #22: Remove invalid status enum
-        elif (sub_obj_namespace == 'NetworkInterface' or
-              sub_obj_namespace == 'PoolsPoolInterfacesInterface'):
-            if prop_name == 'status' and 'enum' in prop:
-                del prop['enum']
-                log.warning("Remove invalid 'status' enum")
-        elif (sub_obj_namespace == 'NetworkDnscache' or
-              sub_obj_namespace == 'NetworkExternal'):
-            if prop_name == 'settings' and 'items' in prop:
-                prop = prop['items']
-                log.warning("Property 'settings' is an object, not an array")
-        elif sub_obj_namespace == 'HardeningStateState':
-            if prop_name == 'state' and 'Other' not in prop['enum']:
-                prop['enum'].append('Other')
-                log.warning("Hardening state missing 'Other' in enum")
-        elif sub_obj_namespace.startswith('EventChannel'):
-            if prop_name == 'type' and 'heartbeat' not in prop['enum']:
-                prop['enum'].append('heartbeat')
-                log.warning("Include missing 'heartbeat' in enum")
-        elif sub_obj_namespace == 'SmbLogLevelFiltersFilter':
-            if prop_name == 'level' and 'enum' in prop:
-                del prop['enum']
-                log.warning("Removing enum with duplicate values")
-        elif 'FileMatchingPattern' in sub_obj_namespace:
-            if prop_name == 'operator' and 'enum' in prop:
-                del prop['enum']
-                log.warning("Removing enum with special characters")
-        elif sub_obj_namespace.startswith('SnmpSettings'):
-            if prop_name == 'system_contact' and 'pattern' in prop:
-                prop['pattern'] = prop['pattern'].replace('{2,4}', '{2,7}')
-                log.warning("Modified restrictive regex pattern")
-
         if 'type' not in prop:
             if 'enum' in prop:
                 log.warning(('Invalid enum prop with no type in object %s '
@@ -574,7 +324,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
             else:
                 continue  # must be a $ref
         if 'required' in prop:
-            if prop['required'] is True:
+            if prop['required']:
                 # Often the PAPI will have a required field whose value can be
                 # either a real value, such as a string, or it can be a null,
                 # which Swagger can not deal with. This is only problematic
@@ -584,7 +334,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 # fields. So if the type is a multi-type (i.e. list) and
                 # is_response_object is True, then we don't add the field to
                 # the list of required fields.
-                if (is_response_object is False or
+                if (not is_response_object or
                         (not isinstance(prop['type'], list) and
                          prop_name not in
                          NON_REQUIRED_PROPS.get(sub_obj_namespace, []))):
@@ -592,12 +342,13 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 if prop_name in NON_REQUIRED_PROPS.get(sub_obj_namespace, []):
                     log.warning("Required property '%s' may be null", prop_name)
             del prop['required']
-
         if isinstance(prop['type'], list):
             # swagger doesn't like lists for types
             # so use the first type that is not 'null'
             prop = isi_schema['properties'][prop_name] = \
                 find_best_type_for_prop(prop)
+            if 'required' in prop:
+                del prop['required']
 
         if prop['type'] == 'object':
             sub_obj_name = prop_name.title().replace('_', '')
@@ -1300,6 +1051,270 @@ def get_endpoint_paths(source_node_or_cluster, papi_port, base_url, auth,
         return cmp(lhs, rhs)
 
     return sorted(end_point_paths, cmp=end_point_path_compare)
+
+
+def resolve_schema_issues(definition_name, isi_schema,
+                          required_props, is_response_object):
+    """Correct invalid PAPI schemas."""
+    props = isi_schema['properties']
+
+    # Issue #12: Correct misspellings
+    if definition_name == 'DebugStatsUnknown':
+        if 'descriprion' in isi_schema:
+            isi_schema['description'] = isi_schema['descriprion']
+            del isi_schema['descriprion']
+            log.warning("Found 'description' misspelled as 'descriprion'")
+    # Issue #13: Correct properties schema
+    elif definition_name == 'StatisticsOperation':
+        if 'operations' in props:
+            operations = props['operations'][0]['operation']
+            if operations['required']:
+                isi_schema['required'] = True
+            props['operation'] = operations
+            del props['operations']
+            log.warning("Replace 'operations' property with 'operation'")
+    elif (definition_name.startswith('StoragepoolNodepool') or
+          definition_name.startswith('StoragepoolStoragepool')):
+        if 'health_flags' in isi_schema:
+            props['health_flags'] = isi_schema['health_flags']
+            del isi_schema['health_flags']
+            log.warning("Move 'health_flags' property under 'properties'")
+    elif definition_name == 'EventEventgroupOccurrences':
+        if 'eventgroup-occurrences' in props:
+            props['eventgroups'] = props['eventgroup-occurrences']
+            del props['eventgroup-occurrences']
+            log.warning("Found 'eventgroups' as 'eventgroup-occurrences'")
+    # Issue #22: Correct naming of interface as interfaces
+    elif (definition_name == 'NetworkInterfaces' or
+          definition_name == 'PoolsPoolInterfaces'):
+        if 'interface' in props:
+            props['interfaces'] = props['interface']
+            del props['interface']
+            log.warning("Found 'interfaces' misspelled as 'interface'")
+    elif definition_name == 'HardeningStatusStatus':
+        if 'status_text' in props:
+            props['message'] = props['status_text']
+            del props['status_text']
+            log.warning("Found 'message' labeled as 'status_text'")
+    elif definition_name == 'NdmpLogsNode':
+        if 'logs:' in props:
+            props['logs'] = props['logs:']
+            del props['logs:']
+            log.warning("Found 'logs' misspelled as 'logs:'")
+    elif definition_name == 'StatisticsHistoryStat':
+        if 'resolution' not in props:
+            props['resolution'] = {'type': 'integer'}
+            log.warning("Added missing 'resolution' property")
+    elif definition_name == 'EventCategory':
+        if 'category_name' in props and 'category_description' in props:
+            props['id_name'] = props['category_name']
+            del props['category_name']
+            props['name'] = props['category_description']
+            del props['category_description']
+            props['id']['type'] = 'string'
+            log.warning("Found event category properties mislabeled")
+    elif definition_name.startswith('EventEventlist'):
+        if 'eventlist' in props:
+            props['eventlists'] = props['eventlist']
+            del props['eventlist']
+            log.warning("Found 'eventlists' mislabeled as 'eventlist'")
+        if 'event_id' in props:
+            props['event'] = props['event_id']
+            del props['event_id']
+            log.warning("Found 'event' mislabeled as 'event_id'")
+        if (definition_name == 'EventEventlistsEventlistItemEvent' or
+                definition_name == 'EventEventlistEvent'):
+            if 'lnn' not in props and 'resolve_time' not in props:
+                props['lnn'] = {'type': 'integer'}
+                props['resolve_time'] = {'type': 'integer'}
+                log.warning("Found 'lnn' and 'resolve_time' props missing")
+    elif definition_name == 'EventChannels':
+        if 'alert-conditions' in props:
+            props['channels'] = props['alert-conditions']
+            del props['alert-conditions']
+            log.warning("Found 'channels' mislabeled as 'alert-conditions'")
+    elif definition_name == 'EventSettings':
+        if 'settings' not in props and 'maintenance' in props:
+            isi_schema['properties'] = {'settings': isi_schema.copy()}
+            log.warning("Found missing event 'settings' property")
+    elif definition_name == 'SmbShares' and 'settings' in props:
+        props['shares'] = {
+            'items': props['settings'], 'minItems': 0, 'type': 'array'}
+        del props['settings']
+        log.warning("Found 'shares' mislabeled as 'settings'")
+    elif (definition_name.startswith('SmbShares') or
+          definition_name.startswith('NfsExports')):
+        if 'resume' in props and 'total' in props and 'digest' not in props:
+            props['digest'] = {'type': 'string'}
+            log.warning("Found missing 'digest' property")
+    elif definition_name == 'NfsCheck':
+        if 'messages' in props:
+            props['message'] = props['messages']
+            del props['messages']
+            log.warning("Found 'mesage' mislabeled as 'messages'")
+    elif definition_name.startswith('SmbLogLevelFilters'):
+        if 'resume' in props and 'total' in props:
+            del props['resume']
+            del props['total']
+            log.warning("Removing invalid 'resume' and 'total' properties")
+
+    for prop_name, prop in props.items():
+
+        # Issue #8: Remove invalid placement of required field
+        if (definition_name == 'StoragepoolStatusUnhealthyItem' and
+                prop_name == 'health_flags'):
+            if 'required' in prop['items']:
+                del prop['items']['required']
+                log.warning("Remove 'required' from array items")
+        # Issue #9: Remove duplicate `delete_child`
+        elif ((definition_name == (
+                'SmbSettingsGlobalSettingsAuditGlobalSaclItem')
+               or definition_name == 'SmbSettingsGlobalAuditGlobalSaclItem')
+              and prop_name == 'permission'):
+            if 'items' in prop and 'enum' in prop['items']:
+                prop['items']['enum'] = (
+                    list(OrderedDict.fromkeys(prop['items']['enum'])))
+                log.warning("Remove duplicate 'delete_child' from enum")
+        # Issue #10: Update required field to draft 4 style
+        elif (definition_name.startswith('Job') and 'items' in prop and
+              'required' in prop['items']):
+            if prop['items']['required']:
+                if (is_response_object is False or
+                        not isinstance(prop['type'], list)):
+                    required_props.append(prop_name)
+            del prop['items']['required']
+            log.warning("Update 'required' field to draft 4 style")
+        # Issue #12: Correct misspellings
+        elif definition_name == 'AuthAccessAccessItem' and prop_name == 'id':
+            if 'descriptoin' in prop:
+                prop['description'] = prop['descriptoin']
+                del prop['descriptoin']
+                log.warning("Found 'description' misspelled as 'descriptoin'")
+        elif definition_name.startswith('DebugStats'):
+            if 'descriprion' in prop:
+                prop['description'] = prop['descriprion']
+                del prop['descriprion']
+                log.warning("Found 'description' misspelled as 'descriprion'")
+        elif definition_name.startswith('HealthcheckEvaluation'):
+            if prop_name == 'run_status' and 'desciption' in prop:
+                prop['description'] = prop['desciption']
+                del prop['desciption']
+                log.warning("Found 'description' misspelled as 'desciption'")
+        elif 'Subnet' in definition_name:
+            if prop_name == 'sc_service_name' and 'description:' in prop:
+                prop['description'] = prop['description:']
+                del prop['description:']
+                log.warning("Found 'description' misspelled as 'description:'")
+        # Issue #14: Include hardware `devices` fields
+        elif definition_name == 'HardwareTapes' and prop_name == 'devices':
+            if 'media_changers' in prop and 'tapes' in prop:
+                prop['type'] = 'object'
+                prop['description'] = 'Information of Tape/MC device'
+                prop['properties'] = {
+                    'media_changers': {'items': prop['media_changers']},
+                    'tapes': {'items': prop['tapes']}
+                }
+                del prop['media_changers']
+                del prop['tapes']
+                log.warning(("Move 'media_changers' and 'tapes' in 'devices'"
+                             "property to nested 'properties' object"))
+        # Issue #15: Correct nested array schema
+        elif definition_name == 'EventEventgroupOccurrencesEventgroup':
+            if prop_name == 'causes' and 'items' not in prop['items']:
+                prop['items'] = prop['items']['type']
+                prop['type'] = 'array'
+                log.warning("Correct nested array schema in 'causes' property")
+        # Remove custom `ignore_case` field
+        elif definition_name.startswith('EventAlertCondition'):
+            if 'ignore_case' in prop:
+                del prop['ignore_case']
+            if 'items' in prop and 'ignore_case' in prop['items']:
+                del prop['items']['ignore_case']
+            log.warning("Remove custom 'ignore_case' field")
+        elif definition_name == 'HistogramStatByBreakout':
+            if prop_name == 'data' and prop['type'] == 'array':
+                if 'properties' in prop:
+                    del prop['properties']
+                    prop['items'] = {
+                        'type': 'array',
+                        'items': {'type': 'integer'}
+                    }
+                    log.warning("Correct 'data' properties array object")
+        elif definition_name.startswith('Ndmp'):
+            if prop['type'] == 'array' and 'properties' in prop:
+                prop['items'] = {
+                    'type': 'object',
+                    'properties': prop['properties']
+                }
+                del prop['properties']
+                log.warning("Move 'properties' into the 'items' object")
+        elif definition_name.startswith('SummaryProtocolStatsProtocol'):
+            if 'type' not in prop:
+                prop['properties'] = prop.copy()
+                for key in prop.keys():
+                    if key not in ['properties']:
+                        del prop[key]
+                prop['type'] = 'object'
+                log.warning("Move properties into the 'properties' object")
+            elif prop_name == 'protocol' and prop['type'] == 'array':
+                prop['type'] = 'object'
+                prop['properties'] = {
+                    'name': {'type': 'string'},
+                    'data': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': prop['data'][0]
+                        }
+                    }
+                }
+                del prop['data']
+                log.warning("Restructure the 'protocol' property object")
+        elif definition_name == 'SummaryProtocolStats':
+            if prop_name == 'protocol-stats' and 'items' in prop:
+                prop['type'] = prop['items']['type']
+                prop['properties'] = prop['items']['properties']
+                del prop['items']
+                log.warning("'protocol-stats' is an object, not an array")
+        elif definition_name == 'HardwareFcportsNode':
+            if (prop_name == 'fcports' and prop['type'] == 'array' and
+                    'properties' in prop):
+                prop['items'] = prop['properties']
+                del prop['properties']
+                log.warning("Move 'fcports' array properties into 'items'")
+        # Issue #22: Remove invalid status enum
+        elif (definition_name == 'NetworkInterface' or
+              definition_name == 'PoolsPoolInterfacesInterface'):
+            if prop_name == 'status' and 'enum' in prop:
+                del prop['enum']
+                log.warning("Remove invalid 'status' enum")
+        elif (definition_name == 'NetworkDnscache' or
+              definition_name == 'NetworkExternal'):
+            if prop_name == 'settings' and 'items' in prop:
+                prop['type'] = prop['items']['type']
+                prop['properties'] = prop['items']['properties']
+                del prop['items']
+                log.warning("Property 'settings' is an object, not an array")
+        elif definition_name == 'HardeningStateState':
+            if prop_name == 'state' and 'Other' not in prop['enum']:
+                prop['enum'].append('Other')
+                log.warning("Hardening state missing 'Other' in enum")
+        elif definition_name.startswith('EventChannel'):
+            if prop_name == 'type' and 'heartbeat' not in prop['enum']:
+                prop['enum'].append('heartbeat')
+                log.warning("Include missing 'heartbeat' in enum")
+        elif definition_name == 'SmbLogLevelFiltersFilter':
+            if prop_name == 'level' and 'enum' in prop:
+                del prop['enum']
+                log.warning("Removing enum with duplicate values")
+        elif 'FileMatchingPattern' in definition_name:
+            if prop_name == 'operator' and 'enum' in prop:
+                del prop['enum']
+                log.warning("Removing enum with special characters")
+        elif definition_name.startswith('SnmpSettings'):
+            if prop_name == 'system_contact' and 'pattern' in prop:
+                prop['pattern'] = prop['pattern'].replace('{2,4}', '{2,7}')
+                log.warning("Modified restrictive regex pattern")
 
 
 def main():
