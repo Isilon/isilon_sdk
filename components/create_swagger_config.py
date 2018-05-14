@@ -1135,10 +1135,7 @@ def resolve_schema_issues(definition_name, isi_schema,
             log.warning("Found 'channels' mislabeled as 'alert-conditions'")
     elif definition_name == 'EventSettings':
         if 'settings' not in props and 'maintenance' in props:
-            isi_schema = {
-                'type': 'object',
-                'properties': {'settings': isi_schema}
-            }
+            isi_schema['properties'] = {'settings': isi_schema.copy()}
             log.warning("Found missing event 'settings' property")
     elif definition_name == 'SmbShares' and 'settings' in props:
         props['shares'] = {
@@ -1253,7 +1250,11 @@ def resolve_schema_issues(definition_name, isi_schema,
                 log.warning("Move 'properties' into the 'items' object")
         elif definition_name.startswith('SummaryProtocolStatsProtocol'):
             if 'type' not in prop:
-                prop = {'properties': prop, 'type': 'object'}
+                prop['properties'] = prop.copy()
+                for key in prop.keys():
+                    if key not in ['properties']:
+                        del prop[key]
+                prop['type'] = 'object'
                 log.warning("Move properties into the 'properties' object")
             elif prop_name == 'protocol' and prop['type'] == 'array':
                 prop['type'] = 'object'
@@ -1271,7 +1272,9 @@ def resolve_schema_issues(definition_name, isi_schema,
                 log.warning("Restructure the 'protocol' property object")
         elif definition_name == 'SummaryProtocolStats':
             if prop_name == 'protocol-stats' and 'items' in prop:
-                prop = prop['items']
+                prop['type'] = prop['items']['type']
+                prop['properties'] = prop['items']['properties']
+                del prop['items']
                 log.warning("'protocol-stats' is an object, not an array")
         elif definition_name == 'HardwareFcportsNode':
             if (prop_name == 'fcports' and prop['type'] == 'array' and
@@ -1288,7 +1291,9 @@ def resolve_schema_issues(definition_name, isi_schema,
         elif (definition_name == 'NetworkDnscache' or
               definition_name == 'NetworkExternal'):
             if prop_name == 'settings' and 'items' in prop:
-                prop = prop['items']
+                prop['type'] = prop['items']['type']
+                prop['properties'] = prop['items']['properties']
+                del prop['items']
                 log.warning("Property 'settings' is an object, not an array")
         elif definition_name == 'HardeningStateState':
             if prop_name == 'state' and 'Other' not in prop['enum']:
