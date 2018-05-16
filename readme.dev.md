@@ -1,7 +1,7 @@
 # Isilon Software Development Kit (isi-sdk)
 Building language bindings using the OpenAPI config generator
 
-This document describes how to use the scripts in the isi-sdk repository to generate your own language bindings for the Isilon OneFS configuration API.  This API is made up of all the URIs underneath `https://[cluster]:8080/platform/*`, also called the "Platform API" or PAPI".
+This document describes how to use the scripts in the isilon_sdk repository to generate your own language bindings for the Isilon OneFS configuration API.  This API is made up of all the URIs underneath `https://[cluster]:8080/platform/*`, also called the "Platform API" or "PAPI".  This API also includes the URIs underneath `https://[cluster]:8080/namespace/*`, also called the "RESTful Access to Namespace" or "RAN".
 
 The scripts create a configuration file compatible with the OpenAPI Specification (formerly known as swagger, and we will continue to call the configuration file the "swagger config" here for now).  More info about the OpenAPI Specification [here](https://github.com/OAI/OpenAPI-Specification).
 

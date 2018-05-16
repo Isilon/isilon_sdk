@@ -7,7 +7,7 @@
 # Isilon Software Development Kit (isi-sdk)
 Language bindings for the OneFS API and tools for building them
 
-This repository is part of the Isilon SDK.  It includes language bindings for easier programmatic access to the OneFS API for cluster configuration (on your cluster this is the REST API made up of all the URIs underneath `https://[cluster]:8080/platform/*`, also called the "Platform API" or "PAPI").
+This repository is part of the Isilon SDK.  It includes language bindings for easier programmatic access to the OneFS API for cluster configuration (on your cluster this is the REST API made up of all the URIs underneath `https://[cluster]:8080/platform/*`, also called the "Platform API" or "PAPI"). The SDK also includes language bindings for the OneFS RAN (i.e. RESTful Access to Namespace) interface, which provides access to the OneFS filesystem namespace.
 
 You can download the language bindings for Python from the "releases" page of this repo (the link is on the main "code" tab on the bar of links just below the project description). If you just want to access PAPI more easily from your Python programs, these language bindings may be all you need, and you can follow the instructions and example below to get started.
 
@@ -24,6 +24,7 @@ This repository also includes tools to build PAPI bindings yourself for a large 
 
 | Cluster Version       | Install Instruction         |
 |-----------------------|-----------------------------|
+| OneFS 8.1.1 and later | `pip install isi_sdk_8_1_1` |
 | OneFS 8.1.0 and later | `pip install isi_sdk_8_1_0` |
 | OneFS 8.0.1 and later | `pip install isi_sdk_8_0_1` |
 | OneFS 8.0 and later   | `pip install isi_sdk_8_0`   |
@@ -34,6 +35,8 @@ Installation will default to using binary distribution wheel (i.e. bdist). Sourc
 ### Basic Usage
 
 See the generated packages on PyPI for example code:
+
+[isi\_sdk\_8\_1\_1](https://pypi.org/pypi/isi-sdk-8-1-1)
 
 [isi\_sdk\_8\_1\_0](https://pypi.org/pypi/isi-sdk-8-1-0)
 
