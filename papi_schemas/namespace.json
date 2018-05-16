@@ -86,7 +86,7 @@
     "/namespace/{NamespacePath}": {
         "get": {
             "description": "Retrieves the access control list for a namespace object.",
-            "operationId": "getNamespaceAcl",
+            "operationId": "getAcl",
             "parameters": [
                 {
                     "description": "Namespace path relative to /.",
@@ -123,7 +123,7 @@
         },
         "put": {
             "description": "Sets the access control list for a namespace.",
-            "operationId": "setNamespaceAcl",
+            "operationId": "setAcl",
             "parameters": [
                 {
                     "description": "Namespace path relative to /.",
@@ -485,7 +485,7 @@
             ]
         }
     },
-    "/namespace/{DirectoryCopyDestination}": {
+    "/namespace/{DirectoryCopyTarget}": {
         "put": {
             "description": "Recursively copies a directory to a specified destination path. Symbolic links are copied as regular files.",
             "operationId": "copyDirectory",
@@ -493,7 +493,7 @@
                 {
                     "description": "Directory copy destination relative to /.",
                     "in": "path",
-                    "name": "DirectoryCopyDestination",
+                    "name": "DirectoryCopyTarget",
                     "required": true,
                     "type": "string"
                 },
@@ -538,7 +538,7 @@
     },
     "/namespace/{FilePath}": {
         "get": {
-            "description": "Retrieves the contents of a file from a specified path.",
+            "description": "Retrieves the contents of a file from a specified path. Note that file streaming is not supported.",
             "operationId": "getFileContents",
             "parameters": [
                 {
@@ -632,7 +632,7 @@
             ]
         },
         "put": {
-            "description": "Creates a file object with a given path.",
+            "description": "Creates a file object with a given path. Note that file streaming is not supported.",
             "operationId": "createFile",
             "parameters": [
                 {
@@ -751,7 +751,7 @@
             ]
         }
     },
-    "/namespace/{FileCopyDestination}": {
+    "/namespace/{FileCopyTarget}": {
         "put": {
             "description": "Copies a file to the specified destination path.",
             "operationId": "copyFile",
@@ -759,7 +759,7 @@
                 {
                     "description": "File copy destination relative to /.",
                     "in": "path",
-                    "name": "FileCopyDestination",
+                    "name": "FileCopyTarget",
                     "required": true,
                     "type": "string"
                 },
