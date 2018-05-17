@@ -1615,7 +1615,9 @@ def main():
             # creation object model
             try:
                 if 'POST_args' in base_resp_json:
-                    if base_end_point_path == '/3/protocols/ntp/servers':
+                    base_path = base_end_point_path
+                    if (base_path == '/3/protocols/ntp/servers' or
+                            base_path == '/3/protocols/swift/accounts'):
                         base_resp_json['POST_output_schema'] = {}
                         log.warning("Removed invalid POST response schema")
 
