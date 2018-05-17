@@ -229,14 +229,6 @@
                     "schema": {
                         "$ref": "#/definitions/NamespaceObjects"
                     }
-                },
-                "headers": {
-                    "x-isi-ifs-missing-attr": {
-                        "type": "string"
-                    },
-                    "x-isi-ifs-access-control": {
-                        "type": "string"
-                    }
                 }
             },
             "tags": [
@@ -272,20 +264,6 @@
                     "description": "Get attribute information for directory.",
                     "schema": {
                         "$ref": "#/definitions/Empty"
-                    },
-                    "headers": {
-                        "x-isi-ifs-access-control": {
-                            "type": "string"
-                        },
-                        "x-isi-ifs-spec-version": {
-                            "type": "string"
-                        },
-                        "x-isi-ifs-missing-attr": {
-                            "type": "string"
-                        },
-                        "x-isi-ifs-target-type": {
-                            "type": "string"
-                        }
                     }
                 }
             },
@@ -573,14 +551,6 @@
                     "schema": {
                         "$ref": "#/definitions/Empty"
                     }
-                },
-                "headers": {
-                    "x-isi-ifs-missing-attr": {
-                        "type": "string"
-                    },
-                    "x-isi-ifs-access-control": {
-                        "type": "string"
-                    }
                 }
             },
             "tags": [
@@ -616,14 +586,6 @@
                     "description": "Get attribute information for file.",
                     "schema": {
                         "$ref": "#/definitions/Empty"
-                    },
-                    "headers": {
-                        "x-isi-ifs-access-control": {
-                            "type": "string"
-                        },
-                        "x-isi-ifs-missing-attr": {
-                            "type": "string"
-                        }
                     }
                 }
             },
@@ -680,7 +642,10 @@
                     "description": "The contents of the file object.",
                     "in": "body",
                     "name": "FileContents",
-                    "required": true
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
                 }
             ],
             "responses": {
