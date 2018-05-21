@@ -1157,6 +1157,15 @@ def resolve_schema_issues(definition_name, isi_schema,
             del props['resume']
             del props['total']
             log.warning("Removing invalid 'resume' and 'total' properties")
+    elif definition_name == 'NdmpUsers':
+        if 'id' in props and 'name' in props:
+            props['users'] = {
+                'items': {'properties': props.copy()},
+                'type': 'array'
+            }
+            del props['id']
+            del props['name']
+            log.warning("Move NDMP user properties into an array")
 
     for prop_name, prop in props.items():
 
