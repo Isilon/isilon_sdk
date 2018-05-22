@@ -33,6 +33,12 @@ NON_REQUIRED_PROPS = {
     'SummarySystemSystemItem': ['iscsi'],
 }
 
+MISSING_POST_RESPONSE = {
+    '/1/protocols/hdfs/proxyusers/<NAME>/members',
+    '/3/protocols/ntp/servers',
+    '/3/protocols/swift/accounts'
+}
+
 # list of url parameters that need to be url encoded, this hack works for now,
 # but could cause problems if new params are added that are not unique.
 URL_ENCODE_PARAMS = ['NfsAliasId']
@@ -1625,9 +1631,7 @@ def main():
             # creation object model
             try:
                 if 'POST_args' in base_resp_json:
-                    base_path = base_end_point_path
-                    if (base_path == '/3/protocols/ntp/servers' or
-                            base_path == '/3/protocols/swift/accounts'):
+                    if base_end_point_path in MISSING_POST_RESPONSE:
                         base_resp_json['POST_output_schema'] = {}
                         log.warning("Removed invalid POST response schema")
 
