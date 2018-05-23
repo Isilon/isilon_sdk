@@ -1220,6 +1220,11 @@ def resolve_schema_issues(definition_name, isi_schema,
                 prop['description'] = prop['desciption']
                 del prop['desciption']
                 log.warning("Found 'description' misspelled as 'desciption'")
+        elif 'Subnet' in definition_name:
+            if prop_name == 'sc_service_name' and 'description:' in prop:
+                prop['description'] = prop['description:']
+                del prop['description:']
+                log.warning("Found 'description' misspelled as 'description:'")
         # Issue #14: Include hardware `devices` fields
         elif definition_name == 'HardwareTapes' and prop_name == 'devices':
             if 'media_changers' in prop and 'tapes' in prop:
