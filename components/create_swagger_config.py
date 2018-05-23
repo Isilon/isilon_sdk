@@ -33,6 +33,12 @@ NON_REQUIRED_PROPS = {
     'SummarySystemSystemItem': ['iscsi'],
 }
 
+MISSING_POST_RESPONSE = {
+    '/1/protocols/hdfs/proxyusers/<NAME>/members',
+    '/3/protocols/ntp/servers',
+    '/3/protocols/swift/accounts'
+}
+
 # list of url parameters that need to be url encoded, this hack works for now,
 # but could cause problems if new params are added that are not unique.
 URL_ENCODE_PARAMS = ['NfsAliasId']
@@ -45,6 +51,7 @@ GENERATED_OPS = {}
 SWAGGER_DEFS = {}
 
 MAX_ARRAY_SIZE = 2147483642
+MAX_STRING_SIZE = 2147483647
 MAX_INTEGER_SIZE = 9223372036854775807
 
 
@@ -430,6 +437,10 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
         elif prop['type'] == 'integer':
             if 'maximum' in prop and prop['maximum'] > MAX_INTEGER_SIZE:
                 prop['maximum'] = MAX_INTEGER_SIZE
+
+        if prop['type'] == 'string':
+            if 'maxLength' in prop and prop['maxLength'] > MAX_STRING_SIZE:
+                prop['maxLength'] = MAX_STRING_SIZE
 
     # attach required props
     if required_props:
@@ -1209,11 +1220,6 @@ def resolve_schema_issues(definition_name, isi_schema,
                 prop['description'] = prop['desciption']
                 del prop['desciption']
                 log.warning("Found 'description' misspelled as 'desciption'")
-        elif 'Subnet' in definition_name:
-            if prop_name == 'sc_service_name' and 'description:' in prop:
-                prop['description'] = prop['description:']
-                del prop['description:']
-                log.warning("Found 'description' misspelled as 'description:'")
         # Issue #14: Include hardware `devices` fields
         elif definition_name == 'HardwareTapes' and prop_name == 'devices':
             if 'media_changers' in prop and 'tapes' in prop:
@@ -1468,7 +1474,8 @@ def main():
     if not args.onefs_version:
         onefs_version = onefs_release_version(args.host, papi_port, auth)
     else:
-        if not re.match(r'^\d{,2}.\d.\d.\d{,2}$', args.onefs_version):
+        version_pattern = r"^\d{1,2}\.\d\.\d\.(?:DEV\.)?\d{1,2}$"
+        if not re.match(version_pattern, args.onefs_version):
             raise RuntimeError('Invalid ONEFS_VERSION argument: {}'.format(
                 args.onefs_version))
         onefs_version = args.onefs_version
@@ -1624,9 +1631,7 @@ def main():
             # creation object model
             try:
                 if 'POST_args' in base_resp_json:
-                    base_path = base_end_point_path
-                    if (base_path == '/3/protocols/ntp/servers' or
-                            base_path == '/3/protocols/swift/accounts'):
+                    if base_end_point_path in MISSING_POST_RESPONSE:
                         base_resp_json['POST_output_schema'] = {}
                         log.warning("Removed invalid POST response schema")
 
