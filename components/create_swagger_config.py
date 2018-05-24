@@ -975,7 +975,7 @@ def parse_path_params(end_point_path):
     return params
 
 
-def get_endpoint_paths(source_node_or_cluster, papi_port, base_url, auth,
+def get_endpoint_paths(source_node_or_cluster, port, base_url, auth,
                        exclude_end_points, cached_schemas):
     """
     Gets the full list of PAPI URIs reported by source_node_or_cluster using
@@ -986,7 +986,7 @@ def get_endpoint_paths(source_node_or_cluster, papi_port, base_url, auth,
     """
     if 'directory' not in cached_schemas:
         desc_list_parms = {'describe': '', 'json': '', 'list': ''}
-        url = 'https://' + source_node_or_cluster + ':' + papi_port + base_url
+        url = 'https://' + source_node_or_cluster + ':' + port + base_url
         resp = requests.get(
             url=url, params=desc_list_parms, auth=auth, verify=False)
         end_point_list_json = resp.json()['directory']
@@ -1344,26 +1344,26 @@ def main():
         description='Builds Swagger config from PAPI end point descriptions.')
     argparser.add_argument(
         '-i', '--input', dest='host',
-        help='IP-address or hostname of the Isilon cluster to use as input.',
+        help='IP-address or hostname of OneFS cluster for input',
         action='store', default='localhost')
     argparser.add_argument(
         '-o', '--output', dest='output_file',
-        help='Path to the output file.', action='store')
+        help='Path to output OpenAPI specification', action='store')
     argparser.add_argument(
         '-u', '--username', dest='username',
-        help='The username to use for the cluster.',
+        help='Username for cluster access',
         action='store', default=None)
     argparser.add_argument(
         '-p', '--password', dest='password',
-        help='The password to use for the cluster.',
+        help='Password for cluster access',
         action='store', default=None)
     argparser.add_argument(
         '-d', '--defs', dest='defs_file',
-        help='Path to file with pre-built Swagger data model definitions.',
+        help='Path to file with pre-built OpenAPI definitions',
         action='store', default=None)
     argparser.add_argument(
         '-t', '--test', dest='test',
-        help='Test mode on.', action='store_true', default=False)
+        help='Test mode on', action='store_true', default=False)
     argparser.add_argument(
         '-l', '--logging', dest='log_level',
         help='Logging verbosity level', action='store', default='INFO')
@@ -1381,7 +1381,7 @@ def main():
     if not args.onefs_version:
         if args.username is None:
             args.username = raw_input(
-                'Please provide username used to access {} via PAPI: '.format(
+                'Please provide username used for API access to {}: '.format(
                     args.host))
         if args.password is None:
             args.password = getpass.getpass('Password: ')
@@ -1426,58 +1426,28 @@ def main():
         'definitions': {}
     }
 
+    schemas_dir = os.path.abspath(os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), 'papi_schemas'))
+    defs_file = os.path.join(schemas_dir, 'definitions.json')
+    namespace_file = os.path.join(schemas_dir, 'namespace.json')
+
     if args.defs_file:
-        with open(args.defs_file, 'r') as def_file:
-            SWAGGER_DEFS.update(json.loads(def_file.read()))
-    else:
-        SWAGGER_DEFS.update({
-            'Error': {
-                'type': 'object',
-                'required': [
-                    'code',
-                    'message'
-                ],
-                'properties': {
-                    'code': {
-                        'type': 'integer',
-                        'format': 'int32'
-                    },
-                    'message': {
-                        'type': 'string'
-                    }
-                }
-            },
-            'Empty': {
-                'type': 'object',
-                'properties': {}
-            },
-            'CreateResponse': {
-                'properties': {
-                    'id': {
-                        'description': ('ID of created item that can be used '
-                                        'to refer to item in the collection-'
-                                        'item resource path.'),
-                        'maxLength': 255,
-                        'minLength': 0,
-                        'type': 'string'
-                    }
-                },
-                'required': [
-                    'id'
-                ],
-                'type': 'object'
-            }
-        })
+        defs_file = args.defs_file
+
+    with open(defs_file, 'r') as def_file:
+        SWAGGER_DEFS.update(json.loads(def_file.read()))
+    with open(namespace_file, 'r') as namespace_paths:
+        swagger_json['paths'] = json.loads(namespace_paths.read())
 
     swagger_json['definitions'] = SWAGGER_DEFS
 
     auth = HTTPBasicAuth(args.username, args.password)
     base_url = '/platform'
-    papi_port = '8080'
+    port = '8080'
     desc_parms = {'describe': '', 'json': ''}
 
     if not args.onefs_version:
-        onefs_version = onefs_release_version(args.host, papi_port, auth)
+        onefs_version = onefs_release_version(args.host, port, auth)
     else:
         version_pattern = r"^\d{1,2}\.\d\.\d\.(?:DEV\.)?\d{1,2}$"
         if not re.match(version_pattern, args.onefs_version):
@@ -1486,8 +1456,6 @@ def main():
         onefs_version = args.onefs_version
 
     cached_schemas = {}
-    schemas_dir = os.path.abspath(os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), 'papi_schemas'))
     schemas_file = os.path.join(schemas_dir, '{}.json'.format(onefs_version))
 
     if args.onefs_version:
@@ -1495,7 +1463,7 @@ def main():
             cached_schemas = json.loads(schemas.read())
         papi_version = cached_schemas['version']
     else:
-        papi_version = onefs_papi_version(args.host, papi_port, auth)
+        papi_version = onefs_papi_version(args.host, port, auth)
         # invalid backport of handlers caused versioning break
         if papi_version == '5' and onefs_version[:5] == '8.0.1':
             papi_version = '4'
@@ -1551,7 +1519,7 @@ def main():
             ]
 
         end_point_paths = get_endpoint_paths(
-            args.host, papi_port, base_url, auth, exclude_end_points,
+            args.host, port, base_url, auth, exclude_end_points,
             cached_schemas)
     else:
         exclude_end_points = []
@@ -1584,7 +1552,7 @@ def main():
 
             if not args.onefs_version:
                 url = 'https://{}:{}{}{}'.format(
-                    args.host, papi_port, base_url, item_end_point_path)
+                    args.host, port, base_url, item_end_point_path)
                 resp = requests.get(
                     url=url, params=desc_parms, auth=auth, verify=False)
                 item_resp_json = resp.json()
@@ -1621,7 +1589,7 @@ def main():
 
             if not args.onefs_version:
                 url = 'https://{}:{}{}{}'.format(
-                    args.host, papi_port, base_url, base_end_point_path)
+                    args.host, port, base_url, base_end_point_path)
                 resp = requests.get(
                     url=url, params=desc_parms, auth=auth, verify=False)
                 base_resp_json = resp.json()

@@ -1,5 +1,5 @@
 ## About
-This package is part of the Isilon SDK.  It includes language bindings for easier programmatic access to the OneFS API for cluster configuration (on your cluster this is the REST API made up of all the URIs underneath `https://[cluster]:8080/platform/*`, also called the "Platform API" or "PAPI").
+This package is part of the Isilon SDK.  It includes language bindings for easier programmatic access to the OneFS API for cluster configuration (on your cluster this is the REST API made up of all the URIs underneath `https://[cluster]:8080/platform/*`, also called the "Platform API" or "PAPI").  The SDK also includes language bindings for the OneFS RAN (i.e. RESTful Access to Namespace) interface, which provides access to the OneFS filesystem namespace.
 
 ## Installation
 

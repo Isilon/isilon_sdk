@@ -543,7 +543,7 @@ class ApiClient(object):
             body = {
                 'username': self.configuration.username,
                 'password': self.configuration.password,
-                'services': ['platform']
+                'services': ['platform', 'namespace']
             }
             response_data = self.rest_client.POST(
                 url, headers=headers, body=body)
