@@ -1177,6 +1177,10 @@ def resolve_schema_issues(definition_name, isi_schema,
             del props['id']
             del props['name']
             log.warning("Move NDMP user properties into an array")
+    elif definition_name == 'SettingsMapping' and 'id' not in props:
+        if 'domain' in props and 'mapping' in props and 'type' in props:
+            props['id'] = {'type': 'string'}
+            log.warning("Added missing 'id' property")
 
     for prop_name, prop in props.items():
 
