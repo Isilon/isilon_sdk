@@ -1181,6 +1181,17 @@ def resolve_schema_issues(definition_name, isi_schema,
         if 'domain' in props and 'mapping' in props and 'type' in props:
             props['id'] = {'type': 'string'}
             log.warning("Added missing 'id' property")
+    elif definition_name == 'JobEvent' or definition_name == 'JobReport':
+        if ('fmt_type' not in props and 'raw_type' not in props
+                and 'value' in props):
+            props['fmt_type'] = {'type': 'string'}
+            props['raw_type'] = {'type': 'string'}
+            log.warning("Added missing 'fmt_type' and 'raw_type' properties")
+    elif definition_name == 'JobPolicies' and 'types' in props:
+        props['policies'] = props['types']
+        del props['types']
+        log.warning("Renamed 'types' property to 'policies'")
+
 
     for prop_name, prop in props.items():
 
@@ -1199,15 +1210,11 @@ def resolve_schema_issues(definition_name, isi_schema,
                 prop['items']['enum'] = (
                     list(OrderedDict.fromkeys(prop['items']['enum'])))
                 log.warning("Remove duplicate 'delete_child' from enum")
-        # Issue #10: Update required field to draft 4 style
+        # Issue #10: Remove invalid required field
         elif (definition_name.startswith('Job') and 'items' in prop and
               'required' in prop['items']):
-            if prop['items']['required']:
-                if (is_response_object is False or
-                        not isinstance(prop['type'], list)):
-                    required_props.append(prop_name)
             del prop['items']['required']
-            log.warning("Update 'required' field to draft 4 style")
+            log.warning("Remove invalid 'required' field")
         # Issue #12: Correct misspellings
         elif definition_name == 'AuthAccessAccessItem' and prop_name == 'id':
             if 'descriptoin' in prop:
