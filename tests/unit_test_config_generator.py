@@ -189,7 +189,6 @@ class TestCreateSwaggerConfig(unittest.TestCase):
 
         expected = copy.deepcopy(isi_schema)
         del expected['properties']['disconnected_nodes']['items']['required']
-        expected['required'] = ['disconnected_nodes']
 
         csc.isi_schema_to_swagger_object(
             'JobJob', 'Summary', isi_schema,
