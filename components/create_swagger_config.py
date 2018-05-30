@@ -1210,11 +1210,11 @@ def resolve_schema_issues(definition_name, isi_schema,
                 prop['items']['enum'] = (
                     list(OrderedDict.fromkeys(prop['items']['enum'])))
                 log.warning("Remove duplicate 'delete_child' from enum")
-        # Issue #10: Update required field to draft 4 style
+        # Issue #10: Remove invalid required field
         elif (definition_name.startswith('Job') and 'items' in prop and
               'required' in prop['items']):
             del prop['items']['required']
-            log.warning("Update 'required' field to draft 4 style")
+            log.warning("Remove invalid 'required' field")
         # Issue #12: Correct misspellings
         elif definition_name == 'AuthAccessAccessItem' and prop_name == 'id':
             if 'descriptoin' in prop:
