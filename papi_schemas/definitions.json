@@ -159,7 +159,16 @@
                 "type": "boolean"
             },
             "stub": {
+                "description": "Specifies whether the file is a stub or not.",
                 "type": "boolean"
+            },
+            "container_path": {
+                "description": "Specifies the container path on the file system.",
+                "type": "string"
+            },
+            "container": {
+                "description": "Specifies the name of the queried container.",
+                "type": "string"
             }
         },
         "type": "object"
