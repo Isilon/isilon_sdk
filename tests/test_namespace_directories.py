@@ -48,9 +48,7 @@ def main():
     # get default directory detail
     details = api.get_directory_contents(
         'ifs', detail='default').children[0].to_dict()
-    for key, val in details.items():
-        if val is None:
-            del details[key]
+    details = dict((k, v) for k, v in details.items() if v)
     print('Default directory details: {}'.format(details))
     # get directory last modified time
     print('Last modified time: {}'.format(
@@ -115,7 +113,8 @@ def main():
     details = (
         'access_time,atime_val,block_size,blocks,btime_val,'
         'change_time,create_time,ctime_val,gid,group,id,'
-        'is_hidden,mode,mtime_val,nlink,stub,type,uid')
+        'is_hidden,mode,mtime_val,nlink,stub,type,uid,'
+        'container,container_path')
     # execute directory query
     query_resp = api.query_directory(
         'ifs/data', query=True, directory_query=query, detail=details,
