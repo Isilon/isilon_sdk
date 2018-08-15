@@ -780,14 +780,14 @@ def isi_post_to_swagger_path(isi_api_name, isi_obj_name_space, isi_obj_name,
     isi_post_args = isi_desc_json['POST_args']
     one_obj_name = plural_obj_name_to_singular(isi_obj_name, post_fix='Item')
 
-    if 'POST_input_schema' in isi_desc_json:
-        post_input_schema = isi_desc_json['POST_input_schema']
-    else:
-        post_input_schema = None
-    if 'POST_output_schema' in isi_desc_json:
-        post_resp_schema = isi_desc_json['POST_output_schema']
-    else:
-        post_resp_schema = None
+    post_input_schema = isi_desc_json.get('POST_input_schema', None)
+    post_resp_schema = isi_desc_json.get('POST_output_schema', None)
+
+    # Avoid duplicate operationId between /1/auth/mapping/identities
+    # and /1/auth/mapping/identities/<SOURCE> for POST method
+    if isi_obj_name_space + one_obj_name == 'MappingIdentity':
+        one_obj_name = isi_obj_name
+
     operation = 'create'
     swagger_path['post'] = create_swagger_operation(
         isi_api_name, isi_obj_name_space, one_obj_name, operation,
@@ -1346,6 +1346,14 @@ def resolve_schema_issues(definition_name, isi_schema,
             if prop_name == 'system_contact' and 'pattern' in prop:
                 prop['pattern'] = prop['pattern'].replace('{2,4}', '{2,7}')
                 log.warning("Modified restrictive regex pattern")
+        elif (definition_name.startswith('NodeDriveconfig') or
+              definition_name.startswith('ClusterNodeDrive')):
+            if 'default' in prop and prop['default'] == 'true':
+                prop['default'] = True
+                log.warning("Default 'true' value is a string, not a boolean")
+            if 'default' in prop and prop['default'] == '30':
+                prop['default'] = 30
+                log.warning("Default '30' value is a string, not a integer")
 
 
 def main():
