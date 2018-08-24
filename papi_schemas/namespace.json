@@ -872,6 +872,36 @@
                     "type": "string"
                 },
                 {
+                    "description": "Specifies a token to return in the JSON result to indicate when there is a next page.",
+                    "in": "query",
+                    "name": "resume",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies one or more attributes to sort on the directory entries.",
+                    "in": "query",
+                    "name": "sort",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the sort direction. This value can be either ascending (ASC) or descending (DESC).",
+                    "in": "query",
+                    "name": "dir",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the object type to return, which can be one of the following values: container, object, pipe, character_device, block_device, symbolic_link, socket, or whiteout_file.",
+                    "in": "query",
+                    "name": "type",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies if hidden objects are returned.",
+                    "in": "query",
+                    "name": "hidden",
+                    "type": "boolean"
+                },
+                {
                     "description": "Specifies the maximum directory level depth to search for objects.",
                     "in": "query",
                     "name": "max-depth",

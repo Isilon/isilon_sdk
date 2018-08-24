@@ -118,8 +118,15 @@ def main():
     # execute directory query
     query_resp = api.query_directory(
         'ifs/data', query=True, directory_query=query, detail=details,
-        max_depth=2, limit=2)
+        max_depth=2, limit=10)
     print('Query results for /ifs/data: {}'.format(query_resp))
+    # request remaining results in chunks
+    while query_resp.resume:
+        query_resp = api.query_directory(
+            'ifs/data', query=True, directory_query=query,
+            resume=query_resp.resume)
+        print('Resume query results: {}'.format(query_resp))
+
     print('Successful clean up')
 
 
