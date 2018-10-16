@@ -1010,7 +1010,8 @@ def get_endpoint_paths(source_node_or_cluster, port, base_url, auth,
             next_endpoint = end_point_list_json[next_ep_index]
             # strip off the version and compare to see if they are
             # the same.
-            if next_endpoint[2:] != current_endpoint[2:]:
+            if (next_endpoint.split('/', 2)[-1] !=
+                    current_endpoint.split('/', 2)[-1]):
                 # using current_endpoint
                 break
             # skipping current_endpoint
