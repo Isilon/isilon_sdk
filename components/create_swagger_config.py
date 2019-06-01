@@ -6,6 +6,7 @@ ip address as the first argument to this script).  Swagger tools can now use
 this config to create language bindings and documentation.
 """
 import argparse
+import codecs
 from collections import OrderedDict
 from copy import deepcopy
 import getpass
@@ -449,11 +450,19 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
         if prop['type'] == 'string':
             if 'maxLength' in prop and prop['maxLength'] > MAX_STRING_SIZE:
                 prop['maxLength'] = MAX_STRING_SIZE
+
             # the custom added keyword 'x-sensitive' is custom, not
             # recognized by swagger, and thus needs to be removed
             # this keyword will only exist where prop type is a string
             if X_SENSITIVE in prop:
                 del prop[X_SENSITIVE]
+
+        if 'pattern' in prop:
+            if prop_name == 'subsystem':
+                prop['pattern'] = \
+                    codecs.unicode_escape_encode(codecs
+                                                 .unicode_escape_decode(
+                                                     prop['pattern'])[0])[0]
     # attach required props
     if required_props:
         isi_schema['required'] = required_props
