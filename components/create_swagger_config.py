@@ -46,6 +46,9 @@ URL_ENCODE_PARAMS = ['NfsAliasId']
 # encoding of the parameters specified above.
 X_ISI_URL_ENCODE_PATH_PARAM = 'x-isi-url-encode-path-param'
 
+# our custom json schema keyword
+X_SENSITIVE = 'x-sensitive'
+
 # tracks swagger operations generated from URLs to ensure uniqueness
 GENERATED_OPS = {}
 SWAGGER_DEFS = {}
@@ -251,6 +254,11 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
             # Swagger does not support 'any'
             if prop['items']['type'] == 'any':
                 prop['items']['type'] = 'string'
+            # the custom added keyword 'x-sensitive' is custom, not
+            # recognized by swagger, and needs to be removed from arrays
+            # this keyword will only exist where prop type is a string
+            if X_SENSITIVE in prop['items']:
+                del prop['items'][X_SENSITIVE]
         elif prop['items']['type'] == 'int':
             log.warning('Invalid prop type in object %s prop %s: %s',
                         isi_obj_name, prop_name, prop)
@@ -441,7 +449,11 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
         if prop['type'] == 'string':
             if 'maxLength' in prop and prop['maxLength'] > MAX_STRING_SIZE:
                 prop['maxLength'] = MAX_STRING_SIZE
-
+            # the custom added keyword 'x-sensitive' is custom, not
+            # recognized by swagger, and thus needs to be removed
+            # this keyword will only exist where prop type is a string
+            if X_SENSITIVE in prop:
+                del prop[X_SENSITIVE]
     # attach required props
     if required_props:
         isi_schema['required'] = required_props
@@ -1355,7 +1367,10 @@ def resolve_schema_issues(definition_name, isi_schema,
             if 'default' in prop and prop['default'] == '30':
                 prop['default'] = 30
                 log.warning("Default '30' value is a string, not a integer")
-
+        # protect against array out of bounds exception
+        elif definition_name.startswith('UpgradeClusterCommittedFeatures'):
+            if 'bits' in prop_name:
+                del prop['maxItems']
 
 def main():
     """Main method for create_swagger_config executable."""
