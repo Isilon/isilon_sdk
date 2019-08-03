@@ -1380,6 +1380,10 @@ def resolve_schema_issues(definition_name, isi_schema,
         elif definition_name.startswith('UpgradeClusterCommittedFeatures'):
             if 'bits' in prop_name:
                 del prop['maxItems']
+        # Swagger-parser complains about 'Infinity', replace with max float value
+        elif definition_name == 'QuotaQuota' and 'efficiency_ratio' in props:
+            props['efficiency_ratio']['maximum'] = 1.79769e+308
+            log.warning("Removing Infinity maximum: {}".format(definition_name))
 
 def main():
     """Main method for create_swagger_config executable."""
