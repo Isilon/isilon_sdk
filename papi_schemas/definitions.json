@@ -237,7 +237,7 @@
             },
             "inherit_flags": {
                 "items": {
-                    "type": "boolean"
+                    "type": "string"
                 },
                 "minItems": 0,
                 "type": "array"
