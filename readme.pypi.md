@@ -44,7 +44,7 @@ except ApiException as e:
     print "Exception when calling ProtocolsApi->list_nfs_exports: %s" % e
 ```
 
-There are more examples of coding to the Python PAPI bindings in the [tests](https://github.com/Isilon/isilon_sdk/tree/master/tests) subdirectory of the repo.  The tests currently run against a generic `isi_sdk` import which is how the bindings library is named by default if you build your own bindings.  If you want to run the tests against one of the libraries you've downloaded from the prebuilt releases page, you should change the `import isi_sdk` lines to `import isi_sdk_7_2` or `import isi_sdk_8_0` depending on which one you downloaded.
+There are more examples of coding to the Python PAPI bindings in the [tests](https://github.com/Isilon/isilon_sdk/tree/master/tests) subdirectory of the repo.  The tests currently run against a generic `isi_sdk` import which is how the bindings library is named by default if you build your own bindings.  If you want to run the tests against one of the libraries you've downloaded from the prebuilt releases page, you should change the `import isi_sdk` lines to `import isi_sdk_8_2_2` or `import isi_sdk_7_2` depending on which one you downloaded.
 
 ## More info
 See the Github repo for more information:
