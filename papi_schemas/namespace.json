@@ -390,6 +390,220 @@
             ]
         }
     },
+    "/namespace/{AccessPoint}/{ContainerPath}": {
+        "get": {
+            "description": "Retrieves a list of files and subdirectories from a directory.",
+            "operationId": "getDirectoryWithAccessPointContainerPath",
+            "parameters": [
+                {
+                    "description": "Access point.",
+                    "in": "path",
+                    "name": "AccessPoint",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Container path relative to access point.",
+                    "in": "path",
+                    "name": "ContainerPath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies which object attributes are displayed.",
+                    "in": "query",
+                    "name": "detail",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the maximum number of objects to send to the client.",
+                    "in": "query",
+                    "name": "limit",
+                    "type": "integer"
+                },
+                {
+                    "description": "Specifies a token to return in the JSON result to indicate when there is a next page.",
+                    "in": "query",
+                    "name": "resume",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies one or more attributes to sort on the directory entries.",
+                    "in": "query",
+                    "name": "sort",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the sort direction. This value can be either ascending (ASC) or descending (DESC).",
+                    "in": "query",
+                    "name": "dir",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the object type to return, which can be one of the following values: container, object, pipe, character_device, block_device, symbolic_link, socket, or whiteout_file.",
+                    "in": "query",
+                    "name": "type",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies if hidden objects are returned.",
+                    "in": "query",
+                    "name": "hidden",
+                    "type": "boolean"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "List directory objects.",
+                    "schema": {
+                        "$ref": "#/definitions/NamespaceObjects"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "put": {
+            "description": "Creates a directory with a specified accesspoint and container path.",
+            "operationId": "createDirectoryWithAccessPointContainerPath",
+            "parameters": [
+                {
+                    "description": "Access point.",
+                    "in": "path",
+                    "name": "AccessPoint",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Directory path relative to access point.",
+                    "in": "path",
+                    "name": "ContainerPath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the resource type.",
+                    "in": "header",
+                    "name": "x-isi-ifs-target-type",
+                    "required": true,
+                    "default": "container",
+                    "type": "string"
+                },
+                {
+                    "default": "0700",
+                    "description": "Specifies a pre-defined ACL value or POSIX mode with a string in octal string format.",
+                    "in": "header",
+                    "name": "x-isi-ifs-access-control",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies a pre-defined ACL value or POSIX mode with a string.",
+                    "in": "header",
+                    "name": "x-isi-ifs-node-pool-name",
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the OneFS node pool name.",
+                    "in": "query",
+                    "name": "recursive",
+                    "type": "boolean"
+                },
+                {
+                    "description": "Deletes and replaces the existing user attributes and ACLs of the directory with user-specified attributes and ACLS from the header, when set to true.",
+                    "in": "query",
+                    "name": "overwrite",
+                    "type": "boolean"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Create directory using accesspoint and container path",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "post": {
+            "description": "Moves a directory from an existing source to a new destination path.",
+            "operationId": "moveDirectoryWithAccessPointContainerPath",
+            "parameters": [
+                {
+                    "description": "Access point.",
+                    "in": "path",
+                    "name": "AccessPoint",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Directory path relative to access point.",
+                    "in": "path",
+                    "name": "ContainerPath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Specifies the full path for the destination directory.",
+                    "in": "header",
+                    "name": "x-isi-ifs-set-location",
+                    "required": true,
+                    "type": "string"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "Move directory.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        },
+        "delete": {
+            "description": "Deletes the directory at the specified path.",
+            "operationId": "deleteDirectoryWithAccessPointContainerPath",
+            "parameters": [
+                {
+                    "description": "Access point.",
+                    "in": "path",
+                    "name": "AccessPoint",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Directory path relative to access point.",
+                    "in": "path",
+                    "name": "ContainerPath",
+                    "required": true,
+                    "type": "string"
+                },
+                {
+                    "description": "Deletes directories recursively, when set to true.",
+                    "in": "query",
+                    "name": "recursive",
+                    "type": "boolean"
+                }
+            ],
+            "responses": {
+                "204": {
+                    "description": "Deleted directory.",
+                    "schema": {
+                        "$ref": "#/definitions/Empty"
+                    }
+                }
+            },
+            "tags": [
+                "Namespace"
+            ]
+        }
+    },
     "/namespace/{DirectoryMetadataPath}": {
         "get": {
             "description": "Retrieves the attribute information for a specified directory with the metadata query argument.",
