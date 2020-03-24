@@ -1511,21 +1511,21 @@ def main():
             cached_schemas = json.loads(schemas.read())
         papi_version = cached_schemas['version']
     else:
-        papi_version = onefs_papi_version(args.host, port, auth)
+        papi_version = int(onefs_papi_version(args.host, port, auth))
         # invalid backport of handlers caused versioning break
-        if papi_version == '5' and onefs_version[:5] == '8.0.1':
-            papi_version = '4'
+        if papi_version == 5 and onefs_version[:5] == '8.0.1':
+            papi_version = 4
         cached_schemas['version'] = papi_version
     swagger_json['info']['version'] = papi_version
 
     # minLength and maxLength were not required before PAPI version 5
-    if papi_version < '5':
+    if papi_version < 5:
         id_prop = SWAGGER_DEFS['CreateResponse']['properties']['id']
         del id_prop['maxLength']
         del id_prop['minLength']
 
     if not args.test:
-        if papi_version < '3':
+        if papi_version < 3:
             exclude_end_points = [
                 '/1/cluster/external-ips',
                 '/1/debug/echo/<TOKEN>',
@@ -1571,6 +1571,7 @@ def main():
             cached_schemas)
     else:
         exclude_end_points = []
+
         end_point_paths = [
             ('/1/auth/providers/local', None)
         ]
