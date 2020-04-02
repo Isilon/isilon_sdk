@@ -1021,7 +1021,8 @@ def get_endpoint_paths(source_node_or_cluster, port, base_url, auth,
     num_endpoints = len(end_point_list_json)
     while ep_index < num_endpoints:
         current_endpoint = end_point_list_json[ep_index]
-        if current_endpoint[2] != '/':
+        current_endpoint_version = current_endpoint.split('/', 2)[1]
+        if current_endpoint_version.find('.') != -1:
             # skip floating point version numbers
             ep_index += 1
             continue
