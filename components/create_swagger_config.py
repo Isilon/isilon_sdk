@@ -186,7 +186,10 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
             prop['items'] = {'type': 'string'}
 
     # protect against Java array out of bounds exception
-    if 'maxItems' in prop and prop['maxItems'] > MAX_ARRAY_SIZE:
+    #TODO: We can remove this check when sdk build is
+    # integrated with Jenkins
+    #if 'maxItems' in prop and prop['maxItems'] > MAX_ARRAY_SIZE:
+    if 'maxItems' in prop:
         del prop['maxItems']
 
     if 'type' not in prop['items'] and prop['items'] == 'string':
@@ -1378,9 +1381,9 @@ def resolve_schema_issues(definition_name, isi_schema,
                 prop['default'] = 30
                 log.warning("Default '30' value is a string, not a integer")
         # protect against array out of bounds exception
-        elif definition_name.startswith('UpgradeClusterCommittedFeatures'):
-            if 'bits' in prop_name:
-                del prop['maxItems']
+        #elif definition_name.startswith('UpgradeClusterCommittedFeatures'):
+        #    if 'bits' in prop_name:
+        #        del prop['maxItems']
         # Swagger-parser complains about 'Infinity', replace with max float value
         elif definition_name == 'QuotaQuota' and 'efficiency_ratio' in props:
             props['efficiency_ratio']['maximum'] = 1.79769e+308
