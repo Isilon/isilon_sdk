@@ -198,6 +198,11 @@
                 "minItems": 0,
                 "type": "array"
             },
+            "action": {
+                "description": "Action tells if we want to update the existing acl or delete and replace it with new acl defined. Default action is replace.",
+                "default": "replace",
+                "type": "string"
+            },
             "authoritative": {
                 "description": "If the directory has access rights set, then this field is returned as acl. If the directory has POSIX permissions set, then this field is returned as mode.",
                 "type": "string"
