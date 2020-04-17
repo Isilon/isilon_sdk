@@ -1513,7 +1513,7 @@ def main():
     if args.onefs_version:
         with open(schemas_file, 'r') as schemas:
             cached_schemas = json.loads(schemas.read())
-        papi_version = cached_schemas['version']
+        papi_version = int(cached_schemas['version'])
     else:
         papi_version = int(onefs_papi_version(args.host, port, auth))
         # invalid backport of handlers caused versioning break
