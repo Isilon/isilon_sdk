@@ -1040,7 +1040,15 @@ def get_endpoint_paths(source_node_or_cluster, port, base_url, auth,
                 # using current_endpoint
                 break
             # skipping current_endpoint
-            current_endpoint = next_endpoint
+            next_endpoint_version = next_endpoint.split('/', 2)[1]
+            if next_endpoint_version.find('.') == -1:
+                
+               if(int(current_endpoint_version) > int(next_endpoint_version)):
+                   #swap the values, put the higher version down in the list
+                   end_point_list_json[ep_index] = next_endpoint
+                   end_point_list_json[ep_index+1] = current_endpoint
+
+            #current_endpoint = next_endpoint
             ep_index = next_ep_index
             next_ep_index += 1
 
