@@ -1032,6 +1032,8 @@ def get_endpoint_paths(source_node_or_cluster, port, base_url, auth,
 
         next_ep_index = ep_index + 1
         while next_ep_index < num_endpoints:
+            current_endpoint = end_point_list_json[ep_index]
+            current_endpoint_version = current_endpoint.split('/', 2)[1]
             next_endpoint = end_point_list_json[next_ep_index]
             # strip off the version and compare to see if they are
             # the same.
@@ -1043,12 +1045,15 @@ def get_endpoint_paths(source_node_or_cluster, port, base_url, auth,
             next_endpoint_version = next_endpoint.split('/', 2)[1]
             if next_endpoint_version.find('.') == -1:
                 
-               if(int(current_endpoint_version) > int(next_endpoint_version)):
-                   #swap the values, put the higher version down in the list
-                   end_point_list_json[ep_index] = next_endpoint
-                   end_point_list_json[ep_index+1] = current_endpoint
+                if(int(current_endpoint_version) > int(next_endpoint_version)):
+                    #swap the values, put the higher version down in the list
+                    end_point_list_json[ep_index] = next_endpoint
+                    end_point_list_json[ep_index+1] = current_endpoint
+            else:
+                 #leave the x.x values
+                 end_point_list_json[ep_index] = next_endpoint
+                 end_point_list_json[ep_index+1] = current_endpoint
 
-            #current_endpoint = next_endpoint
             ep_index = next_ep_index
             next_ep_index += 1
 
@@ -1057,19 +1062,20 @@ def get_endpoint_paths(source_node_or_cluster, port, base_url, auth,
             continue
 
         if current_endpoint[-1] != '>':
-            base_end_points[current_endpoint[2:]] = (current_endpoint, None)
+            base_uri = current_endpoint.split('/', 2)[2]
+            base_end_points[base_uri] = (current_endpoint, None)
         else:
             try:
-                item_endpoint = current_endpoint
+                item_endpoint = current_endpoint.split('/', 2)[2]
                 last_slash = item_endpoint.rfind('/')
                 base_end_point_tuple = \
-                    base_end_points[item_endpoint[2:last_slash]]
-                base_end_point_tuple = (base_end_point_tuple[0], item_endpoint)
+                    base_end_points[item_endpoint[0:last_slash]]
+                base_end_point_tuple = (base_end_point_tuple[0], current_endpoint)
                 end_point_paths.append(base_end_point_tuple)
-                del base_end_points[item_endpoint[2:last_slash]]
+                del base_end_points[item_endpoint[0:last_slash]]
             except KeyError:
                 # no base for this item_endpoint
-                end_point_paths.append((None, item_endpoint))
+                end_point_paths.append((None, current_endpoint))
 
         ep_index += 1
 
