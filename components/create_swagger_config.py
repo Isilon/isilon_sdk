@@ -1534,7 +1534,7 @@ def main():
         if papi_version == 5 and onefs_version[:5] == '8.0.1':
             papi_version = 4
         cached_schemas['version'] = papi_version
-    swagger_json['info']['version'] = papi_version
+    swagger_json['info']['version'] = str(papi_version)
 
     # minLength and maxLength were not required before PAPI version 5
     if papi_version < 5:
