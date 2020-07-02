@@ -1056,6 +1056,9 @@ def get_endpoint_paths(source_node_or_cluster, port, base_url, auth,
 
             ep_index = next_ep_index
             next_ep_index += 1
+            ##This is the last endpoint so utilize the max version
+            if next_ep_index == num_endpoints:
+                current_endpoint = end_point_list_json[ep_index]
 
         if current_endpoint in exclude_end_points:
             ep_index += 1
