@@ -1274,6 +1274,15 @@ def resolve_schema_issues(definition_name, isi_schema,
                 prop['description'] = prop['desciption']
                 del prop['desciption']
                 log.warning("Found 'description' misspelled as 'desciption'")
+	    if prop_name == 'delivery' and 'description:' in prop:
+		prop['description'] = prop['description:']
+		del prop['description:']
+		log.warning("Found 'description' misspelled as 'description:'")
+	elif definition_name.endswith('HealthcheckChecklist'):
+	    if prop_name == 'delivery' and 'description:' in prop:
+		prop['description'] = prop['description:']
+		del prop['description:']
+		log.warning("Found 'description' misspelled as 'description:'")
         elif 'Subnet' in definition_name:
             if prop_name == 'sc_service_name' and 'description:' in prop:
                 prop['description'] = prop['description:']
@@ -1402,9 +1411,13 @@ def resolve_schema_issues(definition_name, isi_schema,
         #    if 'bits' in prop_name:
         #        del prop['maxItems']
         # Swagger-parser complains about 'Infinity', replace with max float value
-        elif definition_name == 'QuotaQuota' and 'efficiency_ratio' in props:
-            props['efficiency_ratio']['maximum'] = 1.79769e+308
-            log.warning("Removing Infinity maximum: {}".format(definition_name))
+	elif (definition_name.find('QuotaQuota') != -1):
+	    if prop_name == 'efficiency_ratio':
+		props['efficiency_ratio']['maximum'] = 1.79769e+308
+		log.warning("Removing Infinity maximum: {}".format(definition_name))
+	    elif prop_name == 'reduction_ratio':
+		props['reduction_ratio']['maximum'] = 1.79769e+308
+		log.warning("Removing Infinity maximum: {}".format(definition_name))
 
 def main():
     """Main method for create_swagger_config executable."""
@@ -1626,6 +1639,9 @@ def main():
                 resp = requests.get(
                     url=url, params=desc_parms, auth=auth, verify=False)
                 item_resp_json = resp.json()
+		if item_resp_json == None:
+		    log.warning("Missing ?describe for API %s", item_end_point_path)
+		    continue
                 cached_schemas[item_end_point_path] = deepcopy(item_resp_json)
 
             else:
@@ -1663,6 +1679,9 @@ def main():
                 resp = requests.get(
                     url=url, params=desc_parms, auth=auth, verify=False)
                 base_resp_json = resp.json()
+		if base_resp_json == None:
+		    log.warning('Missing ?describe for API %s', base_end_point_path)
+		    continue
                 cached_schemas[base_end_point_path] = deepcopy(base_resp_json)
 
             else:
