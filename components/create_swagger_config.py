@@ -1598,6 +1598,8 @@ def main():
                 # use /3/storagepool/suggested-protection/<NID> instead
                 '/3/cluster/email/default-template',
                 '/3/local/cluster/version',
+		# ?describe output missing for endpoint
+		'/11/local/avscan/nodes/<LNN>/status',
             ]
 
         end_point_paths = get_endpoint_paths(
