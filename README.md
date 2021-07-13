@@ -24,21 +24,24 @@ This repository also includes tools to build PAPI bindings yourself for a large 
 
 | Cluster Version       | Install Instruction         |
 |-----------------------|-----------------------------|
-| OneFS 9.0.0 and later | `pip install isi_sdk_9_0_0` |
-| OneFS 8.2.2 and later | `pip install isi_sdk_8_2_2` |
-| OneFS 8.2.1 and later | `pip install isi_sdk_8_2_1` |
-| OneFS 8.2.0 and later | `pip install isi_sdk_8_2_0` |
-| OneFS 8.1.1 and later | `pip install isi_sdk_8_1_1` |
-| OneFS 8.1.0 and later | `pip install isi_sdk_8_1_0` |
-| OneFS 8.0.1 and later | `pip install isi_sdk_8_0_1` |
-| OneFS 8.0 and later   | `pip install isi_sdk_8_0`   |
-| OneFS 7.2 and later   | `pip install isi_sdk_7_2`   |
+| OneFS 9.1.0           | `pip install isi_sdk_9_1_0` |
+| OneFS 9.0.0           | `pip install isi_sdk_9_0_0` |
+| OneFS 8.2.2           | `pip install isi_sdk_8_2_2` |
+| OneFS 8.2.1           | `pip install isi_sdk_8_2_1` |
+| OneFS 8.2.0           | `pip install isi_sdk_8_2_0` |
+| OneFS 8.1.1           | `pip install isi_sdk_8_1_1` |
+| OneFS 8.1.0           | `pip install isi_sdk_8_1_0` |
+| OneFS 8.0.1           | `pip install isi_sdk_8_0_1` |
+| OneFS 8.0             | `pip install isi_sdk_8_0`   |
+| OneFS 7.2             | `pip install isi_sdk_7_2`   |
 
 Installation will default to using binary distribution wheel (i.e. bdist). Source distributions (i.e. sdist) are also available on pip beginning with v0.1.6 and can be installed with `pip install --no-binary :all: <pkg name>`
 
 ### Basic Usage
 
 See the generated packages on PyPI for example code:
+
+[isi\_sdk\_9\_1\_0](https://pypi.org/project/isi-sdk-9-1-0)
 
 [isi\_sdk\_9\_0\_0](https://pypi.org/project/isi-sdk-9-0-0)
 
