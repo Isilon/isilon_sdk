@@ -1111,7 +1111,11 @@ def resolve_schema_issues(definition_name, isi_schema,
                           required_props, is_response_object):
     """Correct invalid PAPI schemas."""
     props = isi_schema['properties']
-
+    #issue pscale - 117082 [list_sync_jobs throwing exception when SyncIQ jobs other than copy or sync are present]   
+    
+    if definition_name.startswith('SyncJobs'):
+        if  props['jobs']['items']['properties']['policy']['properties']['action']['enum'] == ['copy','sync'] :
+            props['jobs']['items']['properties']['policy']['properties']['action']['enum']=["none", "copy", "move", "remove", "sync", "allow_write", "allow_write_revert", "resync_prep", "resync_prep_domain_mark", "resync_prep_restore", "resync_prep_finalize", "resync_prep_commit", "snap_revert_domain_mark", "synciq_domain_mark", "worm_domain_mark"]
     # Issue #12: Correct misspellings
     if definition_name == 'DebugStatsUnknown':
         if 'descriprion' in isi_schema:
