@@ -683,3 +683,19 @@ class ApiClient(object):
             if klass_name:
                 instance = self.__deserialize(data, klass_name)
         return instance
+
+    def logout(self):
+        """Calls the /session/1/session with a DELETE request. This API deletes the token present on the cluster.
+        sets the expiry time of the session to the time at which the logout method has been called. resets the values of the 2 cookies.
+        Hence, when a new function is called, new session will be created.
+        """
+        try:
+            if self.call_api('/session/1/session/','DELETE')[1]==204:
+                self.session_expiration =  time.time()
+                self.cookie = None
+                self.x_csrf_token = None
+                print("Logged out of session.")
+        except Exception as e:
+            print(e)
+            print("logout unsuccesful")
+            pass
