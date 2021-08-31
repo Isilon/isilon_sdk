@@ -5,6 +5,7 @@ responses from the PAPI handlers on your cluster (specified by cluster name or
 ip address as the first argument to this script).  Swagger tools can now use
 this config to create language bindings and documentation.
 """
+from json import JSONEncoder
 import argparse
 import codecs
 from collections import OrderedDict
@@ -16,7 +17,6 @@ import os
 import re
 import sys
 import traceback
-
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -81,7 +81,7 @@ def isi_props_to_swagger_params(isi_props, param_type):
     if not isi_props:
         return []
     swagger_parameters = []
-    for isi_prop_name, isi_prop in isi_props.items():
+    for isi_prop_name, isi_prop in list(isi_props.items()):
         # build a swagger param for each isi property
         swagger_param = {}
         swagger_param['in'] = param_type
@@ -186,9 +186,9 @@ def isi_to_swagger_array_prop(prop, prop_name, isi_obj_name,
             prop['items'] = {'type': 'string'}
 
     # protect against Java array out of bounds exception
-    #TODO: We can remove this check when sdk build is
+    # TODO: We can remove this check when sdk build is
     # integrated with Jenkins
-    #if 'maxItems' in prop and prop['maxItems'] > MAX_ARRAY_SIZE:
+    # if 'maxItems' in prop and prop['maxItems'] > MAX_ARRAY_SIZE:
     if 'maxItems' in prop:
         del prop['maxItems']
 
@@ -334,7 +334,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
     resolve_schema_issues(
         sub_obj_namespace, isi_schema, required_props, is_response_object)
 
-    for prop_name, prop in isi_schema['properties'].items():
+    for prop_name, prop in list(isi_schema['properties'].items()):
         if 'type' not in prop:
             if 'enum' in prop:
                 log.warning(('Invalid enum prop with no type in object %s '
@@ -465,7 +465,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                 prop['pattern'] = \
                     codecs.unicode_escape_encode(codecs
                                                  .unicode_escape_decode(
-                                                     prop['pattern'])[0])[0]
+                        prop['pattern'])[0])[0]
     # attach required props
     if required_props:
         isi_schema['required'] = required_props
@@ -533,7 +533,7 @@ def find_or_add_obj_def(new_obj_def, new_obj_name,
         existing_props = existing_obj['properties']
         existing_required = existing_obj.get('required', [])
 
-        for prop_name, prop in existing_props.items():
+        for prop_name, prop in list(existing_props.items()):
             if prop_name not in new_obj_def['properties']:
                 is_extension = False
                 break
@@ -595,7 +595,7 @@ def build_swagger_name(names, start, end, omit_params=False):
         # Special case for 'LNN' which stands for Logical Node Number.
         if name.endswith('ID>') or name == '<LNN>':
             next_name = 'Item'  # default name if we can't find a better name
-            for sub_index in reversed(range(index)):
+            for sub_index in reversed(list(range(index))):
                 prev_name = re.sub(
                     '[^0-9a-zA-Z]+', '', names[sub_index].title())
                 post_fix_used = PostFixUsed()
@@ -616,7 +616,7 @@ def build_isi_api_name(names):
     end_index = 1
     # use the first item or the last instance of <FOO> that is not on the end
     # point URL.
-    for index in reversed(range(len(names) - 1)):
+    for index in reversed(list(range(len(names) - 1))):
         name = names[index]
         if name.startswith('<') and name.endswith('>'):
             end_index = index - 1 if index > 2 else index
@@ -1044,15 +1044,15 @@ def get_endpoint_paths(source_node_or_cluster, port, base_url, auth,
             # skipping current_endpoint
             next_endpoint_version = next_endpoint.split('/', 2)[1]
             if next_endpoint_version.find('.') == -1:
-                
-                if(int(current_endpoint_version) > int(next_endpoint_version)):
-                    #swap the values, put the higher version down in the list
+
+                if (int(current_endpoint_version) > int(next_endpoint_version)):
+                    # swap the values, put the higher version down in the list
                     end_point_list_json[ep_index] = next_endpoint
-                    end_point_list_json[ep_index+1] = current_endpoint
+                    end_point_list_json[ep_index + 1] = current_endpoint
             else:
-                 #leave the x.x values
-                 end_point_list_json[ep_index] = next_endpoint
-                 end_point_list_json[ep_index+1] = current_endpoint
+                # leave the x.x values
+                end_point_list_json[ep_index] = next_endpoint
+                end_point_list_json[ep_index + 1] = current_endpoint
 
             ep_index = next_ep_index
             next_ep_index += 1
@@ -1083,9 +1083,27 @@ def get_endpoint_paths(source_node_or_cluster, port, base_url, auth,
         ep_index += 1
 
     # remaining base end points have no item end point
-    for base_end_point_tuple in base_end_points.values():
+    for base_end_point_tuple in list(base_end_points.values()):
         end_point_paths.append(base_end_point_tuple)
-
+    def cmp_to_key(mycmp):
+       class K(object):
+         def __init__(self, obj, *args):
+            self.obj = obj
+         def __lt__(self, other):
+            return mycmp(self.obj, other.obj) < 0
+         def __gt__(self, other):
+            return mycmp(self.obj, other.obj) > 0
+         def __eq__(self, other):
+            return mycmp(self.obj, other.obj) == 0
+         def __le__(self, other):
+            return mycmp(self.obj, other.obj) <= 0
+         def __ge__(self, other):
+            return mycmp(self.obj, other.obj) >= 0
+         def __ne__(self, other):
+            return mycmp(self.obj, other.obj) != 0
+       return K
+    def cmp(a, b):
+        return (a > b) - (a < b)
     def end_point_path_compare(a, b):
         """Compare two endpoints.
 
@@ -1104,18 +1122,28 @@ def get_endpoint_paths(source_node_or_cluster, port, base_url, auth,
 
         return cmp(lhs, rhs)
 
-    return sorted(end_point_paths, cmp=end_point_path_compare)
+    return sorted(end_point_paths ,key=cmp_to_key(end_point_path_compare))
 
 
 def resolve_schema_issues(definition_name, isi_schema,
                           required_props, is_response_object):
     """Correct invalid PAPI schemas."""
     props = isi_schema['properties']
-    #issue pscale - 117082 [list_sync_jobs throwing exception when SyncIQ jobs other than copy or sync are present]   
-    
+    # issue pf - 117082 [list_sync_jobs throwing exception when SyncIQ jobs other than copy or sync are present]
     if definition_name.startswith('SyncJobs'):
-        if  props['jobs']['items']['properties']['policy']['properties']['action']['enum'] == ['copy','sync'] :
-            props['jobs']['items']['properties']['policy']['properties']['action']['enum']=["none", "copy", "move", "remove", "sync", "allow_write", "allow_write_revert", "resync_prep", "resync_prep_domain_mark", "resync_prep_restore", "resync_prep_finalize", "resync_prep_commit", "snap_revert_domain_mark", "synciq_domain_mark", "worm_domain_mark"]
+        if props['jobs']['items']['properties']['policy']['properties']['action']['enum'] == ['copy', 'sync']:
+            props['jobs']['items']['properties']['policy']['properties']['action']['enum'] = ["none", "copy", "move",
+                                                                                              "remove", "sync",
+                                                                                              "allow_write",
+                                                                                              "allow_write_revert",
+                                                                                              "resync_prep",
+                                                                                              "resync_prep_domain_mark",
+                                                                                              "resync_prep_restore",
+                                                                                              "resync_prep_finalize",
+                                                                                              "resync_prep_commit",
+                                                                                              "snap_revert_domain_mark",
+                                                                                              "synciq_domain_mark",
+                                                                                              "worm_domain_mark"]
     # Issue #12: Correct misspellings
     if definition_name == 'DebugStatsUnknown':
         if 'descriprion' in isi_schema:
@@ -1239,8 +1267,7 @@ def resolve_schema_issues(definition_name, isi_schema,
         del props['types']
         log.warning("Renamed 'types' property to 'policies'")
 
-
-    for prop_name, prop in props.items():
+    for prop_name, prop in list(props.items()):
 
         # Issue #8: Remove invalid placement of required field
         if (definition_name == 'StoragepoolStatusUnhealthyItem' and
@@ -1278,15 +1305,15 @@ def resolve_schema_issues(definition_name, isi_schema,
                 prop['description'] = prop['desciption']
                 del prop['desciption']
                 log.warning("Found 'description' misspelled as 'desciption'")
-	    if prop_name == 'delivery' and 'description:' in prop:
-		prop['description'] = prop['description:']
-		del prop['description:']
-		log.warning("Found 'description' misspelled as 'description:'")
-	elif definition_name.endswith('HealthcheckChecklist'):
-	    if prop_name == 'delivery' and 'description:' in prop:
-		prop['description'] = prop['description:']
-		del prop['description:']
-		log.warning("Found 'description' misspelled as 'description:'")
+            if prop_name == 'delivery' and 'description:' in prop:
+                prop['description'] = prop['description:']
+                del prop['description:']
+                log.warning("Found 'description' misspelled as 'description:'")
+        elif definition_name.endswith('HealthcheckChecklist'):
+            if prop_name == 'delivery' and 'description:' in prop:
+                prop['description'] = prop['description:']
+                del prop['description:']
+                log.warning("Found 'description' misspelled as 'description:'")
         elif 'Subnet' in definition_name:
             if prop_name == 'sc_service_name' and 'description:' in prop:
                 prop['description'] = prop['description:']
@@ -1411,17 +1438,18 @@ def resolve_schema_issues(definition_name, isi_schema,
                 prop['default'] = 30
                 log.warning("Default '30' value is a string, not a integer")
         # protect against array out of bounds exception
-        #elif definition_name.startswith('UpgradeClusterCommittedFeatures'):
+        # elif definition_name.startswith('UpgradeClusterCommittedFeatures'):
         #    if 'bits' in prop_name:
         #        del prop['maxItems']
         # Swagger-parser complains about 'Infinity', replace with max float value
-	elif (definition_name.find('QuotaQuota') != -1):
-	    if prop_name == 'efficiency_ratio':
-		props['efficiency_ratio']['maximum'] = 1.79769e+308
-		log.warning("Removing Infinity maximum: {}".format(definition_name))
-	    elif prop_name == 'reduction_ratio':
-		props['reduction_ratio']['maximum'] = 1.79769e+308
-		log.warning("Removing Infinity maximum: {}".format(definition_name))
+        elif (definition_name.find('QuotaQuota') != -1):
+            if prop_name == 'efficiency_ratio':
+                props['efficiency_ratio']['maximum'] = 1.79769e+308
+                log.warning("Removing Infinity maximum: {}".format(definition_name))
+            elif prop_name == 'reduction_ratio':
+                props['reduction_ratio']['maximum'] = 1.79769e+308
+                log.warning("Removing Infinity maximum: {}".format(definition_name))
+
 
 def main():
     """Main method for create_swagger_config executable."""
@@ -1466,7 +1494,7 @@ def main():
 
     if not args.onefs_version:
         if args.username is None:
-            args.username = raw_input(
+            args.username = input(
                 'Please provide username used for API access to {}: '.format(
                     args.host))
         if args.password is None:
@@ -1602,8 +1630,8 @@ def main():
                 # use /3/storagepool/suggested-protection/<NID> instead
                 '/3/cluster/email/default-template',
                 '/3/local/cluster/version',
-		# ?describe output missing for endpoint
-		'/11/local/avscan/nodes/<LNN>/status',
+                # ?describe output missing for endpoint
+                '/11/local/avscan/nodes/<LNN>/status',
             ]
 
         end_point_paths = get_endpoint_paths(
@@ -1645,9 +1673,9 @@ def main():
                 resp = requests.get(
                     url=url, params=desc_parms, auth=auth, verify=False)
                 item_resp_json = resp.json()
-		if item_resp_json == None:
-		    log.warning("Missing ?describe for API %s", item_end_point_path)
-		    continue
+                if item_resp_json == None:
+                    log.warning("Missing ?describe for API %s", item_end_point_path)
+                    continue
                 cached_schemas[item_end_point_path] = deepcopy(item_resp_json)
 
             else:
@@ -1685,9 +1713,9 @@ def main():
                 resp = requests.get(
                     url=url, params=desc_parms, auth=auth, verify=False)
                 base_resp_json = resp.json()
-		if base_resp_json == None:
-		    log.warning('Missing ?describe for API %s', base_end_point_path)
-		    continue
+                if base_resp_json == None:
+                    log.warning('Missing ?describe for API %s', base_end_point_path)
+                    continue
                 cached_schemas[base_end_point_path] = deepcopy(base_resp_json)
 
             else:
@@ -1748,11 +1776,18 @@ def main():
             schemas.write(json.dumps(
                 cached_schemas, sort_keys=True, indent=4,
                 separators=(',', ': ')))
+    class TMCSerializer(JSONEncoder):
 
+          def default(self, value):
+
+            if isinstance(value, bytes):
+              return str(value)
+            return super(TMCSerializer, self).default(value)
     with open(args.output_file, 'w') as output_file:
         output_file.write(json.dumps(
-            swagger_json, sort_keys=True, indent=4, separators=(',', ': ')))
+           swagger_json,cls=TMCSerializer, sort_keys=True, indent=4, separators=(',', ': ')))
 
 
 if __name__ == '__main__':
     main()
+
