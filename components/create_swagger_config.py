@@ -58,19 +58,48 @@ MAX_ARRAY_SIZE = 2147483642
 MAX_STRING_SIZE = 2147483647
 MAX_INTEGER_SIZE = 9223372036854775807
 
+def create_web_session(host, username, password):
+    ''' Return a requests.session object with a isi session. '''
 
-def onefs_release_version(host, port, auth):
+    session = requests.Session()
+
+    session.headers['Origin'] = 'https://{}:8080/'.format(host)
+    session.headers['Content-Type'] = 'application/json'
+
+    data = {
+        'username': username,
+        'password': password,
+        'services': ['platform', 'namespace']}
+
+    uri = 'https://{}:8080/session/1/session'.format(host)
+    response = session.post(uri, json=data, verify=False)
+
+    if response.status_code != requests.codes.CREATED:
+        msg = 'Failed to create web session: {}, {}, {}'.format(
+            username, response.headers, response.text)
+        raise Exception(msg)
+
+    session.headers['X-CSRF-Token'] = session.cookies['isicsrf']
+
+    return session
+
+def requests_with_session(session, url, params = None):
+    return session.get(
+            url,params=params,
+            verify=False).json()
+
+def onefs_release_version(host, port, session):
     """Query a cluster and return the 4 major version digits"""
     url = 'https://{0}:{1}/platform/1/cluster/config'.format(host, port)
-    config = requests.get(url, auth=auth, verify=False).json()
+    config = requests_with_session(session, url)
     return config['onefs_version']['release'].strip('v')
 
 
-def onefs_papi_version(host, port, auth):
+def onefs_papi_version(host, port, session):
     """Query cluster for latest PAPI version."""
     url = 'https://{0}:{1}/platform/latest'.format(host, port)
     try:
-        return requests.get(url, auth=auth, verify=False).json()['latest']
+        return requests_with_session(session,url)['latest']
     except KeyError:
         # latest handler did not exist before API version 3
         return '2'
@@ -999,7 +1028,7 @@ def parse_path_params(end_point_path):
     return params
 
 
-def get_endpoint_paths(source_node_or_cluster, port, base_url, auth,
+def get_endpoint_paths(source_node_or_cluster, port, base_url, session,
                        exclude_end_points, cached_schemas):
     """
     Gets the full list of PAPI URIs reported by source_node_or_cluster using
@@ -1011,9 +1040,9 @@ def get_endpoint_paths(source_node_or_cluster, port, base_url, auth,
     if 'directory' not in cached_schemas:
         desc_list_parms = {'describe': '', 'json': '', 'list': ''}
         url = 'https://' + source_node_or_cluster + ':' + port + base_url
-        resp = requests.get(
-            url=url, params=desc_list_parms, auth=auth, verify=False)
-        end_point_list_json = resp.json()['directory']
+        resp = requests_with_session(
+            session, url, params=desc_list_parms)
+        end_point_list_json = resp['directory']
         cached_schemas['directory'] = end_point_list_json
     else:
         end_point_list_json = cached_schemas['directory']
@@ -1554,13 +1583,18 @@ def main():
 
     swagger_json['definitions'] = SWAGGER_DEFS
 
-    auth = HTTPBasicAuth(args.username, args.password)
+    # Added session auth. So HTTPBasicAuth - not needed - auth variable replaced to {username, password} from arguments
+    auth = {'username':args.username, 'pwd':args.password}
     base_url = '/platform'
     port = '8080'
     desc_parms = {'describe': '', 'json': ''}
+    # Initialize session object and create session if onefs_version is not provided in argumnets
+    session = None
 
     if not args.onefs_version:
-        onefs_version = onefs_release_version(args.host, port, auth)
+        # Creation of session object for accessing APIs
+        session = create_web_session(args.host, auth['username'],  auth['pwd']) 
+        onefs_version = onefs_release_version(args.host, port, session)
     else:
         version_pattern = r"^\d{1,2}\.\d\.\d\.(?:DEV\.)?\d{1,2}$"
         if not re.match(version_pattern, args.onefs_version):
@@ -1576,7 +1610,7 @@ def main():
             cached_schemas = json.loads(schemas.read())
         papi_version = int(cached_schemas['version'])
     else:
-        papi_version = int(onefs_papi_version(args.host, port, auth))
+        papi_version = int(onefs_papi_version(args.host, port, session))
         # invalid backport of handlers caused versioning break
         if papi_version == 5 and onefs_version[:5] == '8.0.1':
             papi_version = 4
@@ -1634,7 +1668,7 @@ def main():
             ]
 
         end_point_paths = get_endpoint_paths(
-            args.host, port, base_url, auth, exclude_end_points,
+            args.host, port, base_url, session, exclude_end_points,
             cached_schemas)
     else:
         exclude_end_points = []
@@ -1669,9 +1703,9 @@ def main():
             if not args.onefs_version:
                 url = 'https://{}:{}{}{}'.format(
                     args.host, port, base_url, item_end_point_path)
-                resp = requests.get(
-                    url=url, params=desc_parms, auth=auth, verify=False)
-                item_resp_json = resp.json()
+                resp = requests_with_session(
+                    session, url, params=desc_parms)
+                item_resp_json = resp
                 if item_resp_json == None:
                     log.warning("Missing ?describe for API %s", item_end_point_path)
                     continue
@@ -1709,9 +1743,9 @@ def main():
             if not args.onefs_version:
                 url = 'https://{}:{}{}{}'.format(
                     args.host, port, base_url, base_end_point_path)
-                resp = requests.get(
-                    url=url, params=desc_parms, auth=auth, verify=False)
-                base_resp_json = resp.json()
+                resp = requests_with_session(
+                    session, url, params=desc_parms)
+                base_resp_json = resp
                 if base_resp_json == None:
                     log.warning('Missing ?describe for API %s', base_end_point_path)
                     continue
