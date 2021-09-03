@@ -1485,7 +1485,6 @@ def main():
         '-v', '--version', dest='onefs_version',
         help='OneFS version with 3 dots (e.g. 8.1.0.2)',
         action='store', default=None)
-
     args = argparser.parse_args()
 
     log.basicConfig(
@@ -1783,10 +1782,27 @@ def main():
             if isinstance(value, bytes):
               return str(value)
             return super(TMCSerializer, self).default(value)
-    with open(args.output_file, 'w') as output_file:
-        output_file.write(json.dumps(
+    if(args.output_file is not None):
+        with open(args.output_file, 'w') as output_file:
+               output_file.write(json.dumps(
            swagger_json,cls=TMCSerializer, sort_keys=True, indent=4, separators=(',', ': ')))
+    else :
+        new_file=str(onefs_version)+'.json'
+        if(os.path.exists(new_file)):
+            print('\n Do you want to replace your existing OAS  : '+os.getcwd()+'/'+new_file +' Enter your choice :[Y/N].')
+            choice=raw_input()
+            if(choice=='y' or choice=='Y'):
+                 with open(new_file, 'w') as output_file:
+                    output_file.write(json.dumps(
+           swagger_json,cls=TMCSerializer, sort_keys=True, indent=4, separators=(',', ': ')))
+            else:
+                 print('Exiting!!!')
+                 exit()
 
+        else: 
+              with open(new_file, 'w') as output_file:
+                   output_file.write(json.dumps(
+           swagger_json,cls=TMCSerializer, sort_keys=True, indent=4, separators=(',', ': ')))
 
 if __name__ == '__main__':
     main()
