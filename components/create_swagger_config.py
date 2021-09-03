@@ -1769,10 +1769,35 @@ def main():
     log.info(('End points successfully processed: %s, failed to process: %s, '
               'excluded: %s.'),
              success_count, fail_count, len(exclude_end_points))
-
-    if cached_schemas and not args.onefs_version:
-        with open(schemas_file, 'w+') as schemas:
-            schemas.write(json.dumps(
+    if cached_schemas and not args.onefs_version and os.path.exists(os.getcwd()+'/papi_schemas/'+str(onefs_version)+'.json'):
+        print('\nDo you want to overwrite existing schema - '+os.getcwd()+'/papi_schemas/'+str(onefs_version)+'.json'+' [Y/N] or [y/n] ')
+        ch=raw_input()
+        if(ch=='y' or ch=='Y'):
+             with open(schemas_file, 'w+') as schemas:
+                  schemas.write(json.dumps(
+                cached_schemas, sort_keys=True, indent=4,
+                separators=(',', ': ')))
+        elif(ch=='n' or ch=='N'):
+                print('\nPlease Enter the new file name : ')
+                new_name=raw_input()
+                if new_name[-5:]!='.json' and new_name!=onefs_version:
+                   new_name=new_name+'.json'
+                   with open('papi_schemas/'+new_name, 'w+') as schemas:
+                       schemas.write(json.dumps(
+                cached_schemas, sort_keys=True, indent=4,
+                separators=(',', ': ')))
+                elif new_name == onefs_version or new_name==onefs_version+'.json': 
+                    print('\nSchema file of this name alrady exists , Please restart the execution.')
+                    exit()
+                else :
+                    print('\nInappropriate File name!!!!')
+                    exit()
+        else:
+            print('\nInvalid input!!!')
+            exit()
+    elif cached_schemas and not args.onefs_version and (os.path.exists(os.getcwd()+'/papi_schemas/'+str(onefs_version)+'.json')==False):
+         with open(schemas_file, 'w+') as schemas:
+                  schemas.write(json.dumps(
                 cached_schemas, sort_keys=True, indent=4,
                 separators=(',', ': ')))
     class TMCSerializer(JSONEncoder):
