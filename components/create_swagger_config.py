@@ -20,6 +20,7 @@ import sys
 import traceback
 import requests
 from requests.auth import HTTPBasicAuth
+import common_resources
 
 requests.packages.urllib3.disable_warnings()
 
@@ -1047,112 +1048,8 @@ def get_endpoint_paths(source_node_or_cluster, port, base_url, session,
         cached_schemas['directory'] = end_point_list_json
     else:
         end_point_list_json = cached_schemas['directory']
-
-    base_end_points = {}
-    end_point_paths = []
-    ep_index = 0
-    num_endpoints = len(end_point_list_json)
-    while ep_index < num_endpoints:
-        current_endpoint = end_point_list_json[ep_index]
-        current_endpoint_version = current_endpoint.split('/', 2)[1]
-        if current_endpoint_version.find('.') != -1:
-            # skip floating point version numbers
-            ep_index += 1
-            continue
-
-        next_ep_index = ep_index + 1
-        while next_ep_index < num_endpoints:
-            current_endpoint = end_point_list_json[ep_index]
-            current_endpoint_version = current_endpoint.split('/', 2)[1]
-            next_endpoint = end_point_list_json[next_ep_index]
-            # strip off the version and compare to see if they are
-            # the same.
-            if (next_endpoint.split('/', 2)[-1] !=
-                    current_endpoint.split('/', 2)[-1]):
-                # using current_endpoint
-                break
-            # skipping current_endpoint
-            next_endpoint_version = next_endpoint.split('/', 2)[1]
-            if next_endpoint_version.find('.') == -1:
-
-                if (int(current_endpoint_version) > int(next_endpoint_version)):
-                    # swap the values, put the higher version down in the list
-                    end_point_list_json[ep_index] = next_endpoint
-                    end_point_list_json[ep_index + 1] = current_endpoint
-            else:
-                # leave the x.x values
-                end_point_list_json[ep_index] = next_endpoint
-                end_point_list_json[ep_index + 1] = current_endpoint
-
-            ep_index = next_ep_index
-            next_ep_index += 1
-            ##This is the last endpoint so utilize the max version
-            if next_ep_index == num_endpoints:
-                current_endpoint = end_point_list_json[ep_index]
-
-        if current_endpoint in exclude_end_points:
-            ep_index += 1
-            continue
-
-        if current_endpoint[-1] != '>':
-            base_uri = current_endpoint.split('/', 2)[2]
-            base_end_points[base_uri] = (current_endpoint, None)
-        else:
-            try:
-                item_endpoint = current_endpoint.split('/', 2)[2]
-                last_slash = item_endpoint.rfind('/')
-                base_end_point_tuple = \
-                    base_end_points[item_endpoint[0:last_slash]]
-                base_end_point_tuple = (base_end_point_tuple[0], current_endpoint)
-                end_point_paths.append(base_end_point_tuple)
-                del base_end_points[item_endpoint[0:last_slash]]
-            except KeyError:
-                # no base for this item_endpoint
-                end_point_paths.append((None, current_endpoint))
-
-        ep_index += 1
-
-    # remaining base end points have no item end point
-    for base_end_point_tuple in list(base_end_points.values()):
-        end_point_paths.append(base_end_point_tuple)
-    def cmp_to_key(mycmp):
-       class K(object):
-         def __init__(self, obj, *args):
-            self.obj = obj
-         def __lt__(self, other):
-            return mycmp(self.obj, other.obj) < 0
-         def __gt__(self, other):
-            return mycmp(self.obj, other.obj) > 0
-         def __eq__(self, other):
-            return mycmp(self.obj, other.obj) == 0
-         def __le__(self, other):
-            return mycmp(self.obj, other.obj) <= 0
-         def __ge__(self, other):
-            return mycmp(self.obj, other.obj) >= 0
-         def __ne__(self, other):
-            return mycmp(self.obj, other.obj) != 0
-       return K
-    def cmp(a, b):
-        return (a > b) - (a < b)
-    def end_point_path_compare(a, b):
-        """Compare two endpoints.
-
-        Return value is negative if a < b,
-        Return value is zero if a == b
-        Return value is positive if a > b.
-        """
-        lhs = a[0]
-        if lhs is None:
-            lhs = a[1]
-        rhs = b[0]
-        if rhs is None:
-            rhs = b[1]
-        if lhs.find(rhs) == 0 or rhs.find(lhs) == 0:
-            return len(rhs) - len(lhs)
-
-        return cmp(lhs, rhs)
-
-    return sorted(end_point_paths ,key=cmp_to_key(end_point_path_compare))
+    # calls get_endpoint_paths from common_resources
+    return common_resources.get_endpoint_paths(end_point_list_json, exclude_end_points)
 
 
 def resolve_schema_issues(definition_name, isi_schema,
@@ -1607,10 +1504,6 @@ def main():
         session = create_web_session(args.host, auth['username'],  auth['pwd']) 
         onefs_version = onefs_release_version(args.host, port, session)
     else:
-        version_pattern = r"^\d{1,2}\.\d\.\d\.(?:DEV\.)?\d{1,2}$"
-        if not re.match(version_pattern, args.onefs_version):
-            raise RuntimeError('Invalid ONEFS_VERSION argument: {}'.format(
-                args.onefs_version))
         onefs_version = args.onefs_version
 
     cached_schemas = {}
@@ -1635,49 +1528,7 @@ def main():
         del id_prop['minLength']
 
     if not args.test:
-        if papi_version < 3:
-            exclude_end_points = [
-                '/1/cluster/external-ips',
-                '/1/debug/echo/<TOKEN>',
-                '/1/event/events',
-                '/1/event/events/<ID>',
-                '/1/fsa/path',
-                '/1/license/eula',
-                '/1/protocols/nfs/aliases',
-                '/1/protocols/nfs/aliases/<AID>',
-                '/1/protocols/nfs/check',
-                '/1/protocols/nfs/exports',
-                '/1/protocols/nfs/exports-summary',
-                '/1/protocols/nfs/exports/<EID>',
-                '/1/protocols/nfs/nlm/locks',
-                '/1/protocols/nfs/nlm/sessions',
-                '/1/protocols/nfs/nlm/sessions/<ID>',
-                '/1/protocols/nfs/nlm/waiters',
-                '/1/protocols/nfs/reload',
-                '/1/protocols/nfs/settings/export',
-                '/1/protocols/nfs/settings/global',
-                '/1/protocols/nfs/settings/zone'
-            ]
-        else:
-            exclude_end_points = [
-                '/1/auth/users/<USER>/change_password',
-                # use /3/auth/users/<USER>/change-password instead
-                '/1/auth/users/<USER>/member_of',
-                '/1/auth/users/<USER>/member_of/<MEMBER_OF>',
-                # use /3/auth/users/<USER>/member-of instead
-                '/1/debug/echo/<TOKEN>',
-                '/1/debug/echo/<LNN>/<TOKEN>',
-                '/1/fsa/path',
-                '/1/license/eula',
-                '/1/local/debug/echo/<LNN>/<TOKEN>',
-                '/1/storagepool/suggested_protection/<NID>',
-                # use /3/storagepool/suggested-protection/<NID> instead
-                '/3/cluster/email/default-template',
-                '/3/local/cluster/version',
-                # ?describe output missing for endpoint
-                '/11/local/avscan/nodes/<LNN>/status',
-            ]
-
+        exclude_end_points = common_resources.get_exclude_endpoints(papi_version)
         end_point_paths = get_endpoint_paths(
             args.host, port, base_url, session, exclude_end_points,
             cached_schemas)
