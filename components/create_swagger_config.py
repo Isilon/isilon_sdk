@@ -1514,8 +1514,18 @@ def main():
         '-v', '--version', dest='onefs_version',
         help='OneFS version with 3 dots (e.g. 8.1.0.2)',
         action='store', default=None)
+    argparser.add_argument(
+        '-a', '--automation', dest='automation',
+        help='Non interactive way of creating OAS from json.',
+        action='store_true', default=False)
     args = argparser.parse_args()
-
+    if args.automation:
+        if (not(args.host and args.output_file)):
+            print('\nPlease give appropriate arguments.'+'\n'+'Correct Usage : python/python3 create_swagger_config.py -i <cluster_ip> -o <output_file_path>'+' or python create_swagger_config.py -v <version> -o <output_filr_path>')
+            exit()
+        elif (not(args.onefs_version and args.output_file) and not args.host):
+            print('\nPlease give appropriate arguments.'+'\n'+'Correct Usage : python/python3 create_swagger_config.py -i <cluster_ip> -o <output_file_path>'+' or python create_swagger_config.py -v <version> -o <output_filr_path>')
+            exit()
     log.basicConfig(
         format='%(asctime)s %(levelname)s - %(message)s',
         datefmt='%I:%M:%S', level=getattr(log, args.log_level.upper()))
@@ -1803,7 +1813,14 @@ def main():
     log.info(('End points successfully processed: %s, failed to process: %s, '
               'excluded: %s.'),
              success_count, fail_count, len(exclude_end_points))
-    if cached_schemas and not args.onefs_version and os.path.exists(os.getcwd()+'/papi_schemas/'+str(onefs_version)+'.json'):
+    if args.automation :
+            if cached_schemas and not args.onefs_version:
+               with open(schemas_file, 'w+') as schemas:
+                   schemas.write(json.dumps(
+                cached_schemas, sort_keys=True, indent=4,
+                separators=(',', ': ')))
+    else:
+      if cached_schemas and not args.onefs_version and os.path.exists(os.getcwd()+'/papi_schemas/'+str(onefs_version)+'.json'):
         print('\nDo you want to overwrite existing schema - '+os.getcwd()+'/papi_schemas/'+str(onefs_version)+'.json'+' [Y/N] or [y/n] ')
         ch=raw_input()
         if(ch=='y' or ch=='Y'):
@@ -1829,7 +1846,7 @@ def main():
         else:
             print('\nInvalid input!!!')
             exit()
-    elif cached_schemas and not args.onefs_version and (os.path.exists(os.getcwd()+'/papi_schemas/'+str(onefs_version)+'.json')==False):
+      elif cached_schemas and not args.onefs_version and (os.path.exists(os.getcwd()+'/papi_schemas/'+str(onefs_version)+'.json')==False):
          with open(schemas_file, 'w+') as schemas:
                   schemas.write(json.dumps(
                 cached_schemas, sort_keys=True, indent=4,
@@ -1841,11 +1858,16 @@ def main():
             if isinstance(value, bytes):
               return str(value)
             return super(TMCSerializer, self).default(value)
-    if(args.output_file is not None):
+    if args.automation:
+        with open(args.output_file, 'w') as output_file:
+         output_file.write(json.dumps(
+           swagger_json,cls=TMCSerializer, sort_keys=True, indent=4, separators=(',', ': ')))
+    else:
+     if(args.output_file is not None):
         with open(args.output_file, 'w') as output_file:
                output_file.write(json.dumps(
            swagger_json,cls=TMCSerializer, sort_keys=True, indent=4, separators=(',', ': ')))
-    else :
+     else :
         new_file=str(onefs_version)+'.json'
         if(os.path.exists(new_file)):
             print('\n Do you want to replace your existing OAS  : '+os.getcwd()+'/'+new_file +' Enter your choice :[Y/N].')
