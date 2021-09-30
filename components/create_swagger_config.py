@@ -7,6 +7,7 @@ this config to create language bindings and documentation.
 """
 from json import JSONEncoder
 import argparse
+from builtins import input
 import codecs
 from collections import OrderedDict
 from copy import deepcopy
@@ -1822,7 +1823,7 @@ def main():
     else:
       if cached_schemas and not args.onefs_version and os.path.exists(os.getcwd()+'/papi_schemas/'+str(onefs_version)+'.json'):
         print('\nDo you want to overwrite existing schema - '+os.getcwd()+'/papi_schemas/'+str(onefs_version)+'.json'+' [Y/N] or [y/n] ')
-        ch=raw_input()
+        ch=input()[0]
         if(ch=='y' or ch=='Y'):
              with open(schemas_file, 'w+') as schemas:
                   schemas.write(json.dumps(
@@ -1830,7 +1831,7 @@ def main():
                 separators=(',', ': ')))
         elif(ch=='n' or ch=='N'):
                 print('\nPlease Enter the new file name : ')
-                new_name=raw_input()
+                new_name=input()
                 if new_name[-5:]!='.json' and new_name!=onefs_version:
                    new_name=new_name+'.json'
                    with open('papi_schemas/'+new_name, 'w+') as schemas:
@@ -1871,7 +1872,7 @@ def main():
         new_file=str(onefs_version)+'.json'
         if(os.path.exists(new_file)):
             print('\n Do you want to replace your existing OAS  : '+os.getcwd()+'/'+new_file +' Enter your choice :[Y/N].')
-            choice=raw_input()
+            choice=input()[0]
             if(choice=='y' or choice=='Y'):
                  with open(new_file, 'w') as output_file:
                     output_file.write(json.dumps(
