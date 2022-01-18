@@ -27,16 +27,30 @@ REQUIRES.append("tornado")
 setup(
     name=NAME,
     version=VERSION,
-    description="{{appName}}",
+    description="Python language bindings for managing OneFS clusters.",
+    maintainer="{{appName}}",
+    maintainer_email="{{infoEmail}}",
+    author="{{appName}}",
     author_email="{{infoEmail}}",
-    url="{{packageUrl}}",
-    keywords=["Swagger", "{{appName}}"],
+    url="https://github.com/Isilon/isilon_sdk_python",
+    keywords=["Swagger", "{{appName}}", "OneFS", "PowerScale"],
     install_requires=REQUIRES,
     packages=find_packages(),
     include_package_data=True,
     long_description="""\
 {{appDescription}}
-""".replace('PKG_NAME', NAME.replace('-', '_'))
+""".replace('PKG_NAME', NAME.replace('-', '_')),
+    project_urls={
+        "Source code": "https://github.com/Isilon/isilon_sdk",
+        "Documentation": "https://github.com/Isilon/isilon_sdk_python",
+    },
+    license='MIT',
+    classifiers = [
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3"
+    ],
+    python_requires='>=2.7',
 )
 {{/hasMore}}
 {{/apis}}

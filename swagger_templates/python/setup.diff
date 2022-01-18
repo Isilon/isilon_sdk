@@ -1,0 +1,28 @@
+30c30,33
+<     description="{{appName}}",
+---
+>     description="Python language bindings for managing OneFS clusters.",
+>     maintainer="{{appName}}",
+>     maintainer_email="{{infoEmail}}",
+>     author="{{appName}}",
+32,33c35,36
+<     url="{{packageUrl}}",
+<     keywords=["Swagger", "{{appName}}"],
+---
+>     url="https://github.com/Isilon/isilon_sdk_python",
+>     keywords=["Swagger", "{{appName}}", "OneFS", "PowerScale"],
+39c42,53
+< """.replace('PKG_NAME', NAME.replace('-', '_'))
+---
+> """.replace('PKG_NAME', NAME.replace('-', '_')),
+>     project_urls={
+>         "Source code": "https://github.com/Isilon/isilon_sdk",
+>         "Documentation": "https://github.com/Isilon/isilon_sdk_python",
+>     },
+>     license='MIT',
+>     classifiers = [
+>         "License :: OSI Approved :: MIT License",
+>         "Programming Language :: Python :: 2.7",
+>         "Programming Language :: Python :: 3"
+>     ],
+>     python_requires='>=2.7',
