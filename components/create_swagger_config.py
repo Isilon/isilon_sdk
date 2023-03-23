@@ -450,7 +450,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                     new_enum = []
                     break
                 # Swagger doesn't know how to interpret '@DEFAULT' values
-                elif item[0] != '@':
+                elif len(item) > 0 and item[0] != '@':
                     new_enum.append(item)
             if new_enum:
                 prop['enum'] = new_enum
@@ -1369,14 +1369,23 @@ def resolve_schema_issues(definition_name, isi_schema,
         #    if 'bits' in prop_name:
         #        del prop['maxItems']
         # Swagger-parser complains about 'Infinity', replace with max float value
-        elif (definition_name.find('QuotaQuota') != -1):
+        if (definition_name.find('QuotaQuota') != -1):
             if prop_name == 'efficiency_ratio':
                 props['efficiency_ratio']['maximum'] = 1.79769e+308
                 log.warning("Removing Infinity maximum: {}".format(definition_name))
             elif prop_name == 'reduction_ratio':
                 props['reduction_ratio']['maximum'] = 1.79769e+308
                 log.warning("Removing Infinity maximum: {}".format(definition_name))
-
+        if (definition_name.find('PerformanceSettings') != -1):
+            if ((prop_name == 'target_protocol_read_latency_usec') or
+                (prop_name == 'target_protocol_write_latency_usec')):
+                props[prop_name]['maximum'] = 1.79769e+308
+                log.warning("Removing Infinity maximum: {}, {}".format(definition_name, prop_name))
+        if (definition_name.find('PerformanceSettingsSettings') != -1):
+            if ((prop_name == 'target_protocol_read_latency_usec') or
+                (prop_name == 'target_protocol_write_latency_usec')):
+                props[prop_name]['maximum'] = 1.79769e+308
+                log.warning("Removing Infinity maximum: {}, {}".format(definition_name, prop_name))
 
 def main():
     """Main method for create_swagger_config executable."""

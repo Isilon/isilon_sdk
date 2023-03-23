@@ -81,7 +81,8 @@ def get_exclude_endpoints(papi_version):
                 '/7/sync/settings/advanced',
                 '/10/cluster/brand',
                 '/14/cluster-mode',
-                '/14/local/cluster/internal-networks/preferred-network'
+                '/14/local/cluster/internal-networks/preferred-network',
+                '/16/local/os/security'
                 ]
     if papi_version < 3:
             exclude_end_points.extend([
