@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.6
 '''
 Input: Cluster IP, USERNAME (Optional), Password (Optional)
 Output: PAPI_Schemas fetched from cluster. 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.6
 """
 generate_PAPIschemas_from_OneFSSource.py
 

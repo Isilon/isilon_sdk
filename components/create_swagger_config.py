@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.6
 """
 This script will print to stdout a swagger config based on the ?describe
 responses from the PAPI handlers on your cluster (specified by cluster name or
@@ -7,7 +7,10 @@ this config to create language bindings and documentation.
 """
 from json import JSONEncoder
 import argparse
-from builtins import input
+try:
+    import builtins
+except ImportError:
+    import __builtin__ as builtins
 import codecs
 from collections import OrderedDict
 from copy import deepcopy
@@ -1428,10 +1431,10 @@ def main():
     args = argparser.parse_args()
     if args.automation:
         if (not(args.host and args.output_file)):
-            print('\nPlease give appropriate arguments.'+'\n'+'Correct Usage : python/python3 create_swagger_config.py -i <cluster_ip> -o <output_file_path>'+' or python create_swagger_config.py -v <version> -o <output_filr_path>')
+            print('\nPlease give appropriate arguments.'+'\n'+'Correct Usage : python3 create_swagger_config.py -i <cluster_ip> -o <output_file_path>'+' or python3 create_swagger_config.py -v <version> -o <output_filr_path>')
             exit()
         elif (not(args.onefs_version and args.output_file) and not args.host):
-            print('\nPlease give appropriate arguments.'+'\n'+'Correct Usage : python/python3 create_swagger_config.py -i <cluster_ip> -o <output_file_path>'+' or python create_swagger_config.py -v <version> -o <output_filr_path>')
+            print('\nPlease give appropriate arguments.'+'\n'+'Correct Usage : python3 create_swagger_config.py -i <cluster_ip> -o <output_file_path>'+' or python3 create_swagger_config.py -v <version> -o <output_filr_path>')
             exit()
     log.basicConfig(
         format='%(asctime)s %(levelname)s - %(message)s',
