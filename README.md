@@ -22,18 +22,17 @@ This repository also includes tools to build PAPI bindings yourself for a large 
 
 #### Installing the package
 
-| Cluster Version       | Install Instruction         |
-|-----------------------|-----------------------------|
-| OneFS 9.1.0           | `pip install isi_sdk_9_1_0` |
-| OneFS 9.0.0           | `pip install isi_sdk_9_0_0` |
-| OneFS 8.2.2           | `pip install isi_sdk_8_2_2` |
-| OneFS 8.2.1           | `pip install isi_sdk_8_2_1` |
-| OneFS 8.2.0           | `pip install isi_sdk_8_2_0` |
-| OneFS 8.1.1           | `pip install isi_sdk_8_1_1` |
-| OneFS 8.1.0           | `pip install isi_sdk_8_1_0` |
-| OneFS 8.0.1           | `pip install isi_sdk_8_0_1` |
-| OneFS 8.0             | `pip install isi_sdk_8_0`   |
-| OneFS 7.2             | `pip install isi_sdk_7_2`   |
+`pip install isilon_sdk`
+
+| Cluster Version Supported   | Module Name                 |
+|-----------------------------|-----------------------------|
+| OneFS 9.5.0.0               | `isilon_sdk.v9_5_0` |
+| OneFS 9.4.0.0               | `isilon_sdk.v9_4_0` |
+| OneFS 9.3.0.0               | `isilon_sdk.v9_3_0` |
+| OneFS 9.2.1.0               | `isilon_sdk.v9_2_1` |
+| OneFS 9.2.0.0               | `isilon_sdk.v9_2_0` |
+| OneFS 9.1.0.0               | `isilon_sdk.v9_1_0` |
+| OneFS 9.0.0.0               | `isilon_sdk.v9_0_0` |
 
 Installation will default to using binary distribution wheel (i.e. bdist). Source distributions (i.e. sdist) are also available on pip beginning with v0.1.6 and can be installed with `pip install --no-binary :all: <pkg name>`
 
@@ -41,25 +40,7 @@ Installation will default to using binary distribution wheel (i.e. bdist). Sourc
 
 See the generated packages on PyPI for example code:
 
-[isi\_sdk\_9\_1\_0](https://pypi.org/project/isi-sdk-9-1-0)
-
-[isi\_sdk\_9\_0\_0](https://pypi.org/project/isi-sdk-9-0-0)
-
-[isi\_sdk\_8\_2\_2](https://pypi.org/project/isi-sdk-8-2-2)
-
-[isi\_sdk\_8\_2\_1](https://pypi.org/project/isi-sdk-8-2-1)
-
-[isi\_sdk\_8\_2\_0](https://pypi.org/project/isi-sdk-8-2-0)
-
-[isi\_sdk\_8\_1\_1](https://pypi.org/pypi/isi-sdk-8-1-1)
-
-[isi\_sdk\_8\_1\_0](https://pypi.org/pypi/isi-sdk-8-1-0)
-
-[isi\_sdk\_8\_0\_1](https://pypi.org/pypi/isi-sdk-8-0-1)
-
-[isi\_sdk\_8\_0](https://pypi.org/pypi/isi-sdk-8-0)
-
-[isi\_sdk\_7\_2](https://pypi.org/pypi/isi-sdk-7-2)
+[isilon\_sdk](https://pypi.org/project/isilon-sdk)
 
 ### Bindings Documentation
 

@@ -3,7 +3,7 @@ This package is part of the Isilon SDK.  It includes language bindings for easie
 
 ## Installation
 
-`pip install PKG_NAME`
+`pip install isilon-sdk`
 
 ## Documentation
 
@@ -17,7 +17,7 @@ Here's an example of using the Python PAPI bindings to retrieve a list of NFS ex
 from pprint import pprint
 import urllib3
 
-import PKG_NAME
+import isilon_sdk.v9_5_0 as PKG_NAME
 from PKG_NAME.rest import ApiException
 
 urllib3.disable_warnings()
