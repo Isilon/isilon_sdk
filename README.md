@@ -22,7 +22,7 @@ This repository also includes tools to build PAPI bindings yourself for a large 
 
 #### Installing the package
 
-`pip install isilon_sdk`
+`pip install isilon-sdk`
 
 | Cluster Version Supported   | Module Name                 |
 |-----------------------------|-----------------------------|
