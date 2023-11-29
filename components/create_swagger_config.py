@@ -37,6 +37,7 @@ NON_REQUIRED_PROPS = {
     'SummaryHeatHeatItem': ['event_type', 'lin', 'node'],
     'SummaryProtocolProtocolItem': ['node'],
     'SummarySystemSystemItem': ['iscsi'],
+    'QuotaQuota': ['description', 'labels'],
 }
 
 MISSING_POST_RESPONSE = {
