@@ -1390,6 +1390,28 @@ def resolve_schema_issues(definition_name, isi_schema,
                 (prop_name == 'target_protocol_write_latency_usec')):
                 props[prop_name]['maximum'] = 1.79769e+308
                 log.warning("Removing Infinity maximum: {}, {}".format(definition_name, prop_name))
+        # Issue 67: Regex fail on supportassist settings on primary contact while getting 
+        # details of Support Assist
+        if definition_name.startswith('SupportassistSettings'):
+            if prop_name == 'first_name' and 'pattern' in prop:
+                prop['pattern'] = prop['pattern'].replace( "[\\p{L}\\p{M}*\\-\\.\\' ]*", "[a-zA-Z]*[\\-\\.\\']*")
+                log.warning("Modified regex pattern")
+            elif prop_name == 'last_name' and 'pattern' in prop:
+                prop['pattern'] = prop['pattern'].replace("[\\p{L}\\p{M}*\\-\\.\\' ]*","[a-zA-Z]*[\\-\\.\\']*")
+                log.warning("Modified regex pattern")
+            elif prop_name == 'email':
+                if 'default' in prop:
+                    if prop['pattern'] == "^[a-zA-Z0-9._%-]+@([a-zA-Z0-9-]+\\.)+[a-zA-Z0-9]+$":
+                        del prop['default']
+                        log.warning("Deleted default value for email")
+            elif prop_name == 'phone':
+                if 'default' in prop:
+                    if prop['pattern'] == "([\\.\\-\\+\\/\\sxX]*([0-9]+|[\\(\\d+\\)])+)+":
+                        del prop['default']
+                        log.warning("Deleted default value for phone")
+            elif prop_name.__eq__("language"):
+                    props["language"] = "En"
+                    log.info("Modified language value")
 
 def main():
     """Main method for create_swagger_config executable."""
