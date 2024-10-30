@@ -37,7 +37,7 @@ NON_REQUIRED_PROPS = {
     'SummaryHeatHeatItem': ['event_type', 'lin', 'node'],
     'SummaryProtocolProtocolItem': ['node'],
     'SummarySystemSystemItem': ['iscsi'],
-    'QuotaQuota': ['description', 'labels']
+    'QuotaQuota': ['description', 'labels'],
 }
 
 MISSING_POST_RESPONSE = {
@@ -1385,6 +1385,15 @@ def resolve_schema_issues(definition_name, isi_schema,
                 (prop_name == 'target_protocol_write_latency_usec')):
                 props[prop_name]['maximum'] = 1.79769e+308
                 log.warning("Removing Infinity maximum: {}, {}".format(definition_name, prop_name))
+            elif prop_name == 'target_protocol_write_latency_usec':
+                props['target_protocol_write_latency_usec']['maximum'] = 1.79769e+308
+                log.warning("Removing Infinity maximum: {}".format(definition_name))
+            elif prop_name == 'impact_multiplier':
+                props["impact_multiplier"]["properties"]["impact_high"]['maximum'] = 1.79769e+308
+                props["impact_multiplier"]["properties"]["impact_low"]['maximum'] = 1.79769e+308
+                props["impact_multiplier"]["properties"]["impact_unset"]['maximum'] = 1.79769e+308
+                props["impact_multiplier"]["properties"]["impact_medium"]['maximum'] = 1.79769e+308
+                log.warning("Removing Infinity maximum: {}".format(definition_name))
         if (definition_name.find('PerformanceSettingsSettings') != -1):
             if ((prop_name == 'target_protocol_read_latency_usec') or
                 (prop_name == 'target_protocol_write_latency_usec')):
