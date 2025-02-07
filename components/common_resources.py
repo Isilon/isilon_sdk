@@ -124,7 +124,9 @@ def get_exclude_endpoints(papi_version):
                 '/3/cluster/email/default-template',
                 '/3/local/cluster/version',
                 # ?describe output missing for endpoint
-                '/11/local/avscan/nodes/<LNN>/status'
+                '/11/local/avscan/nodes/<LNN>/status',
+                '/20/versiontest/settings',
+                '/21/versiontest/settings'
             ])
     return exclude_end_points
 
