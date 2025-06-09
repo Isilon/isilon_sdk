@@ -107,6 +107,12 @@
                     "in": "query",
                     "name": "nsaccess",
                     "type": "boolean"
+                },
+                {
+                    "description": "Specifies the access zone name.",
+                    "in": "query",
+                    "name": "zone",
+                    "type": "string"
                 }
             ],
             "responses": {
@@ -144,6 +150,12 @@
                     "in": "query",
                     "name": "nsaccess",
                     "type": "boolean"
+                },
+                {
+                    "description": "Specifies the access zone name.",
+                    "in": "query",
+                    "name": "zone",
+                    "type": "string"
                 },
                 {
                     "description": "Namespace ACL parameters model.",
@@ -622,6 +634,12 @@
                     "name": "metadata",
                     "required": true,
                     "type": "boolean"
+                },
+                {
+                    "description": "Specifies the access zone name.",
+                    "in": "query",
+                    "name": "zone",
+                    "type": "string"
                 }
             ],
             "responses": {
@@ -653,6 +671,12 @@
                     "name": "metadata",
                     "required": true,
                     "type": "boolean"
+                },
+                {
+                    "description": "Specifies the access zone name.",
+                    "in": "query",
+                    "name": "zone",
+                    "type": "string"
                 },
                 {
                     "description": "Directory metadata parameters model.",
@@ -999,6 +1023,12 @@
                     "name": "metadata",
                     "required": true,
                     "type": "boolean"
+                },
+                {
+                    "description": "Specifies the access zone name.",
+                    "in": "query",
+                    "name": "zone",
+                    "type": "string"
                 }
             ],
             "responses": {
@@ -1030,6 +1060,12 @@
                     "name": "metadata",
                     "required": true,
                     "type": "boolean"
+                },
+                {
+                    "description": "Specifies the access zone name.",
+                    "in": "query",
+                    "name": "zone",
+                    "type": "string"
                 },
                 {
                     "description": "File metadata parameters model.",

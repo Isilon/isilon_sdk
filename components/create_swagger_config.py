@@ -501,7 +501,7 @@ def isi_schema_to_swagger_object(isi_obj_name_space, isi_obj_name,
                     codecs.unicode_escape_encode(codecs
                                                  .unicode_escape_decode(
                         prop['pattern'])[0])[0]
-    # attach required props
+
     if required_props:
         isi_schema['required'] = required_props
     elif 'required' in isi_schema:
@@ -1401,12 +1401,12 @@ def resolve_schema_issues(definition_name, isi_schema,
                 log.warning("Removing Infinity maximum: {}, {}".format(definition_name, prop_name))
         # Issue 67: Regex fail on supportassist settings on primary contact while getting 
         # details of Support Assist
-        if definition_name.startswith('SupportassistSettings'):
+        if definition_name.startswith('SupportassistSettings') or definition_name.startswith('ConnectivitySettings'):
             if prop_name == 'first_name' and 'pattern' in prop:
-                prop['pattern'] = prop['pattern'].replace( "[\\p{L}\\p{M}*\\-\\.\\' ]*", "[a-zA-Z]*[\\-\\.\\']*")
+                prop['pattern'] = prop['pattern'].replace( "[\\p{L}\\p{M}*\\-\\.\\' ]*", "[a-zA-Z]*[-.']*")
                 log.warning("Modified regex pattern")
             elif prop_name == 'last_name' and 'pattern' in prop:
-                prop['pattern'] = prop['pattern'].replace("[\\p{L}\\p{M}*\\-\\.\\' ]*","[a-zA-Z]*[\\-\\.\\']*")
+                prop['pattern'] = prop['pattern'].replace("[\\p{L}\\p{M}*\\-\\.\\' ]*", "[a-zA-Z]*[-.']*")
                 log.warning("Modified regex pattern")
             elif prop_name == 'email':
                 if 'default' in prop:
@@ -1421,6 +1421,14 @@ def resolve_schema_issues(definition_name, isi_schema,
             elif prop_name.__eq__("language"):
                     props["language"] = "En"
                     log.info("Modified language value")
+        # Issue 35 : Getting changelist entries fails if physical or size of file is > 4GB
+        if definition_name.startswith('ChangelistEntry'):
+            if prop_name == 'physical_size' and 'maximum' in prop:
+                del prop['maximum']
+                log.warning("Deleted maximum value for physical_size")
+            if prop_name == 'size' and 'maximum' in prop:
+                del prop['maximum']
+                log.warning("Deleted maximum value for size")
 
 def main():
     """Main method for create_swagger_config executable."""
@@ -1754,6 +1762,9 @@ def main():
             if isinstance(value, bytes):
               return str(value)
             return super(TMCSerializer, self).default(value)
+
+    fix_regex_issues(swagger_defs = swagger_json['definitions'])
+
     if args.automation:
         with open(args.output_file, 'w') as output_file:
          output_file.write(json.dumps(
@@ -1780,7 +1791,149 @@ def main():
               with open(new_file, 'w') as output_file:
                    output_file.write(json.dumps(
            swagger_json,cls=TMCSerializer, sort_keys=True, indent=4, separators=(',', ': ')))
+def fix_regex_issues(swagger_defs):
+    for definition_name,definition_body in swagger_defs.items():
+        if 'properties' in definition_body:
+            for prop_name,prop in definition_body['properties'].items():
+                                    
+                if definition_name.startswith('EventChannel'):
+                    if prop_name == 'custom_template' and 'pattern' in prop:
+                        prop['pattern'] = prop["pattern"].replace("^((\\/[^\\/[:cntrl:]]+)(\\/?))*$", "^((\\/[^\\/]+)(\\/?))*$")
+                        log.warning("Modified regex pattern")
+                    
+                if definition_name.startswith('Provider'):
+                    if prop_name == 'home_directory_template' and 'pattern' in prop:
+                        prop['pattern'] = prop["pattern"].replace("^((\\/[^\\/[:cntrl:]]+)(\\/?))*$", "^((\\/[^\\/]+)(\\/?))*$")
+                        log.warning("Modified regex pattern")
+                    if prop_name in ["email","tls_protocol_min"] and 'pattern' in prop:
+                        prop['pattern'] = prop["pattern"].replace("\\.","[.]")
+                        log.warning("Modified regex pattern")
+                if definition_name.startswith("ClusterEmail"):
+                    if prop_name in ["mail_relay", "mail_sender"] and 'pattern' in prop:
+                        prop['pattern'] = prop["pattern"].replace("\\.","[.]")
+                        log.warning("Modified regex pattern")
+                    if prop_name == "smtp_auth_username" and 'pattern' in prop:
+                        if prop['pattern'] == "^[^]\"/\\[\\:;|=,+*?<>$]+":
+                            prop['pattern'] = "^[a-zA-Z0-9!@#%^&(){}~`_ .-]+$"
+                            log.warning("Modified regex pattern")
+                if definition_name.startswith("SnmpSettings"):
+                    if prop_name == "system_contact" and 'pattern' in prop:
+                        prop['pattern'] = prop["pattern"].replace("\\.","[.]")
+                        log.warning("Modified regex pattern")
+                if definition_name.startswith("DiagnosticsGather"):
+                    relevant_props = {"ftp_upload_proxy", "ftp_upload_host" ,"http_upload_host" ,"http_upload_proxy"}
+                    if prop_name in relevant_props and 'pattern' in prop:
+                        prop['pattern'] = prop["pattern"].replace("\\.", "[.]")
+                        log.warning("Modified regex pattern")
 
+                if definition_name.startswith("GroupnetSubnet"):
+                    relevant_props = {"sc_service_name" ,"sc_service_addrs" , "high" , "low"}
+                    if prop_name in relevant_props and 'pattern' in prop:
+                        prop['pattern'] = prop["pattern"].replace("\\.", "[.]")
+                        log.warning("Modified regex pattern")
+                    if prop_name == "dsr_addrs" and "items" in prop:
+                        if "pattern" in prop["items"]:
+                            prop["items"]["pattern"] = prop["items"]["pattern"].replace("\\.", "[.]")
+                            log.warning("Modified regex pattern")
+                if definition_name.startswith("SubnetsSubnet"):
+                    relevant_props = {"sc_dns_zone" ,"sc_service_addrs" , "high" , "low" , "gateway" , "subnet"}
+                    if prop_name in relevant_props and 'pattern' in prop:
+                        prop['pattern'] = prop["pattern"].replace("\\.", "[.]")
+                        log.warning("Modified regex pattern")
+                    if prop_name == "sc_dns_zone_aliases" and "items" in prop:
+                        if "pattern" in prop["items"]:
+                            prop["items"]["pattern"] = prop["items"]["pattern"].replace("\\.", "[.]")
+                            log.warning("Modified regex pattern")
+                if definition_name.startswith("ConfigNetwork"):
+                    relevant_props = {"high" ,"low" ,"gateway"}
+                    if prop_name in relevant_props and 'pattern' in prop:
+                        prop['pattern'] = prop["pattern"].replace("\\.", "[.]")
+                        log.warning("Modified regex pattern")
+                if definition_name.startswith("Network"):
+                    relevant_props = {"ipv4_gateway" ,"sc_dns_zone"}
+                    if prop_name in relevant_props and 'pattern' in prop:
+                        prop['pattern'] = prop["pattern"].replace("\\.", "[.]")
+                        log.warning("Modified regex pattern")
+                    relevant_props = {"dns_search" ,"dns_servers" , "ip_addrs" , "sc_dns_zone_aliases" , "gateway" , "subnet"}
+                    if prop_name in relevant_props and "items" in prop:
+                        if "pattern" in prop["items"]:
+                            prop["items"]["pattern"] = prop["items"]["pattern"].replace("\\.", "[.]")
+                            log.warning("Modified regex pattern")
+                if definition_name.startswith("ClusterMode"):
+                    relevant_props = ["cloud_storage_console" , "monitoring" , "staas_mode_enabled" , "support"]
+                    if prop_name in relevant_props and 'pattern' in prop:
+                        prop['pattern'] = prop["pattern"].replace("-\\.", "-.").replace("\\.", "[.]").replace("\\:", "[:]")
+                        log.warning("Modified regex pattern")
+                if definition_name.startswith("ClusterNode") or definition_name.startswith("NodeInternalIp") or definition_name.startswith("NodesNodeInternal"):
+                    if prop_name == "internal_ip_address":
+                        prop['pattern'] = prop["pattern"].replace("\\.", "[.]")
+                        log.warning("Modified regex pattern")
+                if definition_name.startswith("ConfigNode"):
+                    if prop_name == "ip_addr":
+                        prop['pattern'] = prop["pattern"].replace("\\.", "[.]")
+                        log.warning("Modified regex pattern")
+                if definition_name.startswith("DiagnosticsNetlogger"):
+                    if prop_name == "clients" and 'pattern' in prop:
+                        prop['pattern'] = prop["pattern"].replace("\\.", "[.]")
+                        log.warning("Modified regex pattern")
+                if definition_name.startswith("Healthcheck"):
+                    if prop_name == "address" and "items" in prop:
+                        if "pattern" in prop["items"]:
+                            prop["items"]["pattern"] = prop["items"]["pattern"].replace("\\.", "[.]")
+                            log.warning("Modified regex pattern")
+                if definition_name.startswith("PoliciesPolicy"):
+                    if prop_name == "src_networks" and "items" in prop:
+                        if "pattern" in prop["items"]:
+                            prop["items"]["pattern"] = prop["items"]["pattern"].replace("\\.", "[.]")
+                            log.warning("Modified regex pattern")
+                if definition_name.startswith("PoolsPool"):
+                    if prop_name == "ip_addrs" and "items" in prop:
+                        if "pattern" in prop["items"]:
+                            prop["items"]["pattern"] = prop["items"]["pattern"].replace("\\.", "[.]")
+                            log.warning("Modified regex pattern")
+                if definition_name.startswith("S3SettingsZone"):
+                    if prop_name == "base_domain" and "pattern" in prop:
+                        prop["pattern"] = prop["pattern"].replace("\\.", "[.]")
+                        log.warning("Modified regex pattern")
+                if definition_name.startswith("SshSettings"):
+                    relevant_props = ["ca_signature_algorithms" , "ciphers" , "host_key_algorithms" , "macs" , "kex_algorithms" , "pubkey_accepted_key_types"]
+                    if prop_name in relevant_props and "pattern" in prop:
+                        prop["pattern"] = prop["pattern"].replace("\\.", "[.]").replace("\\+", "[+]")
+                        log.warning("Modified regex pattern")
+                    if prop_name == "subsystem" and "pattern" in prop:
+                        del prop["pattern"]
+                        log.warning("Removed regex pattern")
+                if definition_name.startswith('SupportassistSettings') or definition_name.startswith('ConnectivitySettings'):
+                    if prop_name == "host" and "pattern" in prop:
+                        prop["pattern"] = prop["pattern"].replace("\\.", "[.]")
+                        log.warning("Modified regex pattern")
+                    if prop_name == "email" and "pattern" in prop:
+                        prop["pattern"] = prop["pattern"].replace("\\.", "[.]")
+                        log.warning("Modified regex pattern")
+                    if prop_name == "phone" and "pattern" in prop:
+                        if "pattern" in prop:
+                            del prop['pattern']
+                            log.warning("Deleted regex pattern for phone")
+                        if "default" in prop:
+                            del prop['default']
+                            log.warning("Deleted default value for phone")
+                
+        else:
+            if "allOf" in definition_body:
+                for allOf_item in definition_body["allOf"]:
+                    if "properties" in allOf_item:
+                        for prop_name,prop in allOf_item["properties"].items():
+                            if definition_name == "FirewallRule":
+                                if prop_name == "internal_ip_address" and 'pattern' in prop:
+                                    prop['pattern'] = prop["pattern"].replace("\\/", "[/]")
+                                    log.warning("Modified regex pattern")
+                                if prop_name == "src_networks" and 'items' in prop:
+                                    if 'pattern' in prop['items'] and 'pattern' in prop['items']:
+                                        prop['items']['pattern'] = prop['items']['pattern'].replace("\\.", "[.]")
+                                        log.warning("Modified regex pattern")
+                            if definition_name.startswith("ClusterInternal"):
+                                if prop_name in ["high" , "low"] and 'pattern' in prop:
+                                    prop['pattern'] = prop["pattern"].replace("\\.", "[.]")
+                                    log.warning("Modified regex pattern") 
 if __name__ == '__main__':
     main()
-
