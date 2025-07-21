@@ -1,52 +1,78 @@
-[![Build Status](https://travis-ci.org/Isilon/isilon_sdk.svg?branch=master)](https://travis-ci.org/Isilon/isilon_sdk)
-[![](http://issuestats.com/github/isilon/isilon_sdk/badge/pr?style=flat-square)](http://issuestats.com/github/isilon/isilon_sdk)
-[![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/isilon/isilon_sdk.svg)](http://isitmaintained.com/project/isilon/isilon_sdk "Average time to resolve an issue")
-[![Percentage of issues still open](http://isitmaintained.com/badge/open/isilon/isilon_sdk.svg)](http://isitmaintained.com/project/isilon/isilon_sdk "Percentage of issues still open")
+About
+-----
+
+This package is part of the Isilon SDK. It includes language bindings
+for easier programmatic access to the OneFS API for cluster
+configuration (on your cluster this is the REST API made up of all the
+URIs underneath ``https://[cluster]:8080/platform/*``, also called the
+"Platform API" or "PAPI"). The SDK also includes language bindings for
+the OneFS RAN (i.e. RESTful Access to Namespace) interface, which
+provides access to the OneFS filesystem namespace.
+
+Installation
+------------
+
+``pip install isilon_sdk``
+
+Example program
+---------------
+
+Please select the subpackage as applicable to the OneFS version of your
+cluster by referring to the below table:
 
 
-# Isilon Software Development Kit (isi-sdk)
-Language bindings for the OneFS API and tools for building them
+OneFS Version and respective package names are as:
 
-This repository is part of the Isilon SDK.  It includes language bindings for easier programmatic access to the OneFS API for cluster configuration (on your cluster this is the REST API made up of all the URIs underneath `https://[cluster]:8080/platform/*`, also called the "Platform API" or "PAPI"). The SDK also includes language bindings for the OneFS RAN (i.e. RESTful Access to Namespace) interface, which provides access to the OneFS filesystem namespace.
+============= ==================
+OneFS Release Package Name      
+9.5.0.0       isilon_sdk.v9_5_0 
+9.6.0.0       isilon_sdk.v9_6_0 
+9.7.0.0       isilon_sdk.v9_7_0 
+9.8.0.0       isilon_sdk.v9_8_0 
+9.9.0.0       isilon_sdk.v9_9_0 
+9.10.0.0      isilon_sdk.v9_10_0
+9.11.0.0      isilon_sdk.v9_11_0
+9.12.0.0      isilon_sdk.v9_12_0
+============= ==================
 
-You can download the language bindings for Python from the "releases" page of this repo (the link is on the main "code" tab on the bar of links just below the project description). If you just want to access PAPI more easily from your Python programs, these language bindings may be all you need, and you can follow the instructions and example below to get started.
+Here’s an example of using the Python PAPI bindings to retrieve a list
+of NFS exports from your clusters
 
-This repository also includes tools to build PAPI bindings yourself for a large range of other programming languages. For more info see the [readme.dev.md](readme.dev.md) file in this directory.
+::
 
-### Installing the pre-built Python PAPI bindings
+   from __future__ import print_function
 
-#### Prerequisites
+   from pprint import pprint
+   import time
+   import urllib3
 
-* [Python](https://www.python.org/downloads/) 2.7 or later
-* [pip](https://pip.pypa.io/en/stable/installing/)
+   import isilon_sdk.v9_12_0
+   from isilon_sdk.v9_12_0.rest import ApiException
 
-#### Installing the package
+   urllib3.disable_warnings()
 
-`pip install isilon-sdk`
+   # configure cluster connection: basicAuth
+   configuration = isilon_sdk.v9_12_0.Configuration()
+   configuration.host = 'https://<NODE_IP>:8080'
+   configuration.username = 'root'
+   configuration.password = 'a'
+   configuration.verify_ssl = False
 
-| Cluster Version Supported   | Module Name                 |
-|-----------------------------|-----------------------------|
-| OneFS 9.5.0.0               | `isilon_sdk.v9_5_0` |
-| OneFS 9.4.0.0               | `isilon_sdk.v9_4_0` |
-| OneFS 9.3.0.0               | `isilon_sdk.v9_3_0` |
-| OneFS 9.2.1.0               | `isilon_sdk.v9_2_1` |
-| OneFS 9.2.0.0               | `isilon_sdk.v9_2_0` |
-| OneFS 9.1.0.0               | `isilon_sdk.v9_1_0` |
-| OneFS 9.0.0.0               | `isilon_sdk.v9_0_0` |
+   # create an instance of the API class
+   api_client = isilon_sdk.v9_12_0.ApiClient(configuration)
+   api_instance = isilon_sdk.v9_12_0.ProtocolsApi(api_client)
 
-Installation will default to using binary distribution wheel (i.e. bdist). Source distributions (i.e. sdist) are also available on pip beginning with v0.1.6 and can be installed with `pip install --no-binary :all: <pkg name>`
+   # get all exports
+   sort = 'description'
+   limit = 50
+   order = 'ASC'
+   try:
+       api_response = api_instance.list_nfs_exports(sort=sort, limit=limit, dir=order)
+       pprint(api_response)
+   except ApiException as e:
+       print("Exception when calling ProtocolsApi->list_nfs_exports: %s\n" % e)
 
-### Basic Usage
-
-See the generated packages on PyPI for example code:
-
-[isilon\_sdk](https://pypi.org/project/isilon-sdk)
-
-### Bindings Documentation
-
-The most up-to-date documentation for the language bindings is included in the root directory of your downloaded release package (or of your own generated bindings if you've generated your own using the instructions at [readme.dev.md](readme.dev.md)). It is a set of markdown files starting with the README.md in the root directory of the package. Otherwise, the documentation for the Python language bindings can be found in the [isilon_sdk_python](https://github.com/Isilon/isilon_sdk_python) repository where the branch names are associated with the OneFS release that the bindings were built against.
-
-### Other Isilon SDK and API links:
-
-* For OneFS API reference documents, discussions, and blog posts, refer to the [Isilon SDK Info Hub](https://community.emc.com/docs/DOC-48273).
-* To browse the Isilon InsightIQ statistics API, refer to the [Stat Key Browser](https://github.com/isilon/isilon_stat_browser.git) Github repository.
+More Info
+---------------
+See the Github repo for more information:
+https://github.com/isilon/isilon_sdk
